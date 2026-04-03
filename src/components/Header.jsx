@@ -24,13 +24,13 @@ export default function Header({ selectedDateStr, onSelectDate, refreshTrigger }
     // Eğer nextWk, activeDate'den büyükse (hafta başlangıcı bazında) geçme:
     // Pazar gününden sonrasını engelleme vs.
     if (isAfter(nextWk, addWeeks(getActiveDateObj(), 0))) {
-        // Tam engelleme yapmıyoruz ama ilerideki tamamen boş haftaya geçilmesin
-        // Gelecek engeli:
-        const { start: activeStart } = getWeekDays(getActiveDateObj());
-        const { start: nextStart } = getWeekDays(nextWk);
-        if (isAfter(nextStart, activeStart)) {
-            return; // İzin verme
-        }
+      // Tam engelleme yapmıyoruz ama ilerideki tamamen boş haftaya geçilmesin
+      // Gelecek engeli:
+      const { start: activeStart } = getWeekDays(getActiveDateObj());
+      const { start: nextStart } = getWeekDays(nextWk);
+      if (isAfter(nextStart, activeStart)) {
+        return; // İzin verme
+      }
     }
     setWeekBaseDate(nextWk);
   };
@@ -44,7 +44,7 @@ export default function Header({ selectedDateStr, onSelectDate, refreshTrigger }
 
   return (
     <div className="header-container glass-card" style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingBottom: "16px" }}>
-      
+
       <div className="summary-header">
         <button onClick={handlePrevWeek} style={{ background: 'transparent', border: 'none', color: 'white' }}>
           <ChevronLeft size={28} />
@@ -60,9 +60,9 @@ export default function Header({ selectedDateStr, onSelectDate, refreshTrigger }
           const score = calculateDayScore(d.dateStr);
           const offset = circleCircumference - (score / 100) * circleCircumference;
           const isActive = d.dateStr === selectedDateStr;
-          
+
           return (
-            <div 
+            <div
               key={index}
               className={`day-circle ${isActive ? 'active' : ''} ${d.isToday ? 'is-today' : ''}`}
               onClick={() => onSelectDate(d.dateStr)}
@@ -88,3 +88,4 @@ export default function Header({ selectedDateStr, onSelectDate, refreshTrigger }
     </div>
   );
 }
+

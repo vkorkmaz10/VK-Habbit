@@ -142,6 +142,18 @@ export const addTodoTask = (dateStr, task) => {
   saveRawData(raw);
 };
 
+export const insertTodoTaskAt = (dateStr, task, index) => {
+  const raw = getRawData();
+  if (!raw.days[dateStr]) {
+    raw.days[dateStr] = { w: null, c: getDefaultChecks(), m: [], t: [] };
+  }
+  if (!raw.days[dateStr].t) raw.days[dateStr].t = [];
+  if (!task.createdAt) task.createdAt = dateStr;
+  const safeIndex = Math.min(index, raw.days[dateStr].t.length);
+  raw.days[dateStr].t.splice(safeIndex, 0, task);
+  saveRawData(raw);
+};
+
 export const updateTodoTask = (dateStr, taskId, updates) => {
   const raw = getRawData();
   if (!raw.days[dateStr] || !raw.days[dateStr].t) return;

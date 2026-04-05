@@ -1,7 +1,27 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Plus, X, Brain, Zap, Users, LayoutList, LayoutGrid, Trash2, RotateCcw, Play, Pause, Timer } from 'lucide-react';
-import { getTodoTasks, addTodoTask, updateTodoTask, removeTodoTask, calculateTodoScore, getActivePomodoro, setActivePomodoro, clearActivePomodoro } from '../utils/storage';
+import { getTodoTasks, addTodoTask, insertTodoTaskAt, updateTodoTask, removeTodoTask, calculateTodoScore, getActivePomodoro, setActivePomodoro, clearActivePomodoro } from '../utils/storage';
 import { getActiveDateString } from '../utils/date';
+
+// Pomodoro alarm sound using Web Audio API
+function playAlarmSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const notes = [784, 988, 784, 988, 1175]; // G5, B5, G5, B5, D6
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.2);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.2 + 0.18);
+      osc.start(ctx.currentTime + i * 0.2);
+      osc.stop(ctx.currentTime + i * 0.2 + 0.2);
+    });
+  } catch (e) { /* Audio not available */ }
+}
 
 const MODE_CONFIG = {
   quick: { label: 'Hemen Hallet', icon: Zap, emoji: '⚡', color: '#00d4ff' },
@@ -33,6 +53,7 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
   const [delegateName, setDelegateName] = useState('');
   const [confirmModal, setConfirmModal] = useState(null);
   const [pomodoroCompleteModal, setPomodoroCompleteModal] = useState(null);
+  const [showPomoPopup, setShowPomoPopup] = useState(false);
   const [editModal, setEditModal] = useState(null); // { task }
   const [editText, setEditText] = useState('');
   const [editWho, setEditWho] = useState('');
@@ -40,6 +61,10 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
   const editInputRef = useRef(null);
   const longPressTimer = useRef(null);
   const longPressTriggered = useRef(false);
+  const snackbarTimer = useRef(null);
+
+  // Snackbar undo state
+  const [snackbar, setSnackbar] = useState(null); // { task, dateStr }
 
   const todayStr = getActiveDateString();
   const isPastDay = selectedDateStr < todayStr;
@@ -78,6 +103,7 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
         if (newTime <= 0) {
           clearActivePomodoro();
           setPomodoroCompleteModal({ taskId: prev.taskId, dateStr: prev.dateStr });
+          playAlarmSound();
           return null;
         }
         const updated = { ...prev, timeLeft: newTime, lastTimestamp: Date.now() };
@@ -114,8 +140,11 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
   }, [selectedDateStr, onDataChange]);
 
   const filteredTasks = useMemo(() => {
-    if (activeMode === null) return tasks;
-    return tasks.filter(t => t.size === activeMode);
+    let filtered = activeMode === null ? [...tasks] : tasks.filter(t => t.size === activeMode);
+    // Tamamlanmayanlar orijinal sırada üstte, tamamlananlar altta
+    const incomplete = filtered.filter(t => !t.done);
+    const completed = filtered.filter(t => t.done);
+    return [...incomplete, ...completed];
   }, [tasks, activeMode]);
 
   // ======= Pomodoro Handlers =======
@@ -130,6 +159,7 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
     };
     setActivePomodoro(data);
     setPomodoro(data);
+    setShowPomoPopup(true);
   }, [selectedDateStr]);
 
   const pausePomodoro = useCallback(() => {
@@ -153,6 +183,7 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
   const cancelPomodoro = useCallback(() => {
     clearActivePomodoro();
     setPomodoro(null);
+    setShowPomoPopup(false);
   }, []);
 
   // ======= Task Handlers =======
@@ -237,7 +268,26 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
       clearActivePomodoro();
       setPomodoro(null);
     }
+    // Silinen task'ı ve orijinal index'ini sakla (undo için)
+    const taskIndex = tasks.findIndex(t => t.id === taskId);
+    const deletedTask = taskIndex >= 0 ? tasks[taskIndex] : null;
     removeTodoTask(selectedDateStr, taskId);
+    onDataChange?.();
+
+    if (deletedTask) {
+      if (snackbarTimer.current) clearTimeout(snackbarTimer.current);
+      setSnackbar({ task: deletedTask, dateStr: selectedDateStr, index: taskIndex });
+      snackbarTimer.current = setTimeout(() => {
+        setSnackbar(null);
+      }, 5000);
+    }
+  };
+
+  const handleUndo = () => {
+    if (!snackbar) return;
+    insertTodoTaskAt(snackbar.dateStr, snackbar.task, snackbar.index);
+    setSnackbar(null);
+    if (snackbarTimer.current) clearTimeout(snackbarTimer.current);
     onDataChange?.();
   };
 
@@ -260,9 +310,9 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
     <div className="fade-in" style={{ position: 'relative', minHeight: '60vh' }}>
 
       {/* ========== Pomodoro Overlay Pop-up ========== */}
-      {pomodoro && (
-        <div className="pomo-overlay">
-          <div className="pomo-popup glass-card">
+      {pomodoro && showPomoPopup && (
+        <div className="pomo-overlay" onClick={() => setShowPomoPopup(false)}>
+          <div className="pomo-popup glass-card" onClick={e => e.stopPropagation()}>
             <div className="pomo-popup-header">
               <Timer size={18} className="pomo-timer-icon" />
               <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>POMODORO</span>
@@ -403,12 +453,20 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
                 {/* Pomodoro Start Button — Sadece focus, tamamlanmamış, ve bugünün tasklarında */}
                 {task.size === 'focus' && !task.done && !isPastDay && (
                   <button
-                    className="pomo-start-btn"
-                    onClick={(e) => { e.stopPropagation(); startPomodoro(task.id); }}
-                    disabled={pomodoro !== null}
-                    title="Çalışmaya Başla"
+                    className={`pomo-start-btn ${isPomoActive ? 'pomo-active-btn' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isPomoActive) {
+                        // Aktif pomodoro'nun popup'ını tekrar aç
+                        setShowPomoPopup(true);
+                      } else if (!pomodoro) {
+                        startPomodoro(task.id);
+                      }
+                    }}
+                    disabled={pomodoro !== null && !isPomoActive}
+                    title={isPomoActive ? 'Sayacı Göster' : 'Çalışmaya Başla'}
                   >
-                    <Play size={14} />
+                    {isPomoActive ? <Timer size={14} /> : <Play size={14} />}
                   </button>
                 )}
 
@@ -578,6 +636,14 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
               <button className="btn-save" style={{ background: '#00d4ff' }} onClick={handleEditSave} disabled={!editText.trim()}>Kaydet</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ========== Snackbar Undo ========== */}
+      {snackbar && (
+        <div className="snackbar-undo">
+          <span>Görev silindi</span>
+          <button onClick={handleUndo}>GERİ AL</button>
         </div>
       )}
     </div>

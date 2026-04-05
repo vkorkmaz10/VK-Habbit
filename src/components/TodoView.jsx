@@ -33,7 +33,13 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
   const [delegateName, setDelegateName] = useState('');
   const [confirmModal, setConfirmModal] = useState(null);
   const [pomodoroCompleteModal, setPomodoroCompleteModal] = useState(null);
+  const [editModal, setEditModal] = useState(null); // { task }
+  const [editText, setEditText] = useState('');
+  const [editWho, setEditWho] = useState('');
   const inputRef = useRef(null);
+  const editInputRef = useRef(null);
+  const longPressTimer = useRef(null);
+  const longPressTriggered = useRef(false);
 
   const todayStr = getActiveDateString();
   const isPastDay = selectedDateStr < todayStr;
@@ -153,6 +159,38 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
 
   const handleModeClick = (key) => {
     setActiveMode(prev => prev === key ? null : key);
+  };
+
+  // Long press to edit
+  const handlePointerDown = (task) => {
+    longPressTriggered.current = false;
+    longPressTimer.current = setTimeout(() => {
+      longPressTriggered.current = true;
+      setEditModal({ task });
+      setEditText(task.txt);
+      setEditWho(task.who || '');
+    }, 500);
+  };
+
+  const handlePointerUp = () => {
+    clearTimeout(longPressTimer.current);
+  };
+
+  const handlePointerLeave = () => {
+    clearTimeout(longPressTimer.current);
+  };
+
+  const handleEditSave = () => {
+    if (!editModal || !editText.trim()) return;
+    const updates = { txt: editText.trim() };
+    if (editModal.task.size === 'delegate') {
+      updates.who = editWho.trim();
+    }
+    updateTodoTask(selectedDateStr, editModal.task.id, updates);
+    setEditModal(null);
+    setEditText('');
+    setEditWho('');
+    onDataChange?.();
   };
 
   const handleAddTask = () => {
@@ -337,7 +375,14 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
                   </div>
                 )}
 
-                <div className="todo-item-content" onClick={() => handleToggle(task)}>
+                <div
+                  className="todo-item-content"
+                  onClick={() => { if (!longPressTriggered.current) handleToggle(task); }}
+                  onPointerDown={() => handlePointerDown(task)}
+                  onPointerUp={handlePointerUp}
+                  onPointerLeave={handlePointerLeave}
+                  style={{ userSelect: 'none' }}
+                >
                   <div className={`todo-checkbox ${task.done ? 'checked' : ''}`}>
                     {task.done && <span>✓</span>}
                   </div>
@@ -492,6 +537,46 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
             >
               Tamam
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========== Edit Task Modal (Long Press) ========== */}
+      {editModal && (
+        <div className="modal-overlay" onClick={() => { setEditModal(null); setEditText(''); setEditWho(''); }}>
+          <div className="modal-content glass-card" onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <span style={{ fontSize: '1.5rem' }}>{MODE_CONFIG[editModal.task.size]?.emoji}</span>
+              <h3 style={{ color: '#00d4ff', margin: 0 }}>Görevi Düzenle</h3>
+            </div>
+
+            <input
+              ref={editInputRef}
+              type="text"
+              value={editText}
+              onChange={e => setEditText(e.target.value)}
+              placeholder="Görev adını yaz..."
+              className="todo-input"
+              autoFocus
+              onKeyDown={e => { if (e.key === 'Enter' && editModal.task.size !== 'delegate') handleEditSave(); }}
+            />
+
+            {editModal.task.size === 'delegate' && (
+              <input
+                type="text"
+                value={editWho}
+                onChange={e => setEditWho(e.target.value)}
+                placeholder="Kime delege edilecek?"
+                className="todo-input"
+                style={{ marginTop: '10px' }}
+                onKeyDown={e => { if (e.key === 'Enter') handleEditSave(); }}
+              />
+            )}
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+              <button className="btn-cancel" onClick={() => { setEditModal(null); setEditText(''); setEditWho(''); }}>İptal</button>
+              <button className="btn-save" style={{ background: '#00d4ff' }} onClick={handleEditSave} disabled={!editText.trim()}>Kaydet</button>
+            </div>
           </div>
         </div>
       )}

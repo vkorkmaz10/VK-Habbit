@@ -682,3 +682,190 @@ body {
 .bottom-nav-item.active-todo {
   color: #00d4ff;
 }
+
+/* ===================== */
+/* Pomodoro Styles       */
+/* ===================== */
+
+/* Neon glow on active pomodoro task card */
+.todo-item.pomo-active {
+  border-color: rgba(0, 212, 255, 0.5) !important;
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.25), 0 0 30px rgba(0, 212, 255, 0.1), inset 0 0 15px rgba(0, 212, 255, 0.05);
+  animation: pomoGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes pomoGlow {
+  from {
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.2), 0 0 20px rgba(0, 212, 255, 0.08);
+  }
+  to {
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.4), 0 0 40px rgba(0, 212, 255, 0.15), inset 0 0 20px rgba(0, 212, 255, 0.06);
+  }
+}
+
+/* Play button on focus cards */
+.pomo-start-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 212, 255, 0.4);
+  background: rgba(0, 212, 255, 0.1);
+  color: #00d4ff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.pomo-start-btn:hover {
+  background: rgba(0, 212, 255, 0.25);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+}
+
+.pomo-start-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+/* ===================== */
+/* Pomodoro Popup Overlay */
+/* ===================== */
+.pomo-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 120px;
+  pointer-events: none;
+}
+
+.pomo-popup {
+  pointer-events: auto;
+  width: 260px;
+  padding: 24px 20px;
+  text-align: center;
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), 0 0 30px rgba(0, 212, 255, 0.15);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.pomo-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.pomo-timer-icon {
+  color: #00d4ff;
+  animation: pomoPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pomoPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Circular Timer */
+.pomo-circle-container {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  margin: 0 auto 16px auto;
+}
+
+.pomo-circle-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.pomo-circle-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.06);
+  stroke-width: 6;
+}
+
+.pomo-circle-fill {
+  fill: none;
+  stroke: #00d4ff;
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+  filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.4));
+}
+
+.pomo-circle-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.pomo-big-time {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: #00d4ff;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+  letter-spacing: 2px;
+}
+
+.pomo-task-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Popup controls */
+.pomo-popup-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.pomo-popup-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(0, 212, 255, 0.15);
+  color: #00d4ff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pomo-popup-btn:hover {
+  background: rgba(0, 212, 255, 0.3);
+}
+
+.pomo-popup-btn.pomo-popup-cancel {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.pomo-popup-btn.pomo-popup-cancel:hover {
+  color: var(--error-color);
+  background: rgba(255, 82, 82, 0.15);
+}

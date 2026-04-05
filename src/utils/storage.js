@@ -136,6 +136,8 @@ export const addTodoTask = (dateStr, task) => {
     raw.days[dateStr] = { w: null, c: getDefaultChecks(), m: [], t: [] };
   }
   if (!raw.days[dateStr].t) raw.days[dateStr].t = [];
+  // createdAt eklenmemişse ekle
+  if (!task.createdAt) task.createdAt = dateStr;
   raw.days[dateStr].t.push(task);
   saveRawData(raw);
 };
@@ -182,10 +184,11 @@ export const performRollover = (todayStr) => {
 
     dayData.t.forEach(task => {
       if (!task.done && !task.rolled && !existingIds.has(task.id)) {
-        // Bugüne kopyala (rolledFrom ile işaretle)
+        // Bugüne kopyala (rolledFrom ile işaretle, orijinal createdAt'i koru)
         raw.days[todayStr].t.push({
           ...task,
-          rolledFrom: dateStr
+          rolledFrom: dateStr,
+          createdAt: task.createdAt || dateStr
         });
         existingIds.add(task.id);
         // Orijinalini rolled olarak işaretle
@@ -205,4 +208,23 @@ export const calculateTodoScore = (dateStr) => {
   const tasks = getTodoTasks(dateStr);
   const doneCount = tasks.filter(t => t.done).length;
   return Math.min(Math.round((doneCount / 3) * 100), 100);
+};
+
+// ========================
+// Pomodoro Persistence
+// ========================
+const POMODORO_KEY = 'vkgym_pomodoro';
+
+export const getActivePomodoro = () => {
+  const data = localStorage.getItem(POMODORO_KEY);
+  if (!data) return null;
+  return JSON.parse(data);
+};
+
+export const setActivePomodoro = (pomodoroData) => {
+  localStorage.setItem(POMODORO_KEY, JSON.stringify(pomodoroData));
+};
+
+export const clearActivePomodoro = () => {
+  localStorage.removeItem(POMODORO_KEY);
 };

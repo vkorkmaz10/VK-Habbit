@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { getWeekDays, START_DATE_STR, getActiveDateObj } from '../utils/date';
-import { getStoreSummary, getDayData } from '../utils/storage';
+import { getStoreSummary, getDayData, calculateDayScore } from '../utils/storage';
 import { addWeeks, isAfter } from 'date-fns';
+import BodyHighlighter from './BodyHighlighter';
 
 export default function WeeklyReport({ selectedDateStr, refreshTrigger }) {
   
@@ -26,10 +27,9 @@ export default function WeeklyReport({ selectedDateStr, refreshTrigger }) {
       let workoutCount = 0;
       let scoreSum = 0;
       let scoreCount = 0;
+      let workedSet = new Set();
 
       daysArray.forEach(d => {
-        // Gelecek günleri hesaplamaya katmayalım (aktif günden ilerisiyse)
-        // ama past and today dahil:
         if (isAfter(new Date(d.dateStr), getActiveDateObj())) return;
 
         const data = getDayData(d.dateStr);
@@ -43,15 +43,20 @@ export default function WeeklyReport({ selectedDateStr, refreshTrigger }) {
           workoutCount++;
         }
         
-        const dayScore = data.c.reduce((sum, val) => sum + val, 0) / 12;
+        if (data.m) {
+          data.m.forEach(muscle => workedSet.add(muscle));
+        }
+        
+        const dayScore = calculateDayScore(d.dateStr);
         scoreSum += dayScore;
-        scoreCount++; // Bugüne kadarki tüm girilen günlere göre
+        scoreCount++;
       });
 
       return {
         avgWeight: weightCount > 0 ? (weightSum / weightCount) : 0,
         workoutCount,
-        avgScore: scoreCount > 0 ? (scoreSum / scoreCount) * 100 : 0
+        avgScore: scoreCount > 0 ? (scoreSum / scoreCount) : 0,
+        workedSet
       };
     };
 
@@ -128,6 +133,31 @@ export default function WeeklyReport({ selectedDateStr, refreshTrigger }) {
           </div>
         </div>
       )}
+
+      {/* Muscle Heatmap */}
+      <div style={{marginTop: '20px', background: 'rgba(0,0,0,0.2)', padding:'16px', borderRadius:'12px'}}>
+        <h4 style={{marginBottom:'12px', textAlign:'center', color:'var(--text-muted)'}}>Bu Hafta Çalışılan Bölgeler</h4>
+        
+        <BodyHighlighter workedSet={reportData.curStats.workedSet} style={{ maxHeight: '350px' }} />
+
+        <div style={{display:'flex', flexWrap:'wrap', gap:'8px', justifyContent:'center', marginTop: '16px'}}>
+          {['Chest', 'Back', 'Biceps', 'Triceps', 'Core', 'Legs'].map(m => {
+            const isWorked = reportData.curStats.workedSet.has(m);
+            return (
+              <span key={m} style={{
+                fontSize:'0.75rem', 
+                padding:'4px 10px', 
+                borderRadius:'12px', 
+                background: isWorked ? 'rgba(57, 255, 20, 0.2)' : 'rgba(255,255,255,0.05)', 
+                color: isWorked ? 'var(--accent-color)' : 'var(--text-muted)',
+                border: isWorked ? '1px solid var(--accent-color)' : '1px solid transparent'
+              }}>
+                {m}
+              </span>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

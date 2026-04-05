@@ -2,14 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { addWeeks, isAfter } from 'date-fns';
 import { getWeekDays, formatWeekTitle, getActiveDateObj } from '../utils/date';
-import { calculateDayScore } from '../utils/storage';
+import { calculateDayScore, calculateTodoScore } from '../utils/storage';
 
-export default function Header({ selectedDateStr, onSelectDate, refreshTrigger }) {
-  // `weekBaseDate` tells us which week we are looking at.
-  // By default, it's the active week (today).
+export default function Header({ selectedDateStr, onSelectDate, refreshTrigger, mode = 'habit' }) {
   const [weekBaseDate, setWeekBaseDate] = useState(getActiveDateObj());
 
-  // Listen external date changes (like returning to "bugün")
   useEffect(() => {
     setWeekBaseDate(new Date(selectedDateStr));
   }, [selectedDateStr]);
@@ -20,17 +17,10 @@ export default function Header({ selectedDateStr, onSelectDate, refreshTrigger }
 
   const handleNextWeek = () => {
     const nextWk = addWeeks(weekBaseDate, 1);
-    // Henüz yaşanmamış haftalara girmeyi bloke edelim (Plan'a göre)
-    // Eğer nextWk, activeDate'den büyükse (hafta başlangıcı bazında) geçme:
-    // Pazar gününden sonrasını engelleme vs.
     if (isAfter(nextWk, addWeeks(getActiveDateObj(), 0))) {
-      // Tam engelleme yapmıyoruz ama ilerideki tamamen boş haftaya geçilmesin
-      // Gelecek engeli:
       const { start: activeStart } = getWeekDays(getActiveDateObj());
       const { start: nextStart } = getWeekDays(nextWk);
-      if (isAfter(nextStart, activeStart)) {
-        return; // İzin verme
-      }
+      if (isAfter(nextStart, activeStart)) return;
     }
     setWeekBaseDate(nextWk);
   };
@@ -38,7 +28,10 @@ export default function Header({ selectedDateStr, onSelectDate, refreshTrigger }
   const { days } = getWeekDays(weekBaseDate);
   const weekTitle = formatWeekTitle(weekBaseDate);
 
-  // SVG parameters for progress ring
+  const isTodo = mode === 'todo';
+  const accentColor = isTodo ? '#00d4ff' : '#39FF14';
+  const accentGlow = isTodo ? 'rgba(0, 212, 255, 0.4)' : 'rgba(57, 255, 20, 0.4)';
+
   const circleRadius = 20;
   const circleCircumference = 2 * Math.PI * circleRadius;
 
@@ -57,7 +50,7 @@ export default function Header({ selectedDateStr, onSelectDate, refreshTrigger }
 
       <div className="days-row" style={{ marginTop: '16px' }}>
         {days.map((d, index) => {
-          const score = calculateDayScore(d.dateStr);
+          const score = isTodo ? calculateTodoScore(d.dateStr) : calculateDayScore(d.dateStr);
           const offset = circleCircumference - (score / 100) * circleCircumference;
           const isActive = d.dateStr === selectedDateStr;
 
@@ -66,6 +59,10 @@ export default function Header({ selectedDateStr, onSelectDate, refreshTrigger }
               key={index}
               className={`day-circle ${isActive ? 'active' : ''} ${d.isToday ? 'is-today' : ''}`}
               onClick={() => onSelectDate(d.dateStr)}
+              style={{
+                ...(isActive ? { boxShadow: `0 0 12px ${accentGlow}` } : {}),
+                ...(d.isToday ? { borderColor: accentColor } : {})
+              }}
             >
               <svg className="day-progress-svg" width="44" height="44" viewBox="0 0 44 44">
                 <circle
@@ -77,7 +74,7 @@ export default function Header({ selectedDateStr, onSelectDate, refreshTrigger }
                   cx="22" cy="22" r={circleRadius}
                   strokeDasharray={circleCircumference}
                   strokeDashoffset={offset}
-                  style={{ stroke: score === 100 ? '#39FF14' : 'var(--accent-color)' }}
+                  style={{ stroke: score === 100 ? accentColor : accentColor }}
                 />
               </svg>
               <span className="day-label">{d.dayNum}</span>

@@ -4,7 +4,8 @@ import DailyView from './components/DailyView';
 import WeeklyReport from './components/WeeklyReport';
 import TodoView from './components/TodoView';
 import CalendarView from './components/CalendarView';
-import { Home, CheckSquare, Calendar, Activity, MoreHorizontal } from 'lucide-react';
+import ContentView from './components/ContentView';
+import { Home, CheckSquare, Calendar, Sparkles, MoreHorizontal } from 'lucide-react';
 import { getActiveDateString } from './utils/date';
 import { performRollover } from './utils/storage';
 
@@ -129,7 +130,13 @@ function App() {
         </>
       )}
 
-      {['page4', 'page5'].includes(currentTab) && (
+      {currentTab === 'content' && (
+        <div className="main-content">
+          <ContentView />
+        </div>
+      )}
+
+      {currentTab === 'page5' && (
         <div className="main-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
           <h2 style={{color: 'var(--text-muted)'}}>Yeni Sayfa Tasarımı</h2>
         </div>
@@ -149,9 +156,9 @@ function App() {
           <Calendar size={24} />
           <span>Takvim</span>
         </button>
-        <button className={`bottom-nav-item ${currentTab === 'page4' ? 'active' : ''}`} onClick={() => setCurrentTab('page4')}>
-          <Activity size={24} />
-          <span>Stats</span>
+        <button className={`bottom-nav-item ${currentTab === 'content' ? 'active' : ''}`} onClick={() => setCurrentTab('content')}>
+          <Sparkles size={24} />
+          <span>Content</span>
         </button>
         <button className={`bottom-nav-item ${currentTab === 'page5' ? 'active' : ''}`} onClick={() => setCurrentTab('page5')}>
           <MoreHorizontal size={24} />

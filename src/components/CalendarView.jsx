@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, X, Calendar, Clock, Video, Link2, Trash2, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { Plus, X, Calendar, Clock, Video, Link2, Trash2, ExternalLink, ChevronLeft, ChevronRight, RefreshCw, LogOut } from 'lucide-react';
 import { getCalendarEvents, addCalendarEvent, removeCalendarEvent } from '../utils/storage';
+import { initiateGoogleLogin, getStoredToken, clearGoogleToken, fetchGoogleEvents } from '../utils/googleCalendar';
 import { getActiveDateString } from '../utils/date';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, addDays, isSameMonth, isSameDay, parseISO } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, addDays, isSameMonth, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
 const EVENT_TYPES = {
@@ -17,18 +18,17 @@ const PLATFORMS = [
   { key: null, label: 'Yok', icon: '—' },
 ];
 
-// Saatlik timeline slotları (07:00 - 23:00)
-const TIMELINE_HOURS = Array.from({ length: 17 }, (_, i) => {
-  const h = i + 7;
-  return `${h.toString().padStart(2, '0')}:00`;
-});
-
 export default function CalendarView({ selectedDateStr, onDataChange }) {
   const [showMonthModal, setShowMonthModal] = useState(false);
   const [monthDate, setMonthDate] = useState(new Date(selectedDateStr));
   const [showAddModal, setShowAddModal] = useState(false);
   const [snackbar, setSnackbar] = useState(null);
   const snackbarTimer = useRef(null);
+
+  // Google Calendar state
+  const [googleConnected, setGoogleConnected] = useState(!!getStoredToken());
+  const [googleEvents, setGoogleEvents] = useState([]);
+  const [syncing, setSyncing] = useState(false);
 
   // Form state
   const [formTitle, setFormTitle] = useState('');
@@ -42,24 +42,70 @@ export default function CalendarView({ selectedDateStr, onDataChange }) {
 
   const todayStr = getActiveDateString();
 
-  const events = useMemo(() => {
+  // Local events
+  const localEvents = useMemo(() => {
     return getCalendarEvents(selectedDateStr);
   }, [selectedDateStr, onDataChange]);
 
-  // All events for month dots
-  const allEvents = useMemo(() => {
+  // All local events for month dots
+  const allLocalEvents = useMemo(() => {
     return getCalendarEvents();
   }, [onDataChange]);
 
+  // Combined events: local + google, sorted by timeStart
+  const events = useMemo(() => {
+    return [...localEvents, ...googleEvents].sort((a, b) => a.timeStart.localeCompare(b.timeStart));
+  }, [localEvents, googleEvents]);
+
+  // Auto-focus form
   useEffect(() => {
     if (showAddModal && titleRef.current) {
       titleRef.current.focus();
     }
   }, [showAddModal]);
 
+  // Fetch Google events when date changes or after login
+  const syncGoogleEvents = useCallback(async () => {
+    const token = getStoredToken();
+    if (!token) {
+      setGoogleEvents([]);
+      return;
+    }
+    setSyncing(true);
+    try {
+      const events = await fetchGoogleEvents(selectedDateStr);
+      setGoogleEvents(events);
+    } catch (e) {
+      console.error('Google sync error:', e);
+      setGoogleEvents([]);
+    }
+    setSyncing(false);
+  }, [selectedDateStr]);
+
+  useEffect(() => {
+    if (googleConnected) {
+      syncGoogleEvents();
+    }
+  }, [googleConnected, syncGoogleEvents]);
+
+  // ======= Google Auth Handlers =======
+  const handleGoogleConnect = async () => {
+    try {
+      await initiateGoogleLogin();
+      setGoogleConnected(true);
+    } catch (e) {
+      console.error('Google login error:', e);
+    }
+  };
+
+  const handleGoogleDisconnect = () => {
+    clearGoogleToken();
+    setGoogleConnected(false);
+    setGoogleEvents([]);
+  };
+
   // ======= Month Calendar Grid =======
   const monthStart = startOfMonth(monthDate);
-  const monthEnd = endOfMonth(monthDate);
   const calStart = startOfWeek(monthStart, { weekStartsOn: 1 });
   const calendarDays = [];
   let day = calStart;
@@ -68,12 +114,12 @@ export default function CalendarView({ selectedDateStr, onDataChange }) {
     day = addDays(day, 1);
   }
 
-  // Check which days have events
   const eventDatesSet = useMemo(() => {
     const set = new Set();
-    allEvents.forEach(e => set.add(e.dateStr));
+    allLocalEvents.forEach(e => set.add(e.dateStr));
+    googleEvents.forEach(e => set.add(e.dateStr));
     return set;
-  }, [allEvents]);
+  }, [allLocalEvents, googleEvents]);
 
   // ======= Handlers =======
   const handleAddEvent = () => {
@@ -96,7 +142,9 @@ export default function CalendarView({ selectedDateStr, onDataChange }) {
   };
 
   const handleDelete = (eventId) => {
-    const deletedEvent = events.find(e => e.id === eventId);
+    // Google etkinliklerini silemeyiz
+    if (eventId.startsWith('g_')) return;
+    const deletedEvent = localEvents.find(e => e.id === eventId);
     removeCalendarEvent(eventId);
     onDataChange?.();
 
@@ -125,18 +173,50 @@ export default function CalendarView({ selectedDateStr, onDataChange }) {
     setFormLink('');
   };
 
-  const handleMonthDayClick = (date) => {
-    const dateStr = format(date, 'yyyy-MM-dd');
-    setShowMonthModal(false);
-    // Trigger parent date change via onSelectDate is handled externally
-    // For now just close and the parent header handles date navigation
-  };
-
   // ======= Render =======
   return (
     <div className="fade-in" style={{ position: 'relative', minHeight: '60vh' }}>
 
-      {/* ========== Month Calendar Button ========== */}
+      {/* ========== Google Connect Section ========== */}
+      <div className="glass-card cal-google-section" style={{ marginBottom: '12px' }}>
+        {!googleConnected ? (
+          <button className="cal-google-btn" onClick={handleGoogleConnect}>
+            <svg viewBox="0 0 24 24" width="18" height="18" style={{ marginRight: '8px' }}>
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            Google Takvim'e Bağlan
+          </button>
+        ) : (
+          <div className="cal-google-connected">
+            <div className="cal-google-info">
+              <div className="cal-google-dot" />
+              <span>Google Takvim Bağlı</span>
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                className="cal-sync-btn"
+                onClick={syncGoogleEvents}
+                disabled={syncing}
+                title="Senkronize Et"
+              >
+                <RefreshCw size={14} className={syncing ? 'cal-spin' : ''} />
+              </button>
+              <button
+                className="cal-disconnect-btn"
+                onClick={handleGoogleDisconnect}
+                title="Bağlantıyı Kes"
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ========== Date Info + Month Button ========== */}
       <div className="glass-card" style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
@@ -144,6 +224,7 @@ export default function CalendarView({ selectedDateStr, onDataChange }) {
           </span>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
             {events.length === 0 ? 'Etkinlik yok' : `${events.length} etkinlik`}
+            {googleEvents.length > 0 && ` (${googleEvents.length} Google)`}
           </div>
         </div>
         <button
@@ -167,7 +248,8 @@ export default function CalendarView({ selectedDateStr, onDataChange }) {
           {events.map((event, idx) => {
             const typeConfig = EVENT_TYPES[event.type] || EVENT_TYPES.event;
             const platformInfo = PLATFORMS.find(p => p.key === event.platform);
-            
+            const isGoogleEvent = event.isGoogle;
+
             return (
               <div key={event.id} className="cal-timeline-item">
                 {/* Time column */}
@@ -184,16 +266,31 @@ export default function CalendarView({ selectedDateStr, onDataChange }) {
 
                 {/* Event card */}
                 <div
-                  className="cal-event-card glass-card"
+                  className={`cal-event-card glass-card ${isGoogleEvent ? 'cal-google-event' : ''}`}
                   style={{ borderLeft: `3px solid ${typeConfig.color}` }}
                 >
                   <div className="cal-event-header">
-                    <span className="cal-event-type-badge" style={{ background: `${typeConfig.color}20`, color: typeConfig.color }}>
-                      {typeConfig.emoji} {typeConfig.label}
-                    </span>
-                    <button className="cal-event-delete" onClick={() => handleDelete(event.id)}>
-                      <Trash2 size={14} />
-                    </button>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span className="cal-event-type-badge" style={{ background: `${typeConfig.color}20`, color: typeConfig.color }}>
+                        {typeConfig.emoji} {typeConfig.label}
+                      </span>
+                      {isGoogleEvent && (
+                        <span className="cal-google-badge">
+                          <svg viewBox="0 0 24 24" width="10" height="10">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                          </svg>
+                          Google
+                        </span>
+                      )}
+                    </div>
+                    {!isGoogleEvent && (
+                      <button className="cal-event-delete" onClick={() => handleDelete(event.id)}>
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
 
                   <h4 className="cal-event-title">{event.title}</h4>
@@ -374,7 +471,6 @@ export default function CalendarView({ selectedDateStr, onDataChange }) {
                     className={`cal-month-day ${!isCurrentMonth ? 'other-month' : ''} ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
                     onClick={() => {
                       setShowMonthModal(false);
-                      // Emit the date to parent via window event
                       window.dispatchEvent(new CustomEvent('calendarDateSelect', { detail: dStr }));
                     }}
                   >

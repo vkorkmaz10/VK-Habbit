@@ -240,3 +240,39 @@ export const setActivePomodoro = (pomodoroData) => {
 export const clearActivePomodoro = () => {
   localStorage.removeItem(POMODORO_KEY);
 };
+
+// ========================
+// Calendar Events
+// ========================
+
+export const getCalendarEvents = (dateStr = null) => {
+  const raw = getRawData();
+  const events = raw.calendarEvents || [];
+  if (dateStr) {
+    return events.filter(e => e.dateStr === dateStr).sort((a, b) => a.timeStart.localeCompare(b.timeStart));
+  }
+  return events;
+};
+
+export const addCalendarEvent = (event) => {
+  const raw = getRawData();
+  if (!raw.calendarEvents) raw.calendarEvents = [];
+  raw.calendarEvents.push(event);
+  saveRawData(raw);
+};
+
+export const updateCalendarEvent = (eventId, updates) => {
+  const raw = getRawData();
+  if (!raw.calendarEvents) return;
+  const idx = raw.calendarEvents.findIndex(e => e.id === eventId);
+  if (idx === -1) return;
+  raw.calendarEvents[idx] = { ...raw.calendarEvents[idx], ...updates };
+  saveRawData(raw);
+};
+
+export const removeCalendarEvent = (eventId) => {
+  const raw = getRawData();
+  if (!raw.calendarEvents) return;
+  raw.calendarEvents = raw.calendarEvents.filter(e => e.id !== eventId);
+  saveRawData(raw);
+};

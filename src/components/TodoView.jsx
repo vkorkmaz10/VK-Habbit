@@ -248,11 +248,12 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
       setConfirmModal({ dateStr: selectedDateStr, taskId: task.id, task });
       return;
     }
-    updateTodoTask(selectedDateStr, task.id, { done: true });
+    // Pomodoro aktifken tamamlamaya çalışırsa uyarı göster
     if (pomodoro && pomodoro.taskId === task.id) {
-      clearActivePomodoro();
-      setPomodoro(null);
+      setConfirmModal({ dateStr: selectedDateStr, taskId: task.id, task, pomodoroWarning: true });
+      return;
     }
+    updateTodoTask(selectedDateStr, task.id, { done: true });
     onDataChange?.();
   };
 
@@ -421,7 +422,7 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
                 {rolloverDays > 0 && !task.done && (
                   <div className="todo-rolled-badge">
                     <RotateCcw size={10} />
-                    <span>{rolloverDays} Gündür Devrediyor</span>
+                    <span>{rolloverDays}</span>
                   </div>
                 )}
 
@@ -560,18 +561,40 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
         </div>
       )}
 
-      {/* ========== Uncheck Confirmation Modal ========== */}
+      {/* ========== Uncheck / Pomodoro Warning Confirmation Modal ========== */}
       {confirmModal && (
         <div className="modal-overlay" onClick={() => setConfirmModal(null)}>
           <div className="modal-content glass-card" onClick={e => e.stopPropagation()}>
-            <h3 style={{ marginBottom: '12px', color: '#00d4ff' }}>Emin misiniz?</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '20px', lineHeight: '1.5' }}>
-              <strong>"{confirmModal.task.txt}"</strong> görevinin tamamlanma durumunu kaldırmak istediğinize emin misiniz?
-            </p>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn-cancel" onClick={() => setConfirmModal(null)}>Vazgeç</button>
-              <button className="btn-save" style={{ background: 'var(--error-color)' }} onClick={confirmUncheck}>Evet, Kaldır</button>
-            </div>
+            {confirmModal.pomodoroWarning ? (
+              <>
+                <h3 style={{ marginBottom: '12px', color: '#00d4ff' }}>⏳ Pomodoro Aktif!</h3>
+                <p style={{ color: 'var(--text-muted)', marginBottom: '20px', lineHeight: '1.5' }}>
+                  <strong>"{confirmModal.task.txt}"</strong> görevi için Pomodoro sayacı çalışıyor. Tamamlanırsa sayacınız iptal edilecek.<br/><br/>Görevi tamamlamak istiyor musunuz?
+                </p>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button className="btn-cancel" onClick={() => setConfirmModal(null)}>Vazgeç</button>
+                  <button className="btn-save" style={{ background: '#00d4ff' }} onClick={() => {
+                    updateTodoTask(confirmModal.dateStr, confirmModal.taskId, { done: true });
+                    clearActivePomodoro();
+                    setPomodoro(null);
+                    setShowPomoPopup(false);
+                    setConfirmModal(null);
+                    onDataChange?.();
+                  }}>Evet, Tamamla</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 style={{ marginBottom: '12px', color: '#00d4ff' }}>Emin misiniz?</h3>
+                <p style={{ color: 'var(--text-muted)', marginBottom: '20px', lineHeight: '1.5' }}>
+                  <strong>"{confirmModal.task.txt}"</strong> görevinin tamamlanma durumunu kaldırmak istediğinize emin misiniz?
+                </p>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button className="btn-cancel" onClick={() => setConfirmModal(null)}>Vazgeç</button>
+                  <button className="btn-save" style={{ background: 'var(--error-color)' }} onClick={confirmUncheck}>Evet, Kaldır</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

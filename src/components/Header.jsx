@@ -29,8 +29,9 @@ export default function Header({ selectedDateStr, onSelectDate, refreshTrigger, 
   const weekTitle = formatWeekTitle(weekBaseDate);
 
   const isTodo = mode === 'todo';
-  const accentColor = isTodo ? '#00d4ff' : '#39FF14';
-  const accentGlow = isTodo ? 'rgba(0, 212, 255, 0.4)' : 'rgba(57, 255, 20, 0.4)';
+  const isCalendar = mode === 'calendar';
+  const accentColor = (isTodo || isCalendar) ? '#00d4ff' : '#39FF14';
+  const accentGlow = (isTodo || isCalendar) ? 'rgba(0, 212, 255, 0.4)' : 'rgba(57, 255, 20, 0.4)';
 
   const circleRadius = 20;
   const circleCircumference = 2 * Math.PI * circleRadius;

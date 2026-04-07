@@ -4,6 +4,20 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    proxy: {
+      '/api/reddit': {
+        target: 'https://www.reddit.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/reddit/, ''),
+      },
+      '/api/cryptocompare': {
+        target: 'https://min-api.cryptocompare.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/cryptocompare/, ''),
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({

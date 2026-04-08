@@ -4,6 +4,7 @@ import { fetchAllNews, SOURCES, getCryptoCompareKey, saveCryptoCompareKey } from
 
 const GEMINI_KEY_STORAGE = 'vkgym_gemini_key';
 const CACHE_TTL = 5 * 60 * 1000;
+const URL_REGEX = /https?:\/\/[^\s]+/;
 
 // ======= Volkan's Full System Prompt =======
 const SYSTEM_PROMPT = `Sen @vkorkmaz10 için X (Twitter) ve YouTube içerik üretici asistanısın.
@@ -38,7 +39,7 @@ KAÇINILACAKLAR:
 
 FORMAT KURALLARI:
 TEK TWEET: [Güçlü giriş] + [1-2 cümle yorum] + [$BTC ticker]
-THREAD: 🧵 hook ile başla, 5-12 tweet, son tweet "Sizce?" ile bitir
+THREAD: 🧵 hook ile başla, 5-12 tweet, her tweet'i (1/n) formatında numarala, her tweet max 280 karakter, mantıksal kırılma noktalarında böl, son tweet "Sizce?" ile bitir
 YOUTUBE: Başlık (max 60 kar) + Thumbnail fikri + SEO açıklama + Script (HOOK/BAĞLAM/ANA İÇERİK/SONUÇ)
 
 KONUYA GÖRE TON:
@@ -49,13 +50,13 @@ KONUYA GÖRE TON:
 - Regülasyon → Nötr-analizci`;
 
 // ======= Gemini API =======
-async function callGemini(apiKey, userPrompt) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
+async function callGemini(apiKey, userPrompt, systemPrompt = SYSTEM_PROMPT) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      system_instruction: { parts: [{ text: systemPrompt }] },
       contents: [{ parts: [{ text: userPrompt }] }],
       generationConfig: { temperature: 0.8, maxOutputTokens: 4096 },
     }),
@@ -69,6 +70,44 @@ async function callGemini(apiKey, userPrompt) {
   }
   const data = await res.json();
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+// ======= Headline Translation =======
+async function translateHeadlines(apiKey, items) {
+  if (!items.length || !apiKey) return items.map(item => ({ ...item, titleTr: item.title }));
+  try {
+    const titles = items.map((n, i) => `${i + 1}. ${n.title}`).join('\n');
+    const result = await callGemini(
+      apiKey,
+      `Aşağıdaki haber başlıklarını kısa ve öz Türkçeye çevir. Sadece numaralı çevirileri döndür, başka açıklama ekleme:\n${titles}`,
+      'Sen profesyonel bir çevirmensin. Haber başlıklarını İngilizceden Türkçeye çeviriyorsun. Kısa, net ve doğal Türkçe kullan.'
+    );
+    const lines = result.split('\n').filter(l => l.trim());
+    return items.map((item, i) => {
+      const line = lines[i];
+      const tr = line ? line.replace(/^\d+\.\s*/, '').trim() : item.title;
+      return { ...item, titleTr: tr };
+    });
+  } catch (e) {
+    console.warn('Headline translation failed, using originals:', e.message);
+    return items.map(item => ({ ...item, titleTr: item.title }));
+  }
+}
+
+// ======= URL Content Fetcher =======
+async function fetchUrlContent(url) {
+  try {
+    const res = await fetch('/api/fetch-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.text || null;
+  } catch {
+    return null;
+  }
 }
 
 // ======= Markdown Renderer =======
@@ -93,11 +132,9 @@ function renderMarkdown(text) {
     .replace(/\n/g, "<br>");
 }
 
-// ======= Quick Commands =======
+// ======= Quick Commands (FAB only) =======
 const QUICK_COMMANDS = [
   { label: "Bugün neler var?", prompt: (news) => `Aşağıdaki güncel haberleri analiz et ve en önemli 3-5 tanesi için Volkan tarzında birer tweet yaz. Sonunda yayın planı tablosu ekle.\n\nHABERLER:\n${news.map((n, i) => `${i + 1}. ${n.title} (${n.sourceName})`).join('\n')}` },
-  { label: "BTC thread yaz", prompt: (news) => `Bitcoin'in bugünkü durumu için analitik bir thread yaz. Teknik seviyeler ve iki senaryo içersin. Güncel bağlam:\n${news.slice(0, 3).map(n => `- ${n.title}`).join('\n')}` },
-  { label: "AI + kripto postu", prompt: () => "Yapay zeka ve kripto piyasaları kesişiminden ilgi çekici bir tweet yaz. Pivot içerik olsun." },
   { label: "Makro analiz", prompt: (news) => `Global makroekonomik gelişmeleri ve Bitcoin'e etkisini anlatan bir thread hazırla.\nGüncel haberler:\n${news.slice(0, 5).map(n => `- ${n.title}`).join('\n')}` },
 ];
 
@@ -128,7 +165,7 @@ export default function ContentView() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  // Fetch news
+  // Fetch news + translate
   const loadNews = useCallback(async (forceRefresh = false) => {
     const now = Date.now();
     if (!forceRefresh && newsCacheRef.current.data && (now - newsCacheRef.current.timestamp < CACHE_TTL)) {
@@ -137,11 +174,12 @@ export default function ContentView() {
       return;
     }
     setNewsLoading(true);
-    const data = await fetchAllNews(ccKey);
+    let data = await fetchAllNews(ccKey);
+    data = await translateHeadlines(geminiKey, data);
     newsCacheRef.current = { data, timestamp: Date.now() };
     setNews(data);
     setNewsLoading(false);
-  }, [ccKey]);
+  }, [ccKey, geminiKey]);
 
   useEffect(() => { loadNews(); }, [loadNews]);
 
@@ -154,7 +192,7 @@ export default function ContentView() {
     return `${Math.floor(hrs / 24)}g`;
   };
 
-  // Send message
+  // Send message (with URL detection)
   const send = async (userText) => {
     if (!userText.trim() || loading) return;
     if (!geminiKey) { setShowKeyModal(true); return; }
@@ -164,8 +202,19 @@ export default function ContentView() {
     setInput('');
     setLoading(true);
 
+    let finalPrompt = userText;
+
+    // URL detection: fetch content and enrich prompt
+    const urlMatch = userText.match(URL_REGEX);
+    if (urlMatch) {
+      const urlContent = await fetchUrlContent(urlMatch[0]);
+      if (urlContent) {
+        finalPrompt = `Aşağıdaki URL'den çekilen içerik hakkında Volkan tarzında analiz ve yorum yaz:\n\nURL: ${urlMatch[0]}\n\nİçerik:\n${urlContent}`;
+      }
+    }
+
     try {
-      const result = await callGemini(geminiKey, userText);
+      const result = await callGemini(geminiKey, finalPrompt);
       if (!result) throw new Error('Boş yanıt geldi.');
       setMessages(prev => [...prev, { role: 'assistant', content: result }]);
     } catch (e) {
@@ -181,11 +230,12 @@ export default function ContentView() {
 
   const handleContentGenerate = (type) => {
     if (!selectedNews) return;
-    const { title, sourceName } = selectedNews;
+    const { title, sourceName, body } = selectedNews;
+    const context = body ? `\n\nOrijinal haber (EN): ${body}` : '';
     const prompts = {
-      tweet: `Bu haber hakkında Volkan tarzında tek tweet yaz (max 280 karakter):\n\n"${title}"\n\nKaynak: ${sourceName}`,
-      thread: `Bu haber hakkında Volkan tarzında 5-12 tweet'lik bir thread yaz. 🧵 hook ile başla, son tweet "Sizce?" ile bitir:\n\n"${title}"\n\nKaynak: ${sourceName}`,
-      youtube: `Bu haber hakkında YouTube video script'i hazırla. Başlık (max 60 kar), thumbnail fikri, SEO açıklama ve HOOK/BAĞLAM/ANA İÇERİK/SONUÇ yapısında script:\n\n"${title}"\n\nKaynak: ${sourceName}`,
+      tweet: `Bu haber hakkında Volkan tarzında tek tweet yaz (max 280 karakter):\n\n"${title}"\nKaynak: ${sourceName}${context}`,
+      thread: `Bu haber hakkında Volkan tarzında 5-12 tweet'lik bir thread yaz. 🧵 hook ile başla, her tweet'i (1/n) formatında numarala, her tweet max 280 karakter, mantıksal kırılma noktalarında böl, son tweet "Sizce?" ile bitir:\n\n"${title}"\nKaynak: ${sourceName}${context}`,
+      youtube: `Bu haber hakkında YouTube video script'i hazırla. Başlık (max 60 kar), thumbnail fikri, SEO açıklama ve HOOK/BAĞLAM/ANA İÇERİK/SONUÇ yapısında script:\n\n"${title}"\nKaynak: ${sourceName}${context}`,
     };
     setSelectedNews(null);
     send(prompts[type]);
@@ -223,9 +273,14 @@ export default function ContentView() {
             <span>Gündem</span>
             {!newsLoading && <span className="content-news-count">{news.length}</span>}
           </div>
-          <button className="content-icon-btn" onClick={() => loadNews(true)} disabled={newsLoading}>
-            <RefreshCw size={14} className={newsLoading ? 'cal-spin' : ''} />
-          </button>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <button className="content-icon-btn" onClick={() => setShowKeyModal(true)} title="API Keys">
+              <Key size={14} style={geminiKey ? { color: '#34A853' } : {}} />
+            </button>
+            <button className="content-icon-btn" onClick={() => loadNews(true)} disabled={newsLoading}>
+              <RefreshCw size={14} className={newsLoading ? 'cal-spin' : ''} />
+            </button>
+          </div>
         </div>
 
         <div className="content-news-list">
@@ -245,7 +300,7 @@ export default function ContentView() {
                       {item.trend === 'fire' ? <Flame size={10} /> : <TrendingUp size={10} />}
                     </span>
                   )}
-                  <span className="content-news-strip-text">{item.title}</span>
+                  <span className="content-news-strip-text">{item.titleTr || item.title}</span>
                   <div className="content-news-strip-meta">
                     <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="content-source-link" style={{ color: src.color }} onClick={e => e.stopPropagation()}>
                       {src.emoji} {item.sourceName} <ExternalLink size={9} />
@@ -261,71 +316,53 @@ export default function ContentView() {
 
       {/* ===== Chat Area ===== */}
       <div className="content-chat-area">
-        {messages.length === 0 && !loading ? (
-          <div className="content-empty">
-            <p className="content-empty-title">Ne üretelim?</p>
-            <p className="content-empty-sub">Hazır komutlardan birini seç, haberlerden birine tıkla ya da kendi isteğini yaz.</p>
-            <div className="content-quick-grid">
-              {QUICK_COMMANDS.map(cmd => (
-                <button key={cmd.label} className="content-quick-btn glass-card" onClick={() => handleQuickCommand(cmd)}>
-                  {cmd.label}
+        {messages.map((msg, i) => (
+          <div key={i} className={`content-msg ${msg.role}`}>
+            {msg.role === 'user' ? (
+              <div className="content-msg-user">{msg.content}</div>
+            ) : (
+              <div className="content-msg-assistant glass-card">
+                <div className="content-msg-text" dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+                <button className="content-msg-copy" onClick={() => handleCopy(msg.content, i)}>
+                  {copied === i ? <><Check size={12} /> Kopyalandı</> : <><Copy size={12} /> Kopyala</>}
                 </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <>
-            {messages.map((msg, i) => (
-              <div key={i} className={`content-msg ${msg.role}`}>
-                {msg.role === 'user' ? (
-                  <div className="content-msg-user">{msg.content}</div>
-                ) : (
-                  <div className="content-msg-assistant glass-card">
-                    <div className="content-msg-text" dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
-                    <button className="content-msg-copy" onClick={() => handleCopy(msg.content, i)}>
-                      {copied === i ? <><Check size={12} /> Kopyalandı</> : <><Copy size={12} /> Kopyala</>}
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {loading && (
-              <div className="content-msg assistant">
-                <div className="content-msg-assistant glass-card">
-                  <div className="content-loading-dots">
-                    <span className="content-dot" style={{ animationDelay: '0ms' }} />
-                    <span className="content-dot" style={{ animationDelay: '160ms' }} />
-                    <span className="content-dot" style={{ animationDelay: '320ms' }} />
-                  </div>
-                  <p className="content-loading-text">İçerik üretiliyor...</p>
-                </div>
               </div>
             )}
+          </div>
+        ))}
 
-            {error && <div className="content-error"><strong>Hata:</strong> {error}</div>}
-          </>
+        {loading && (
+          <div className="content-msg assistant">
+            <div className="content-msg-assistant glass-card">
+              <div className="content-loading-dots">
+                <span className="content-dot" style={{ animationDelay: '0ms' }} />
+                <span className="content-dot" style={{ animationDelay: '160ms' }} />
+                <span className="content-dot" style={{ animationDelay: '320ms' }} />
+              </div>
+              <p className="content-loading-text">İçerik üretiliyor...</p>
+            </div>
+          </div>
         )}
+
+        {error && <div className="content-error"><strong>Hata:</strong> {error}</div>}
         <div ref={bottomRef} />
       </div>
 
       {/* ===== Input Area ===== */}
       <div className="content-input-area">
-        {messages.length > 0 && (
-          <div className="content-quick-row">
-            {QUICK_COMMANDS.slice(0, 2).map(cmd => (
-              <button key={cmd.label} className="content-quick-sm" onClick={() => handleQuickCommand(cmd)}>
-                {cmd.label}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="content-quick-row">
+          {QUICK_COMMANDS.map(cmd => (
+            <button key={cmd.label} className="content-quick-sm" onClick={() => handleQuickCommand(cmd)}>
+              {cmd.label}
+            </button>
+          ))}
+        </div>
         <form className="content-form" onSubmit={e => { e.preventDefault(); send(input); }}>
           <input
             className="content-text-input"
             value={input}
             onChange={e => setInput(e.target.value)}
-            placeholder="Ne üretelim? Örn: BTC thread yaz"
+            placeholder="Ne üretelim? Link yapıştır veya yaz..."
             disabled={loading}
           />
           <button type="submit" className="content-send-btn" disabled={loading || !input.trim()}>
@@ -334,12 +371,6 @@ export default function ContentView() {
         </form>
       </div>
 
-      {/* Key FAB */}
-      <button className="content-key-fab" onClick={() => setShowKeyModal(true)}
-        style={geminiKey ? { borderColor: 'rgba(52,168,83,0.4)' } : {}}>
-        <Key size={14} style={geminiKey ? { color: '#34A853' } : {}} />
-      </button>
-
       {/* ===== Content Type Overlay ===== */}
       {selectedNews && (
         <div className="modal-overlay" onClick={() => setSelectedNews(null)}>
@@ -347,7 +378,8 @@ export default function ContentView() {
             <button className="content-type-close" onClick={() => setSelectedNews(null)}>
               <X size={16} />
             </button>
-            <p className="content-type-title">"{selectedNews.title}"</p>
+            <p className="content-type-title">{selectedNews.titleTr || selectedNews.title}</p>
+            <p className="content-type-original">{selectedNews.title}</p>
             <p className="content-type-source">
               {(SOURCES[selectedNews.source] || SOURCES.other).emoji} {selectedNews.sourceName}
             </p>
@@ -385,8 +417,8 @@ export default function ContentView() {
                 {geminiKey && <span style={{ color: '#34A853', fontSize: '0.7rem' }}>aktif</span>}
               </label>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginBottom: '8px', lineHeight: 1.4 }}>
-                İçerik üretimi için gerekli.
-                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#00d4ff', marginLeft: '4px' }}>Buradan al →</a>
+                İçerik üretimi ve çeviri için gerekli.
+                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#00d4ff', marginLeft: '4px' }}>Buradan al</a>
               </p>
               <input ref={geminiInputRef} type="password" defaultValue={geminiKey} placeholder="AIza..." className="todo-input" />
             </div>
@@ -399,7 +431,7 @@ export default function ContentView() {
               </label>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginBottom: '8px', lineHeight: 1.4 }}>
                 CoinDesk, Decrypt haberleri için.
-                <a href="https://min-api.cryptocompare.com" target="_blank" rel="noopener noreferrer" style={{ color: '#00d4ff', marginLeft: '4px' }}>Buradan al →</a>
+                <a href="https://min-api.cryptocompare.com" target="_blank" rel="noopener noreferrer" style={{ color: '#00d4ff', marginLeft: '4px' }}>Buradan al</a>
               </p>
               <input ref={ccInputRef} type="password" defaultValue={ccKey} placeholder="Key..." className="todo-input" />
             </div>

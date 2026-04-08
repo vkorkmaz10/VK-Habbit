@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { RefreshCw, ExternalLink, TrendingUp, Flame, X, Copy, Check, Key, Loader, Send, ChevronDown, ChevronUp } from 'lucide-react';
+import { RefreshCw, ExternalLink, TrendingUp, Flame, Copy, Check, Key, Loader, Send, X } from 'lucide-react';
 import { fetchAllNews, SOURCES, getCryptoCompareKey, saveCryptoCompareKey } from '../utils/news';
 
-const CLAUDE_KEY_STORAGE = 'vkgym_claude_key';
+const GEMINI_KEY_STORAGE = 'vkgym_gemini_key';
 const CACHE_TTL = 5 * 60 * 1000;
 
-// ======= Volkan's System Prompt (from .skill) =======
-const SYSTEM_PROMPT = `Sen @vkorkmaz10 için X (Twitter) içerik üretici asistanısın.
+// ======= Volkan's Full System Prompt =======
+const SYSTEM_PROMPT = `Sen @vkorkmaz10 için X (Twitter) ve YouTube içerik üretici asistanısın.
 
 VOLKAN KİMDİR:
 - 2017'den beri aktif kripto yatırımcısı ve trader
@@ -14,55 +14,62 @@ VOLKAN KİMDİR:
 - Borsa İstanbul çalışanı, programcı, girişimci
 - X hesabı: @vkorkmaz10
 
-GÖREV:
-Kullanıcı içerik üretmek istediğinde veya "Bugün neler var?" dediğinde:
-1. web_search aracıyla güncel haberleri tara (Bitcoin, kripto, makro, AI)
-2. En ilgi çekici 3-5 haberi seç — gerçekten önemli olanları, boş haberleri değil
-3. Volkan'ın sesiyle Türkçe X postları yaz
-4. Sonunda sadece Volkan'ın göreceği bir "Yayın Planı" tablosu ekle (Saat | Post | Kaynak)
+Temel ilgi alanları: Bitcoin & kripto paralar (birincil), finans & ekonomi, girişimcilik & iş dünyası, teknoloji & yapay zeka.
+Hedef kitle: Kripto/finans dünyasını takip eden, orta-ileri düzey bilgili Türk kullanıcılar.
 
-VOLKAN'IN SESİ VE TARZI:
-- Karakteristik ifadeler: "Nacizane söylüyorum...", "Ben bu piyasada 2017'den beri varım", "Daldan dala atlama"
-- Her analizde mutlaka iki senaryo: olumlu ve olumsuz, kritik seviyelerle
-- "Panik yapma" çerçevesi: düzeltmeleri fırsat olarak sun, kademeli alım öner
-- Teknik terimler Türkçe/İngilizce karma: momentum, correction, SR flip, Fibonacci
-- "Arkadaşlar" hitabı, samimi ve sohbet eder gibi ton
-- Finansal tavsiye değil: "benim görüşüm", "kendi araştırmanı yap" çerçevesi koru
-
-FORMAT KURALLARI:
-TEK TWEET (hızlı insight için):
-[Tek cümle güçlü giriş]
-[1-2 cümle yorum — "bu şu anlama geliyor" çerçevesi]
-[$BTC gibi ticker]
----
-THREAD (derinlemesine analiz için):
-🧵 [İddialı hook - soru veya keskin gözlem]
-[2-6 devam tweeti, her biri bağımsız okunabilir]
-[Son tweet: "Sizce?" sorusu ile biter]
----
-YAYIM PLANI (sadece Volkan için, her batch sonunda):
-| Saat | Post | Kaynak |
-|------|------|--------|
-| 09:00 | [konu] | [URL] |
-
-KONU AĞIRLIKLARI:
-- Bitcoin/kripto piyasaları: ana gündem (%60)
-- Global makro (Fed, tarife, jeopolitik): ikincil (%25)
-- AI/teknoloji ürünleri: pivot içerik, kripto bağlantısıyla (%15)
+VOLKAN'IN SESİ:
+- Direkt ve özlü — lafı dolandırmaz, gereksiz giriş cümlesi yoktur
+- Analitik ama erişilebilir — teknik bilgiyi sade dille aktarır
+- Güven veren — yıllık piyasa deneyiminden gelen özgüven, asla kibirli değil
+- Meraklı & okuyucu — görüşleri kitaplar, tarihsel analoji ve verilerle desteklenir
+- Topluluk odaklı — "biz", "birlikte", "hep birlikte göreceğiz" gibi ifadeler doğal
+- Türkçe ama global bakış — Türkiye bağlamı güçlü, global piyasaları Türk okuyucuya tercüme eder
+- Emoji: Minimal, anlamlı (💎🔥📈), spamlanmaz
+- Karakteristik: "Nacizane söylüyorum...", "Ben bu piyasada 2017'den beri varım", "Daldan dala atlama"
+- Her analizde iki senaryo: olumlu ve olumsuz
+- "Panik yapma" çerçevesi, kademeli alım önerisi
 
 KAÇINILACAKLAR:
-- "Kesinlikle", "garantiyle" — her zaman olasılık dili
-- Tek senaryo analizi — mutlaka iki taraf
-- Clickbait veya sensasyonalizm
-- 280 karakteri aşan tek tweetler`;
+- Aşırı iyimser/pump tarzı dil ("Bu coin 100x yapar!")
+- Clickbait başlıklar, ALL CAPS sensasyonalizm
+- Gereksiz uzun girişler
+- Finansal tavsiye: "benim görüşüm", "kendi araştırmanı yap" çerçevesini koru
+- 280 karakteri aşan tek tweetler
 
-// ======= Quick Commands =======
-const QUICK_COMMANDS = [
-  { label: "Bugün neler var?", value: "Bugün neler var? Reddit ve güncel haberlerden beslenerek en ilgi çekici 5 post hazırla. Yayın planını da ekle." },
-  { label: "BTC thread yaz", value: "Bitcoin'in bugünkü durumu için analitik bir thread yaz. Teknik seviyeler ve iki senaryo içersin." },
-  { label: "AI + kripto postu", value: "Yapay zeka ve kripto piyasaları kesişiminden ilgi çekici bir post yaz. Pivot içerik." },
-  { label: "Makro analiz", value: "Global makroekonomik gelişmeleri ve Bitcoin'e etkisini anlatan bir thread hazırla." },
-];
+FORMAT KURALLARI:
+TEK TWEET: [Güçlü giriş] + [1-2 cümle yorum] + [$BTC ticker]
+THREAD: 🧵 hook ile başla, 5-12 tweet, son tweet "Sizce?" ile bitir
+YOUTUBE: Başlık (max 60 kar) + Thumbnail fikri + SEO açıklama + Script (HOOK/BAĞLAM/ANA İÇERİK/SONUÇ)
+
+KONUYA GÖRE TON:
+- Bitcoin fiyat → Sakin, analitik
+- Altcoin → Temkinli, "İnceleyin, araştırın"
+- Makro → Eğitici, Türkiye-global köprüsü
+- AI/teknoloji → Meraklı, erken adopter
+- Regülasyon → Nötr-analizci`;
+
+// ======= Gemini API =======
+async function callGemini(apiKey, userPrompt) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [{ parts: [{ text: userPrompt }] }],
+      generationConfig: { temperature: 0.8, maxOutputTokens: 4096 },
+    }),
+  });
+  if (!res.ok) {
+    const errBody = await res.text();
+    console.error('Gemini API error:', res.status, errBody);
+    let detail = '';
+    try { detail = JSON.parse(errBody)?.error?.message || errBody; } catch { detail = errBody; }
+    throw new Error(`Gemini hatası (${res.status}): ${detail}`);
+  }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
 
 // ======= Markdown Renderer =======
 function renderMarkdown(text) {
@@ -86,60 +93,37 @@ function renderMarkdown(text) {
     .replace(/\n/g, "<br>");
 }
 
-// ======= Claude API Call =======
-async function callClaude(apiKey, messages) {
-  const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  const baseUrl = isDev ? '/api/anthropic/v1/messages' : 'https://api.anthropic.com/v1/messages';
-  const res = await fetch(baseUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }],
-      messages,
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    if (res.status === 429) throw new Error('Rate limit — 1-2 dk bekle.');
-    if (res.status === 401) throw new Error('API key geçersiz.');
-    throw new Error(err.error?.message || `API hatası: ${res.status}`);
-  }
-  return await res.json();
-}
+// ======= Quick Commands =======
+const QUICK_COMMANDS = [
+  { label: "Bugün neler var?", prompt: (news) => `Aşağıdaki güncel haberleri analiz et ve en önemli 3-5 tanesi için Volkan tarzında birer tweet yaz. Sonunda yayın planı tablosu ekle.\n\nHABERLER:\n${news.map((n, i) => `${i + 1}. ${n.title} (${n.sourceName})`).join('\n')}` },
+  { label: "BTC thread yaz", prompt: (news) => `Bitcoin'in bugünkü durumu için analitik bir thread yaz. Teknik seviyeler ve iki senaryo içersin. Güncel bağlam:\n${news.slice(0, 3).map(n => `- ${n.title}`).join('\n')}` },
+  { label: "AI + kripto postu", prompt: () => "Yapay zeka ve kripto piyasaları kesişiminden ilgi çekici bir tweet yaz. Pivot içerik olsun." },
+  { label: "Makro analiz", prompt: (news) => `Global makroekonomik gelişmeleri ve Bitcoin'e etkisini anlatan bir thread hazırla.\nGüncel haberler:\n${news.slice(0, 5).map(n => `- ${n.title}`).join('\n')}` },
+];
 
 // ======= Component =======
 export default function ContentView() {
-  // News state
+  // News
   const [news, setNews] = useState([]);
   const [newsLoading, setNewsLoading] = useState(true);
-  const [newsExpanded, setNewsExpanded] = useState(false);
+  const [selectedNews, setSelectedNews] = useState(null);
   const [ccKey, setCcKey] = useState(() => getCryptoCompareKey());
   const newsCacheRef = useRef({ data: null, timestamp: 0 });
 
-  // Chat state
+  // Chat
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [searchInfo, setSearchInfo] = useState('');
   const [copied, setCopied] = useState(null);
 
-  // API key state
-  const [claudeKey, setClaudeKey] = useState(() => localStorage.getItem(CLAUDE_KEY_STORAGE) || '');
+  // Keys
+  const [geminiKey, setGeminiKey] = useState(() => localStorage.getItem(GEMINI_KEY_STORAGE) || '');
   const [showKeyModal, setShowKeyModal] = useState(false);
-  const claudeInputRef = useRef(null);
+  const geminiInputRef = useRef(null);
   const ccInputRef = useRef(null);
   const bottomRef = useRef(null);
 
-  // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
@@ -161,7 +145,6 @@ export default function ContentView() {
 
   useEffect(() => { loadNews(); }, [loadNews]);
 
-  // Time ago
   const timeAgo = (ts) => {
     const diff = Date.now() - ts;
     const mins = Math.floor(diff / 60000);
@@ -174,32 +157,17 @@ export default function ContentView() {
   // Send message
   const send = async (userText) => {
     if (!userText.trim() || loading) return;
-    if (!claudeKey) { setShowKeyModal(true); return; }
+    if (!geminiKey) { setShowKeyModal(true); return; }
     setError('');
-    setSearchInfo('');
 
-    const userMsg = { role: 'user', content: userText };
-    const updatedMessages = [...messages, userMsg];
-    setMessages(updatedMessages);
+    setMessages(prev => [...prev, { role: 'user', content: userText }]);
     setInput('');
     setLoading(true);
 
     try {
-      const data = await callClaude(claudeKey, updatedMessages);
-
-      const searchBlocks = data.content?.filter(b => b.type === 'tool_use' && b.name === 'web_search');
-      if (searchBlocks?.length > 0) {
-        setSearchInfo(`${searchBlocks.length} web araması yapıldı`);
-      }
-
-      const assistantText = data.content
-        ?.filter(b => b.type === 'text')
-        .map(b => b.text)
-        .join('\n') || '';
-
-      if (!assistantText) throw new Error('Boş yanıt geldi.');
-
-      setMessages(prev => [...prev, { role: 'assistant', content: assistantText }]);
+      const result = await callGemini(geminiKey, userText);
+      if (!result) throw new Error('Boş yanıt geldi.');
+      setMessages(prev => [...prev, { role: 'assistant', content: result }]);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -207,11 +175,25 @@ export default function ContentView() {
     }
   };
 
-  // News click → send to chat
-  const handleNewsToChat = (item) => {
-    const prompt = `Bu haber hakkında Volkan tarzında bir tweet yaz:\n\n"${item.title}"\n\nKaynak: ${item.sourceName}`;
-    setInput(prompt);
-    setNewsExpanded(false);
+  const handleNewsOverlay = (item) => {
+    setSelectedNews(item);
+  };
+
+  const handleContentGenerate = (type) => {
+    if (!selectedNews) return;
+    const { title, sourceName } = selectedNews;
+    const prompts = {
+      tweet: `Bu haber hakkında Volkan tarzında tek tweet yaz (max 280 karakter):\n\n"${title}"\n\nKaynak: ${sourceName}`,
+      thread: `Bu haber hakkında Volkan tarzında 5-12 tweet'lik bir thread yaz. 🧵 hook ile başla, son tweet "Sizce?" ile bitir:\n\n"${title}"\n\nKaynak: ${sourceName}`,
+      youtube: `Bu haber hakkında YouTube video script'i hazırla. Başlık (max 60 kar), thumbnail fikri, SEO açıklama ve HOOK/BAĞLAM/ANA İÇERİK/SONUÇ yapısında script:\n\n"${title}"\n\nKaynak: ${sourceName}`,
+    };
+    setSelectedNews(null);
+    send(prompts[type]);
+  };
+
+  const handleQuickCommand = (cmd) => {
+    const prompt = cmd.prompt(news);
+    send(prompt);
   };
 
   const handleCopy = (text, idx) => {
@@ -220,10 +202,10 @@ export default function ContentView() {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const saveClaudeKey = (key) => {
-    setClaudeKey(key);
-    if (key) localStorage.setItem(CLAUDE_KEY_STORAGE, key);
-    else localStorage.removeItem(CLAUDE_KEY_STORAGE);
+  const saveGeminiKeyLocal = (key) => {
+    setGeminiKey(key);
+    if (key) localStorage.setItem(GEMINI_KEY_STORAGE, key);
+    else localStorage.removeItem(GEMINI_KEY_STORAGE);
   };
 
   const saveCcKeyLocal = (key) => {
@@ -234,65 +216,47 @@ export default function ContentView() {
   return (
     <div className="fade-in content-view">
 
-      {/* ===== News Strip ===== */}
+      {/* ===== News List ===== */}
       <div className="glass-card content-news-strip">
-        <div className="content-news-strip-header" onClick={() => setNewsExpanded(!newsExpanded)}>
+        <div className="content-news-strip-header">
           <div className="content-news-strip-title">
             <span>Gündem</span>
             {!newsLoading && <span className="content-news-count">{news.length}</span>}
           </div>
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-            <button className="content-icon-btn" onClick={(e) => { e.stopPropagation(); loadNews(true); }} disabled={newsLoading}>
-              <RefreshCw size={14} className={newsLoading ? 'cal-spin' : ''} />
-            </button>
-            {newsExpanded ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
-          </div>
+          <button className="content-icon-btn" onClick={() => loadNews(true)} disabled={newsLoading}>
+            <RefreshCw size={14} className={newsLoading ? 'cal-spin' : ''} />
+          </button>
         </div>
 
-        {newsExpanded && (
-          <div className="content-news-expanded">
-            {newsLoading ? (
-              <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>
-                <Loader size={18} className="cal-spin" />
-              </div>
-            ) : news.length === 0 ? (
-              <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>Haber bulunamadı.</p>
-            ) : (
-              news.map(item => {
-                const src = SOURCES[item.source] || SOURCES.other;
-                return (
-                  <div key={item.id} className="content-news-strip-item" onClick={() => handleNewsToChat(item)}>
-                    {item.trend && (
-                      <span className={`content-trend ${item.trend}`}>
-                        {item.trend === 'fire' ? <Flame size={10} /> : <TrendingUp size={10} />}
-                      </span>
-                    )}
-                    <span className="content-news-strip-text">{item.title}</span>
-                    <div className="content-news-strip-meta">
-                      <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="content-source-link" style={{ color: src.color }} onClick={e => e.stopPropagation()}>
-                        {src.emoji} {item.sourceName} <ExternalLink size={9} />
-                      </a>
-                      <span className="content-time">{timeAgo(item.publishedAt)}</span>
-                    </div>
+        <div className="content-news-list">
+          {newsLoading ? (
+            <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>
+              <Loader size={18} className="cal-spin" />
+            </div>
+          ) : news.length === 0 ? (
+            <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>Haber bulunamadı.</p>
+          ) : (
+            news.map(item => {
+              const src = SOURCES[item.source] || SOURCES.other;
+              return (
+                <div key={item.id} className="content-news-strip-item" onClick={() => handleNewsOverlay(item)}>
+                  {item.trend && (
+                    <span className={`content-trend ${item.trend}`}>
+                      {item.trend === 'fire' ? <Flame size={10} /> : <TrendingUp size={10} />}
+                    </span>
+                  )}
+                  <span className="content-news-strip-text">{item.title}</span>
+                  <div className="content-news-strip-meta">
+                    <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="content-source-link" style={{ color: src.color }} onClick={e => e.stopPropagation()}>
+                      {src.emoji} {item.sourceName} <ExternalLink size={9} />
+                    </a>
+                    <span className="content-time">{timeAgo(item.publishedAt)}</span>
                   </div>
-                );
-              })
-            )}
-          </div>
-        )}
-
-        {/* Horizontal scroll when collapsed */}
-        {!newsExpanded && !newsLoading && news.length > 0 && (
-          <div className="content-news-scroll">
-            {news.slice(0, 5).map(item => (
-              <button key={item.id} className="content-news-chip" onClick={() => handleNewsToChat(item)}>
-                {item.trend === 'fire' && <Flame size={10} className="content-chip-icon" />}
-                {item.trend === 'trending' && <TrendingUp size={10} className="content-chip-icon" />}
-                <span>{item.title.length > 45 ? item.title.slice(0, 45) + '...' : item.title}</span>
-              </button>
-            ))}
-          </div>
-        )}
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* ===== Chat Area ===== */}
@@ -303,7 +267,7 @@ export default function ContentView() {
             <p className="content-empty-sub">Hazır komutlardan birini seç, haberlerden birine tıkla ya da kendi isteğini yaz.</p>
             <div className="content-quick-grid">
               {QUICK_COMMANDS.map(cmd => (
-                <button key={cmd.label} className="content-quick-btn glass-card" onClick={() => send(cmd.value)}>
+                <button key={cmd.label} className="content-quick-btn glass-card" onClick={() => handleQuickCommand(cmd)}>
                   {cmd.label}
                 </button>
               ))}
@@ -317,9 +281,6 @@ export default function ContentView() {
                   <div className="content-msg-user">{msg.content}</div>
                 ) : (
                   <div className="content-msg-assistant glass-card">
-                    {searchInfo && i === messages.length - 1 && (
-                      <div className="content-search-badge">{searchInfo}</div>
-                    )}
                     <div className="content-msg-text" dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
                     <button className="content-msg-copy" onClick={() => handleCopy(msg.content, i)}>
                       {copied === i ? <><Check size={12} /> Kopyalandı</> : <><Copy size={12} /> Kopyala</>}
@@ -337,16 +298,12 @@ export default function ContentView() {
                     <span className="content-dot" style={{ animationDelay: '160ms' }} />
                     <span className="content-dot" style={{ animationDelay: '320ms' }} />
                   </div>
-                  <p className="content-loading-text">Haberler taranıyor, içerik üretiliyor...</p>
+                  <p className="content-loading-text">İçerik üretiliyor...</p>
                 </div>
               </div>
             )}
 
-            {error && (
-              <div className="content-error">
-                <strong>Hata:</strong> {error}
-              </div>
-            )}
+            {error && <div className="content-error"><strong>Hata:</strong> {error}</div>}
           </>
         )}
         <div ref={bottomRef} />
@@ -357,7 +314,7 @@ export default function ContentView() {
         {messages.length > 0 && (
           <div className="content-quick-row">
             {QUICK_COMMANDS.slice(0, 2).map(cmd => (
-              <button key={cmd.label} className="content-quick-sm" onClick={() => send(cmd.value)}>
+              <button key={cmd.label} className="content-quick-sm" onClick={() => handleQuickCommand(cmd)}>
                 {cmd.label}
               </button>
             ))}
@@ -377,14 +334,41 @@ export default function ContentView() {
         </form>
       </div>
 
-      {/* ===== Key Button (floating) ===== */}
-      <button
-        className="content-key-fab"
-        onClick={() => setShowKeyModal(true)}
-        style={claudeKey ? { borderColor: 'rgba(52,168,83,0.4)' } : {}}
-      >
-        <Key size={14} style={claudeKey ? { color: '#34A853' } : {}} />
+      {/* Key FAB */}
+      <button className="content-key-fab" onClick={() => setShowKeyModal(true)}
+        style={geminiKey ? { borderColor: 'rgba(52,168,83,0.4)' } : {}}>
+        <Key size={14} style={geminiKey ? { color: '#34A853' } : {}} />
       </button>
+
+      {/* ===== Content Type Overlay ===== */}
+      {selectedNews && (
+        <div className="modal-overlay" onClick={() => setSelectedNews(null)}>
+          <div className="modal-content glass-card content-type-modal" onClick={e => e.stopPropagation()}>
+            <button className="content-type-close" onClick={() => setSelectedNews(null)}>
+              <X size={16} />
+            </button>
+            <p className="content-type-title">"{selectedNews.title}"</p>
+            <p className="content-type-source">
+              {(SOURCES[selectedNews.source] || SOURCES.other).emoji} {selectedNews.sourceName}
+            </p>
+
+            <div className="content-type-group">
+              <div className="content-type-group-label">𝕏 Twitter</div>
+              <div className="content-type-group-btns">
+                <button className="content-type-btn" onClick={() => handleContentGenerate('tweet')}>Tek Tweet</button>
+                <button className="content-type-btn" onClick={() => handleContentGenerate('thread')}>Thread</button>
+              </div>
+            </div>
+
+            <div className="content-type-group">
+              <div className="content-type-group-label">YouTube</div>
+              <div className="content-type-group-btns">
+                <button className="content-type-btn" onClick={() => handleContentGenerate('youtube')}>Script / Outline</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== API Keys Modal ===== */}
       {showKeyModal && (
@@ -397,14 +381,14 @@ export default function ContentView() {
 
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
-                Claude API Key
-                {claudeKey && <span style={{ color: '#34A853', fontSize: '0.7rem' }}>aktif</span>}
+                Gemini API Key
+                {geminiKey && <span style={{ color: '#34A853', fontSize: '0.7rem' }}>aktif</span>}
               </label>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginBottom: '8px', lineHeight: 1.4 }}>
                 İçerik üretimi için gerekli.
-                <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" style={{ color: '#00d4ff', marginLeft: '4px' }}>Buradan al →</a>
+                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#00d4ff', marginLeft: '4px' }}>Buradan al →</a>
               </p>
-              <input ref={claudeInputRef} type="password" defaultValue={claudeKey} placeholder="sk-ant-..." className="todo-input" />
+              <input ref={geminiInputRef} type="password" defaultValue={geminiKey} placeholder="AIza..." className="todo-input" />
             </div>
 
             <div style={{ marginBottom: '16px' }}>
@@ -423,18 +407,18 @@ export default function ContentView() {
             <div style={{ display: 'flex', gap: '10px' }}>
               <button className="btn-cancel" onClick={() => setShowKeyModal(false)}>İptal</button>
               <button className="btn-save" style={{ background: '#00d4ff' }} onClick={() => {
-                saveClaudeKey(claudeInputRef.current?.value?.trim() || '');
+                saveGeminiKeyLocal(geminiInputRef.current?.value?.trim() || '');
                 saveCcKeyLocal(ccInputRef.current?.value?.trim() || '');
                 setShowKeyModal(false);
               }}>Kaydet</button>
             </div>
 
-            {(claudeKey || ccKey) && (
+            {(geminiKey || ccKey) && (
               <div style={{ marginTop: '12px', display: 'flex', gap: '12px' }}>
-                {claudeKey && (
+                {geminiKey && (
                   <button style={{ background: 'none', border: 'none', color: 'var(--error-color)', fontSize: '0.72rem', cursor: 'pointer' }}
-                    onClick={() => { saveClaudeKey(''); if (claudeInputRef.current) claudeInputRef.current.value = ''; }}>
-                    Claude key sil
+                    onClick={() => { saveGeminiKeyLocal(''); if (geminiInputRef.current) geminiInputRef.current.value = ''; }}>
+                    Gemini key sil
                   </button>
                 )}
                 {ccKey && (

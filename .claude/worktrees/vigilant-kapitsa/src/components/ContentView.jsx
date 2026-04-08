@@ -1,0 +1,427 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { RefreshCw, ExternalLink, TrendingUp, Flame, X, Copy, Check, ChevronRight, Sparkles, Loader } from 'lucide-react';
+
+// Brand icons as inline SVG (lucide-react doesn't include brand logos)
+const TwitterIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+  </svg>
+);
+const YoutubeIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+  </svg>
+);
+
+const GEMINI_KEY_STORAGE = 'vkgym_gemini_key';
+
+// ======= News Sources Config =======
+const SOURCES = {
+  reddit: { name: 'r/Bitcoin', emoji: '🟠', color: '#FF4500' },
+  coindesk: { name: 'CoinDesk', emoji: '📰', color: '#00d4ff' },
+  decrypt: { name: 'Decrypt', emoji: '🔓', color: '#00d4ff' },
+  techcrunch: { name: 'TechCrunch', emoji: '💚', color: '#00d4ff' },
+  aibreakfast: { name: 'AI Breakfast', emoji: '🤖', color: '#bd00ff' },
+  other: { name: 'Diğer', emoji: '🌐', color: '#888' },
+};
+
+// ======= Volkan's Content Style Prompt =======
+const SYSTEM_PROMPT = `Sen Volkan Korkmaz için içerik üretim asistanısın.
+
+Volkan Korkmaz — Eski Borsa İstanbul çalışanı, Altcointurk kurucu ortağı ve CEO'su, KriptoCuma organizatörü, Bitcoin trader, programcı, girişimci.
+
+SES TONU:
+- Direkt ve özlü — lafı dolandırma
+- Analitik ama erişilebilir — teknik bilgiyi sade dille aktar
+- Güven veren — yıllık piyasa deneyiminden gelen özgüven, kibirli değil
+- Topluluk odaklı — "biz", "birlikte" gibi ifadeler doğal
+- Emoji: Minimal, anlamlı (💎🔥📈), spamlanmaz
+
+KAÇINILACAKLAR:
+- Aşırı iyimser/pump tarzı dil
+- Clickbait
+- Finansal tavsiye niteliğinde kesin yönlendirmeler
+- ALL CAPS sensasyonalizm`;
+
+const TWEET_PROMPT = `${SYSTEM_PROMPT}
+
+Aşağıdaki haber için Volkan Korkmaz tarzında 2 farklı tweet versiyonu yaz.
+
+Versiyon 1: Analitik ve derinlikli (280 karakter)
+Versiyon 2: Kısa ve punch etkili (280 karakter)
+
+Her iki versiyonu da --- ile ayır. Sadece tweet metinlerini yaz, açıklama ekleme.`;
+
+const THREAD_PROMPT = `${SYSTEM_PROMPT}
+
+Aşağıdaki haber için Volkan Korkmaz tarzında bir Twitter thread yaz (5-8 tweet).
+
+Yapı:
+- Tweet 1: Hook (okuyucuyu durduran başlangıç)
+- Tweet 2-N: Gelişim (her tweet bağımsız okunabilir)
+- Son tweet: Sonuç + CTA
+
+Her tweet'i "🧵 1/" formatında numara. Sadece thread'i yaz.`;
+
+const YOUTUBE_PROMPT = `${SYSTEM_PROMPT}
+
+Aşağıdaki haber için Volkan Korkmaz tarzında 3-8 dakikalık YouTube video outline'ı hazırla.
+
+Format:
+BAŞLIK: (SEO + merak uyandıran, max 60 karakter)
+THUMBNAIL FİKRİ: (1 cümle)
+AÇIKLAMA: (SEO odaklı, 3-4 satır + hashtag)
+
+--- SCRIPT ---
+[HOOK — 0:00-0:20] (ilk 20 saniye)
+[BAĞLAM — 0:20-1:00] (neden şimdi konuşuyoruz?)
+[ANA İÇERİK — 1:00-6:30] (2-4 ana nokta)
+[SONUÇ & CTA — 6:30-8:00] (görüş + yönlendirme)`;
+
+// ======= Gemini API Call =======
+async function callGemini(apiKey, systemPrompt, userPrompt) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ parts: [{ text: userPrompt }] }],
+      generationConfig: { temperature: 0.8, maxOutputTokens: 2048 },
+    }),
+  });
+  if (!res.ok) throw new Error(`Gemini API error: ${res.status}`);
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+// ======= Free Crypto News API =======
+async function fetchCryptoNews() {
+  try {
+    const res = await fetch('https://min-api.cryptocompare.com/data/v2/news/?lang=EN&sortOrder=popular');
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.Data || []).slice(0, 12).map((item, i) => ({
+      id: 'news_' + item.id,
+      title: item.title,
+      url: item.url,
+      source: detectSource(item.source),
+      sourceName: item.source_info?.name || item.source,
+      sourceUrl: item.url,
+      imageUrl: item.imageurl,
+      publishedAt: item.published_on * 1000,
+      body: item.body?.slice(0, 300) || '',
+      categories: item.categories?.split('|') || [],
+      trend: i < 3 ? 'fire' : i < 6 ? 'trending' : null,
+    }));
+  } catch (e) {
+    console.error('News fetch error:', e);
+    return [];
+  }
+}
+
+function detectSource(sourceName) {
+  const lower = (sourceName || '').toLowerCase();
+  if (lower.includes('reddit') || lower.includes('bitcoin')) return 'reddit';
+  if (lower.includes('coindesk')) return 'coindesk';
+  if (lower.includes('decrypt')) return 'decrypt';
+  if (lower.includes('techcrunch')) return 'techcrunch';
+  return 'other';
+}
+
+export default function ContentView() {
+  const [news, setNews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedNews, setSelectedNews] = useState(null); // for content gen overlay
+  const [contentType, setContentType] = useState(null); // 'tweet' | 'thread' | 'youtube'
+  const [generatedContent, setGeneratedContent] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [geminiKey, setGeminiKey] = useState(() => localStorage.getItem(GEMINI_KEY_STORAGE) || '');
+  const [showKeyInput, setShowKeyInput] = useState(false);
+  const keyInputRef = useRef(null);
+
+  // Fetch news on mount
+  const loadNews = useCallback(async () => {
+    setLoading(true);
+    const data = await fetchCryptoNews();
+    setNews(data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadNews(); }, [loadNews]);
+
+  // ======= Content Generation =======
+  const handleNewsClick = (newsItem) => {
+    setSelectedNews(newsItem);
+    setContentType(null);
+    setGeneratedContent('');
+  };
+
+  const handleGenerate = async (type) => {
+    if (!geminiKey) {
+      setShowKeyInput(true);
+      return;
+    }
+    setContentType(type);
+    setGenerating(true);
+    setGeneratedContent('');
+
+    const promptMap = {
+      tweet: TWEET_PROMPT,
+      thread: THREAD_PROMPT,
+      youtube: YOUTUBE_PROMPT,
+    };
+
+    const userPrompt = `Haber Başlığı: ${selectedNews.title}\n\nHaber Özeti: ${selectedNews.body}\n\nKaynak: ${selectedNews.sourceName}`;
+
+    try {
+      const result = await callGemini(geminiKey, promptMap[type], userPrompt);
+      setGeneratedContent(result);
+    } catch (e) {
+      setGeneratedContent(`❌ Hata: ${e.message}\n\nAPI key'inizi kontrol edin.`);
+    }
+    setGenerating(false);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(generatedContent);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const saveGeminiKey = (key) => {
+    setGeminiKey(key);
+    localStorage.setItem(GEMINI_KEY_STORAGE, key);
+    setShowKeyInput(false);
+  };
+
+  // Time ago helper
+  const timeAgo = (ts) => {
+    const diff = Date.now() - ts;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}dk`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}sa`;
+    return `${Math.floor(hrs / 24)}g`;
+  };
+
+  // ======= Render =======
+  return (
+    <div className="fade-in" style={{ position: 'relative', minHeight: '60vh' }}>
+
+      {/* Header Bar */}
+      <div className="glass-card content-header">
+        <div>
+          <h2 className="content-title">📡 Content Hub</h2>
+          <p className="content-subtitle">Kripto & AI haberleri • İçerik üretimi</p>
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            className="content-icon-btn"
+            onClick={() => setShowKeyInput(true)}
+            title="Gemini API Key"
+            style={geminiKey ? { borderColor: 'rgba(52,168,83,0.4)' } : {}}
+          >
+            <Sparkles size={16} style={geminiKey ? { color: '#34A853' } : {}} />
+          </button>
+          <button className="content-icon-btn" onClick={loadNews} disabled={loading} title="Yenile">
+            <RefreshCw size={16} className={loading ? 'cal-spin' : ''} />
+          </button>
+        </div>
+      </div>
+
+      {/* News List */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+          <Loader size={28} className="cal-spin" style={{ marginBottom: '12px', color: '#00d4ff' }} />
+          <p>Haberler yükleniyor...</p>
+        </div>
+      ) : news.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📡</div>
+          <p>Haber bulunamadı.</p>
+          <button className="content-retry-btn" onClick={loadNews}>Tekrar Dene</button>
+        </div>
+      ) : (
+        <div className="content-news-list">
+          {news.map((item) => {
+            const src = SOURCES[item.source] || SOURCES.other;
+            return (
+              <div key={item.id} className="content-news-item glass-card">
+                <div className="content-news-body">
+                  {/* Trend indicator */}
+                  {item.trend && (
+                    <span className={`content-trend ${item.trend}`}>
+                      {item.trend === 'fire' ? <Flame size={12} /> : <TrendingUp size={12} />}
+                    </span>
+                  )}
+
+                  {/* Title (clickable for content gen) */}
+                  <h4
+                    className="content-news-title"
+                    onClick={() => handleNewsClick(item)}
+                  >
+                    {item.title}
+                  </h4>
+
+                  {/* Meta row */}
+                  <div className="content-news-meta">
+                    <a
+                      href={item.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="content-source-link"
+                      style={{ color: src.color }}
+                      onClick={e => e.stopPropagation()}
+                    >
+                      {src.emoji} {item.sourceName}
+                      <ExternalLink size={10} />
+                    </a>
+                    <span className="content-time">{timeAgo(item.publishedAt)}</span>
+                  </div>
+                </div>
+
+                {/* Action arrow */}
+                <button className="content-news-arrow" onClick={() => handleNewsClick(item)}>
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ========== Content Generation Overlay ========== */}
+      {selectedNews && !contentType && (
+        <div className="modal-overlay" onClick={() => setSelectedNews(null)}>
+          <div className="modal-content glass-card content-gen-modal" onClick={e => e.stopPropagation()}>
+            <button className="content-close" onClick={() => setSelectedNews(null)}>
+              <X size={18} />
+            </button>
+
+            <h4 className="content-gen-title">{selectedNews.title}</h4>
+            <p className="content-gen-source">
+              {SOURCES[selectedNews.source]?.emoji} {selectedNews.sourceName}
+            </p>
+
+            <div className="content-gen-options">
+              <button className="content-gen-btn content-gen-tweet" onClick={() => handleGenerate('tweet')}>
+                <TwitterIcon size={20} />
+                <span>Tek Tweet</span>
+                <small>280 karakter • 2 versiyon</small>
+              </button>
+
+              <button className="content-gen-btn content-gen-thread" onClick={() => handleGenerate('thread')}>
+                <TwitterIcon size={20} />
+                <span>Thread</span>
+                <small>5-8 tweet • Derinlemesine</small>
+              </button>
+
+              <button className="content-gen-btn content-gen-youtube" onClick={() => handleGenerate('youtube')}>
+                <YoutubeIcon size={20} />
+                <span>YouTube Script</span>
+                <small>3-8 dk • Outline + Script</small>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== Generated Content View ========== */}
+      {selectedNews && contentType && (
+        <div className="modal-overlay" onClick={() => { setSelectedNews(null); setContentType(null); }}>
+          <div className="modal-content glass-card content-result-modal" onClick={e => e.stopPropagation()}>
+            <div className="content-result-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {contentType === 'youtube' ? <YoutubeIcon size={18} /> : <TwitterIcon size={18} />}
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                  {contentType === 'tweet' ? 'Tweet' : contentType === 'thread' ? 'Thread' : 'YouTube Script'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {generatedContent && !generating && (
+                  <button className="content-copy-btn" onClick={handleCopy}>
+                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                    {copied ? 'Kopyalandı' : 'Kopyala'}
+                  </button>
+                )}
+                <button className="content-close-sm" onClick={() => { setSelectedNews(null); setContentType(null); }}>
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            <div className="content-result-body">
+              {generating ? (
+                <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                  <Sparkles size={28} className="cal-spin" style={{ color: '#00d4ff', marginBottom: '12px' }} />
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Volkan tarzında üretiliyor...</p>
+                </div>
+              ) : (
+                <pre className="content-result-text">{generatedContent}</pre>
+              )}
+            </div>
+
+            {/* Regenerate buttons */}
+            {!generating && generatedContent && (
+              <div className="content-result-actions">
+                <button className="content-regen-btn" onClick={() => handleGenerate(contentType)}>
+                  <RefreshCw size={14} /> Tekrar Üret
+                </button>
+                <button className="content-back-btn" onClick={() => { setContentType(null); setGeneratedContent(''); }}>
+                  ← Format Seç
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========== Gemini API Key Modal ========== */}
+      {showKeyInput && (
+        <div className="modal-overlay" onClick={() => setShowKeyInput(false)}>
+          <div className="modal-content glass-card" onClick={e => e.stopPropagation()}>
+            <h3 style={{ color: '#00d4ff', marginBottom: '12px' }}>
+              <Sparkles size={18} style={{ marginRight: '8px', verticalAlign: 'text-bottom' }} />
+              Gemini API Key
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '12px', lineHeight: 1.5 }}>
+              İçerik üretimi için Gemini API key gerekli.
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#00d4ff', marginLeft: '4px' }}>
+                Buradan al →
+              </a>
+            </p>
+            <input
+              ref={keyInputRef}
+              type="password"
+              defaultValue={geminiKey}
+              placeholder="AIza..."
+              className="todo-input"
+              autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') saveGeminiKey(e.target.value.trim()); }}
+            />
+            <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+              <button className="btn-cancel" onClick={() => setShowKeyInput(false)}>İptal</button>
+              <button
+                className="btn-save"
+                style={{ background: '#00d4ff' }}
+                onClick={() => saveGeminiKey(keyInputRef.current?.value?.trim() || '')}
+              >
+                Kaydet
+              </button>
+            </div>
+            {geminiKey && (
+              <button
+                style={{ marginTop: '10px', background: 'none', border: 'none', color: 'var(--error-color)', fontSize: '0.75rem', cursor: 'pointer' }}
+                onClick={() => { saveGeminiKey(''); }}
+              >
+                Key'i Sil
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

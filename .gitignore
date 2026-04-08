@@ -22,5 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-# Claude Code geçici dosyaları
-.claude/

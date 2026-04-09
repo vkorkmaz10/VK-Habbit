@@ -10,14 +10,18 @@ const URL_REGEX = /https?:\/\/[^\s]+/;
 // ======= Golden Examples Injection =======
 function getGoldenExamplesBlock(type) {
   const refs = goldenExamples;
+  const isPlaceholder = (s) => !s || s.includes('BURAYA') || s.includes('YAPIŞTIRIN');
   if (type === 'tweet' && refs.x_single_tweets?.length) {
-    return `\n\nALTIN ÖRNEKLER (bu tonu ve yapıyı taklit et):\n${refs.x_single_tweets.map(t => `- "${t.content}"`).join('\n')}`;
+    const valid = refs.x_single_tweets.filter(t => !isPlaceholder(t.content));
+    if (valid.length) return `\n\nALTIN ÖRNEKLER (bu tonu ve yapıyı taklit et):\n${valid.map(t => `- "${t.content}"`).join('\n')}`;
   }
   if (type === 'thread' && refs.x_threads?.length) {
-    return `\n\nALTIN ÖRNEKLER (hook, geçiş ve kapanış yapısını taklit et):\n${refs.x_threads.map(t => `Hook: "${t.hook}"\nGövde: "${t.body}"\nKapanış: "${t.closing}"`).join('\n---\n')}`;
+    const valid = refs.x_threads.filter(t => !isPlaceholder(t.hook));
+    if (valid.length) return `\n\nALTIN ÖRNEKLER (hook, geçiş ve kapanış yapısını taklit et):\n${valid.map(t => `Hook: "${t.hook}"\nGövde: "${t.body}"\nKapanış: "${t.closing}"`).join('\n---\n')}`;
   }
   if (type === 'youtube' && refs.youtube_scripts?.length) {
-    return `\n\nALTIN ÖRNEKLER (giriş ve yapıyı taklit et):\n${refs.youtube_scripts.map(t => `Giriş: "${t.intro}"\nYapı: "${t.structure}"`).join('\n---\n')}`;
+    const valid = refs.youtube_scripts.filter(t => !isPlaceholder(t.intro));
+    if (valid.length) return `\n\nALTIN ÖRNEKLER (giriş ve yapıyı taklit et):\n${valid.map(t => `Giriş: "${t.intro}"\nYapı: "${t.structure}"`).join('\n---\n')}`;
   }
   return '';
 }
@@ -99,27 +103,8 @@ async function callGemini(apiKey, userPrompt, systemPrompt = SYSTEM_PROMPT) {
   throw new Error(lastError);
 }
 
-// ======= Headline Translation =======
-async function translateHeadlines(apiKey, items) {
-  if (!items.length || !apiKey) return items.map(item => ({ ...item, titleTr: item.title }));
-  try {
-    const titles = items.map((n, i) => `${i + 1}. ${n.title}`).join('\n');
-    const result = await callGemini(
-      apiKey,
-      `Aşağıdaki haber başlıklarını kısa ve öz Türkçeye çevir. Sadece numaralı çevirileri döndür, başka açıklama ekleme:\n${titles}`,
-      'Sen profesyonel bir çevirmensin. Haber başlıklarını İngilizceden Türkçeye çeviriyorsun. Kısa, net ve doğal Türkçe kullan.'
-    );
-    const lines = result.split('\n').filter(l => l.trim());
-    return items.map((item, i) => {
-      const line = lines[i];
-      const tr = line ? line.replace(/^\d+\.\s*/, '').trim() : item.title;
-      return { ...item, titleTr: tr };
-    });
-  } catch (e) {
-    console.warn('Headline translation failed, using originals:', e.message);
-    return items.map(item => ({ ...item, titleTr: item.title }));
-  }
-}
+// Headline translation removed — Gemini free tier quota is too limited.
+// All quota reserved for content generation.
 
 // URL content fetching uses scrapeArticle from news.js
 
@@ -186,18 +171,11 @@ export default function ContentView() {
       return;
     }
     setNewsLoading(true);
-    let data = await fetchAllNews();
-    // Cache raw news immediately (so we don't re-fetch on translate fail)
+    const data = await fetchAllNews();
     newsCacheRef.current = { data, timestamp: Date.now() };
     setNews(data);
     setNewsLoading(false);
-    // Translate in background — update cache + state when done
-    if (geminiKey && data.length) {
-      const translated = await translateHeadlines(geminiKey, data);
-      newsCacheRef.current = { data: translated, timestamp: Date.now() };
-      setNews(translated);
-    }
-  }, [geminiKey]);
+  }, []);
 
   useEffect(() => { loadNews(); }, [loadNews]);
 
@@ -259,7 +237,7 @@ export default function ContentView() {
   const handleContentGenerate = (type) => {
     if (!selectedNews) return;
     const { title, sourceName, scrapedContent } = selectedNews;
-    const context = scrapedContent ? `\n\nHaber içeriği (EN):\n${scrapedContent}` : '';
+    const context = scrapedContent ? `\n\nHaber içeriği (EN):\n${scrapedContent.slice(0, 800)}` : '';
     const golden = getGoldenExamplesBlock(type);
     const prompts = {
       tweet: `Bu haber hakkında Volkan tarzında tek tweet yaz (max 280 karakter):\n\n"${title}"\nKaynak: ${sourceName}${context}${golden}`,
@@ -326,7 +304,7 @@ export default function ContentView() {
                     <span className={`content-cat-badge ${item.category}`}>
                       {item.category === 'ai_tech' ? <Cpu size={10} /> : <Bitcoin size={10} />}
                     </span>
-                    <span className="content-news-strip-text">{item.titleTr || item.title}</span>
+                    <span className="content-news-strip-text">{item.title}</span>
                   </div>
                   <div className="content-news-strip-meta">
                     <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="content-source-link" onClick={e => e.stopPropagation()}>
@@ -404,8 +382,7 @@ export default function ContentView() {
             <button className="content-type-close" onClick={() => setSelectedNews(null)}>
               <X size={16} />
             </button>
-            <p className="content-type-title">{selectedNews.titleTr || selectedNews.title}</p>
-            <p className="content-type-original">{selectedNews.title}</p>
+            <p className="content-type-title">{selectedNews.title}</p>
             <div className="content-type-meta">
               <span>{selectedNews.sourceName}</span>
               <span className={`content-cat-pill ${selectedNews.category}`}>

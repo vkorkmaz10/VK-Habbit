@@ -261,8 +261,22 @@ export default function ContentView() {
 
   const cleanScrapedContent = (text) => {
     if (!text) return '';
-    // Remove coin price widgets and trailing junk
-    return text.replace(/Coin Prices[\s\S]*/i, '').trim();
+    const junk = [
+      /Coin Prices[\s\S]*/i,
+      /Trending (?:Coins|Tokens)[\s\S]*/i,
+      /Market (?:Data|Cap|Overview)[\s\S]*/i,
+      /Top (?:Coins|Cryptocurrencies|Assets)[\s\S]*/i,
+      /Related (?:Articles|Stories|News)[\s\S]*/i,
+      /Newsletter[\s\S]*/i,
+      /Subscribe[\s\S]*/i,
+      /Popular (?:Stories|Articles)[\s\S]*/i,
+      /Don't Miss[\s\S]*/i,
+      /Sign up for[\s\S]*/i,
+      /\b(?:BTC|ETH|XRP|BNB|SOL|DOGE|ADA|AVAX|SHIB|LINK|DOT)\s*\$[\d,.]+\s*[\d.]+%/g,
+    ];
+    let clean = text;
+    for (const p of junk) clean = clean.replace(p, '');
+    return clean.trim();
   };
 
   const handleContentGenerate = (type) => {

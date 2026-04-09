@@ -5,7 +5,8 @@ import WeeklyReport from './components/WeeklyReport';
 import TodoView from './components/TodoView';
 import CalendarView from './components/CalendarView';
 import ContentView from './components/ContentView';
-import { Home, CheckSquare, Calendar, Sparkles, MoreHorizontal } from 'lucide-react';
+import SettingsView from './components/SettingsView';
+import { Home, CheckSquare, Calendar, Sparkles, Settings } from 'lucide-react';
 import { getActiveDateString } from './utils/date';
 import { performRollover } from './utils/storage';
 
@@ -137,8 +138,8 @@ function App() {
       )}
 
       {currentTab === 'page5' && (
-        <div className="main-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-          <h2 style={{color: 'var(--text-muted)'}}>Yeni Sayfa Tasarımı</h2>
+        <div className="main-content">
+          <SettingsView />
         </div>
       )}
 
@@ -161,8 +162,8 @@ function App() {
           <span>Content</span>
         </button>
         <button className={`bottom-nav-item ${currentTab === 'page5' ? 'active' : ''}`} onClick={() => setCurrentTab('page5')}>
-          <MoreHorizontal size={24} />
-          <span>More</span>
+          <Settings size={24} />
+          <span>Ayarlar</span>
         </button>
       </div>
     </div>

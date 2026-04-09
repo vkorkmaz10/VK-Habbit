@@ -1717,3 +1717,278 @@ body {
 .content-md-hr { border: none; border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 1em 0; }
 
 /* Legacy CSS cleaned up */
+
+/* ======= Settings View ======= */
+.settings-view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 20px;
+}
+.settings-card {
+  padding: 16px !important;
+  border-radius: 14px !important;
+}
+.settings-card-danger {
+  border-color: rgba(255, 82, 82, 0.2) !important;
+}
+.settings-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.settings-danger-title {
+  color: var(--error-color);
+}
+.settings-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+.settings-link {
+  color: #00d4ff;
+  text-decoration: none;
+}
+.settings-link:hover { text-decoration: underline; }
+
+/* Buttons */
+.settings-btn-row {
+  display: flex;
+  gap: 8px;
+}
+.settings-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.settings-btn:hover { background: rgba(255, 255, 255, 0.08); }
+.settings-btn:disabled { opacity: 0.35; cursor: default; }
+.settings-btn-export {
+  border-color: rgba(0, 212, 255, 0.25);
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.06);
+}
+.settings-btn-export:hover { background: rgba(0, 212, 255, 0.12); }
+.settings-btn-import {
+  border-color: rgba(57, 255, 20, 0.2);
+  color: var(--accent-color);
+  background: rgba(57, 255, 20, 0.06);
+}
+.settings-btn-import:hover { background: rgba(57, 255, 20, 0.12); }
+.settings-btn-save {
+  border-color: rgba(0, 212, 255, 0.25);
+  color: #00d4ff;
+}
+.settings-btn-delete-key {
+  border-color: rgba(255, 82, 82, 0.2);
+  color: var(--error-color);
+  flex: 0;
+  padding: 11px 20px;
+}
+.settings-btn-danger {
+  border-color: rgba(255, 82, 82, 0.3);
+  background: rgba(255, 82, 82, 0.08);
+  color: var(--error-color);
+}
+.settings-btn-danger:hover { background: rgba(255, 82, 82, 0.15); }
+
+/* API Key Input */
+.settings-key-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.settings-key-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.settings-key-input {
+  width: 100%;
+  padding: 10px 40px 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+  font-size: 0.8rem;
+  font-family: monospace;
+  outline: none;
+}
+.settings-key-input:focus { border-color: rgba(0, 212, 255, 0.3); }
+.settings-key-toggle {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+}
+.settings-key-toggle:hover { color: var(--text-main); }
+.settings-key-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.settings-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.settings-status-dot.active {
+  background: #34A853;
+  box-shadow: 0 0 6px rgba(52, 168, 83, 0.4);
+}
+.settings-status-text {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* App Info */
+.settings-info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.settings-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.settings-info-row:last-child { border-bottom: none; }
+.settings-info-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.settings-info-value {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* Delete confirmation */
+.settings-delete-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 82, 82, 0.3);
+  border-radius: 10px;
+  background: rgba(255, 82, 82, 0.06);
+  color: var(--error-color);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 2px;
+  outline: none;
+}
+.settings-delete-input:focus { border-color: var(--error-color); }
+
+/* Import modal */
+.settings-modal-title {
+  color: #00d4ff;
+  font-size: 1rem;
+  margin-bottom: 8px;
+}
+.settings-modal-file {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: monospace;
+  margin-bottom: 12px;
+}
+.settings-modal-desc {
+  font-size: 0.8rem;
+  color: var(--text-main);
+  margin-bottom: 12px;
+}
+.settings-import-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.settings-import-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.settings-import-option.selected {
+  border-color: rgba(0, 212, 255, 0.3);
+  background: rgba(0, 212, 255, 0.04);
+}
+.settings-import-option input[type="radio"] {
+  margin-top: 3px;
+  accent-color: #00d4ff;
+}
+.settings-import-option strong {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-main);
+  margin-bottom: 2px;
+}
+.settings-import-option span {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Toast */
+.settings-toast {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  z-index: 9999;
+  animation: toast-in 0.3s ease;
+  white-space: nowrap;
+}
+.settings-toast-success {
+  background: rgba(52, 168, 83, 0.15);
+  border: 1px solid rgba(52, 168, 83, 0.3);
+  color: #34A853;
+}
+.settings-toast-error {
+  background: rgba(255, 82, 82, 0.15);
+  border: 1px solid rgba(255, 82, 82, 0.3);
+  color: var(--error-color);
+}
+.settings-toast-info {
+  background: rgba(0, 212, 255, 0.15);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  color: #00d4ff;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}

@@ -6,7 +6,12 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, indent=2\\)[:500]\\)\")",
       "Bash(pkill -f \"vite\")",
       "mcp__Claude_Preview__preview_start",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(cp /Users/vkorkmaz10/Desktop/vkgym/src/App.jsx /Users/vkorkmaz10/Desktop/vkgym/.claude/worktrees/hungry-feistel/src/App.jsx)",
+      "Bash(cp /Users/vkorkmaz10/Desktop/vkgym/src/components/SettingsView.jsx /Users/vkorkmaz10/Desktop/vkgym/.claude/worktrees/hungry-feistel/src/components/SettingsView.jsx)",
+      "Bash(cp /Users/vkorkmaz10/Desktop/vkgym/src/utils/backup.js /Users/vkorkmaz10/Desktop/vkgym/.claude/worktrees/hungry-feistel/src/utils/backup.js)",
+      "Bash(cp /Users/vkorkmaz10/Desktop/vkgym/src/index.css /Users/vkorkmaz10/Desktop/vkgym/.claude/worktrees/hungry-feistel/src/index.css)",
+      "Bash(cp /Users/vkorkmaz10/Desktop/vkgym/src/components/ContentView.jsx /Users/vkorkmaz10/Desktop/vkgym/.claude/worktrees/hungry-feistel/src/components/ContentView.jsx)"
     ]
   }
 }

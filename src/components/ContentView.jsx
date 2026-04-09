@@ -77,30 +77,52 @@ const GEMINI_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-
 
 async function callGemini(apiKey, userPrompt, systemPrompt = SYSTEM_PROMPT) {
   let lastError = null;
-  for (const model of GEMINI_MODELS) {
+  for (let i = 0; i < GEMINI_MODELS.length; i++) {
+    const model = GEMINI_MODELS[i];
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ parts: [{ text: userPrompt }] }],
-        generationConfig: { temperature: 0.8, maxOutputTokens: 4096 },
-      }),
+    const body = JSON.stringify({
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ parts: [{ text: userPrompt }] }],
+      generationConfig: { temperature: 0.8, maxOutputTokens: 4096 },
     });
-    if (res.ok) {
-      const data = await res.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    // Try each model up to 2 times (retry once on 429)
+    for (let retry = 0; retry < 2; retry++) {
+      if (retry > 0) await new Promise(r => setTimeout(r, 2000)); // 2s wait before retry
+
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+      if (res.ok) {
+        const data = await res.json();
+        return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      }
+
+      const errBody = await res.text();
+      let detail = '';
+      try { detail = JSON.parse(errBody)?.error?.message || errBody; } catch { detail = errBody; }
+      lastError = detail;
+
+      // Auth errors (401/403) — stop immediately
+      if (res.status !== 503 && res.status !== 429) {
+        throw new Error(`Gemini hatasi (${res.status}): ${detail}`);
+      }
+
+      // 429 on first try — retry same model after delay
+      if (res.status === 429 && retry === 0) {
+        console.warn(`Gemini ${model} rate limited, retrying in 2s...`);
+        continue;
+      }
+
+      // Move to next model
+      console.warn(`Gemini ${model} failed (${res.status}), trying next model...`);
+      break;
     }
-    const errBody = await res.text();
-    console.warn(`Gemini ${model} failed (${res.status}), trying next...`);
-    let detail = '';
-    try { detail = JSON.parse(errBody)?.error?.message || errBody; } catch { detail = errBody; }
-    lastError = `Gemini hatası (${res.status}): ${detail}`;
-    // Only fallback on 503/429, not on auth errors
-    if (res.status !== 503 && res.status !== 429) break;
+
+    // Wait 1s between different models
+    if (i < GEMINI_MODELS.length - 1) await new Promise(r => setTimeout(r, 1000));
   }
-  throw new Error(lastError);
+
+  // All models failed — friendly Turkish message for 429
+  throw new Error('Gemini API kotasi doldu. Lutfen birkac dakika bekleyip tekrar deneyin.');
 }
 
 // Headline translation removed — Gemini free tier quota is too limited.

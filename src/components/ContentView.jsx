@@ -56,6 +56,7 @@ KAÇINILACAKLAR:
 - Gereksiz uzun girişler
 - Finansal tavsiye: "benim görüşüm", "kendi araştırmanı yap" çerçevesini koru
 - 280 karakteri aşan tek tweetler
+- Coin fiyatları listeleme, fiyat tabloları veya "Coin Prices" bölümü ekleme — sadece verilen habere odaklan
 
 FORMAT KURALLARI:
 TEK TWEET: [Güçlü giriş] + [1-2 cümle yorum] + [$BTC ticker]
@@ -73,7 +74,7 @@ KONUYA GÖRE TON:
 - Regülasyon → Nötr-analizci`;
 
 // ======= Gemini API =======
-const GEMINI_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite'];
 
 async function callGemini(apiKey, userPrompt, systemPrompt = SYSTEM_PROMPT) {
   let lastError = null;
@@ -181,7 +182,9 @@ export default function ContentView() {
   const bottomRef = useRef(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length > 0) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages, loading]);
 
   // Fetch news + translate

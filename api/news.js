@@ -92,10 +92,10 @@ export default async function handler(req, res) {
       }
     }
 
-    // Sort: AI/Tech first, then by date
+    // Sort: Crypto first, then AI/Tech, within each group by date (newest first)
     items.sort((a, b) => {
-      if (a.category === 'ai_tech' && b.category !== 'ai_tech') return -1;
-      if (b.category === 'ai_tech' && a.category !== 'ai_tech') return 1;
+      if (a.category === 'crypto' && b.category !== 'crypto') return -1;
+      if (b.category === 'crypto' && a.category !== 'crypto') return 1;
       return b.publishedAt - a.publishedAt;
     });
 

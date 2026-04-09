@@ -117,8 +117,9 @@ export default function SettingsView() {
   };
 
   // ===== Delete All =====
+  const DELETE_PASSWORD = 'vk2017';
   const confirmDeleteAll = () => {
-    if (deleteInput !== 'SIL') return;
+    if (deleteInput !== DELETE_PASSWORD) return;
     const keys = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -268,20 +269,21 @@ export default function SettingsView() {
           <div className="modal-content glass-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '340px' }}>
             <h3 className="settings-modal-title" style={{ color: 'var(--error-color)' }}>Tum Verileri Sil</h3>
             <p className="settings-modal-desc">
-              Bu islem geri alinamaz. Onaylamak icin asagiya <strong>SIL</strong> yazin.
+              Bu islem geri alinamaz. Onaylamak icin sifreyi girin.
             </p>
             <input
               className="settings-delete-input"
+              type="password"
               value={deleteInput}
-              onChange={e => setDeleteInput(e.target.value.toUpperCase())}
-              placeholder='Buraya "SIL" yazin'
+              onChange={e => setDeleteInput(e.target.value)}
+              placeholder='Sifre'
               autoFocus
             />
             <div className="settings-btn-row" style={{ marginTop: '14px' }}>
               <button className="btn-cancel" onClick={() => setDeleteModal(false)}>Iptal</button>
               <button
                 className="settings-btn settings-btn-danger"
-                disabled={deleteInput !== 'SIL'}
+                disabled={deleteInput !== DELETE_PASSWORD}
                 onClick={confirmDeleteAll}
               >
                 Onayla ve Sil

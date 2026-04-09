@@ -1,10 +1,26 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { RefreshCw, ExternalLink, TrendingUp, Flame, Copy, Check, Key, Loader, Send, X } from 'lucide-react';
-import { fetchAllNews, SOURCES, getCryptoCompareKey, saveCryptoCompareKey } from '../utils/news';
+import { RefreshCw, ExternalLink, Copy, Check, Key, Loader, Send, X, Cpu, Bitcoin, ChevronDown, ChevronUp } from 'lucide-react';
+import { fetchAllNews, scrapeArticle } from '../utils/news';
+import goldenExamples from '../config/persona_references.json';
 
 const GEMINI_KEY_STORAGE = 'vkgym_gemini_key';
 const CACHE_TTL = 5 * 60 * 1000;
 const URL_REGEX = /https?:\/\/[^\s]+/;
+
+// ======= Golden Examples Injection =======
+function getGoldenExamplesBlock(type) {
+  const refs = goldenExamples;
+  if (type === 'tweet' && refs.x_single_tweets?.length) {
+    return `\n\nALTIN ÖRNEKLER (bu tonu ve yapıyı taklit et):\n${refs.x_single_tweets.map(t => `- "${t.content}"`).join('\n')}`;
+  }
+  if (type === 'thread' && refs.x_threads?.length) {
+    return `\n\nALTIN ÖRNEKLER (hook, geçiş ve kapanış yapısını taklit et):\n${refs.x_threads.map(t => `Hook: "${t.hook}"\nGövde: "${t.body}"\nKapanış: "${t.closing}"`).join('\n---\n')}`;
+  }
+  if (type === 'youtube' && refs.youtube_scripts?.length) {
+    return `\n\nALTIN ÖRNEKLER (giriş ve yapıyı taklit et):\n${refs.youtube_scripts.map(t => `Giriş: "${t.intro}"\nYapı: "${t.structure}"`).join('\n---\n')}`;
+  }
+  return '';
+}
 
 // ======= Volkan's Full System Prompt =======
 const SYSTEM_PROMPT = `Sen @vkorkmaz10 için X (Twitter) ve YouTube içerik üretici asistanısın.
@@ -42,6 +58,9 @@ TEK TWEET: [Güçlü giriş] + [1-2 cümle yorum] + [$BTC ticker]
 THREAD: 🧵 hook ile başla, 5-12 tweet, her tweet'i (1/n) formatında numarala, her tweet max 280 karakter, mantıksal kırılma noktalarında böl, son tweet "Sizce?" ile bitir
 YOUTUBE: Başlık (max 60 kar) + Thumbnail fikri + SEO açıklama + Script (HOOK/BAĞLAM/ANA İÇERİK/SONUÇ)
 
+KALİTE KONTROLÜ:
+Yeni içerik üretmeden önce aşağıda verilen 'Altın Örnekler'i incele. Bu örneklerdeki cümle uzunluğunu, teknik terim kullanım sıklığını ve toplulukla kurulan bağı (biz dili) birebir modelle. Ürettiğin metin referanslara sadık olmalı — lafı dolandırma, çok fazla emoji kullanma.
+
 KONUYA GÖRE TON:
 - Bitcoin fiyat → Sakin, analitik
 - Altcoin → Temkinli, "İnceleyin, araştırın"
@@ -50,26 +69,34 @@ KONUYA GÖRE TON:
 - Regülasyon → Nötr-analizci`;
 
 // ======= Gemini API =======
+const GEMINI_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+
 async function callGemini(apiKey, userPrompt, systemPrompt = SYSTEM_PROMPT) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: systemPrompt }] },
-      contents: [{ parts: [{ text: userPrompt }] }],
-      generationConfig: { temperature: 0.8, maxOutputTokens: 4096 },
-    }),
-  });
-  if (!res.ok) {
+  let lastError = null;
+  for (const model of GEMINI_MODELS) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ parts: [{ text: userPrompt }] }],
+        generationConfig: { temperature: 0.8, maxOutputTokens: 4096 },
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    }
     const errBody = await res.text();
-    console.error('Gemini API error:', res.status, errBody);
+    console.warn(`Gemini ${model} failed (${res.status}), trying next...`);
     let detail = '';
     try { detail = JSON.parse(errBody)?.error?.message || errBody; } catch { detail = errBody; }
-    throw new Error(`Gemini hatası (${res.status}): ${detail}`);
+    lastError = `Gemini hatası (${res.status}): ${detail}`;
+    // Only fallback on 503/429, not on auth errors
+    if (res.status !== 503 && res.status !== 429) break;
   }
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  throw new Error(lastError);
 }
 
 // ======= Headline Translation =======
@@ -94,21 +121,7 @@ async function translateHeadlines(apiKey, items) {
   }
 }
 
-// ======= URL Content Fetcher =======
-async function fetchUrlContent(url) {
-  try {
-    const res = await fetch('/api/fetch-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.text || null;
-  } catch {
-    return null;
-  }
-}
+// URL content fetching uses scrapeArticle from news.js
 
 // ======= Markdown Renderer =======
 function renderMarkdown(text) {
@@ -134,8 +147,8 @@ function renderMarkdown(text) {
 
 // ======= Quick Commands (FAB only) =======
 const QUICK_COMMANDS = [
-  { label: "Bugün neler var?", prompt: (news) => `Aşağıdaki güncel haberleri analiz et ve en önemli 3-5 tanesi için Volkan tarzında birer tweet yaz. Sonunda yayın planı tablosu ekle.\n\nHABERLER:\n${news.map((n, i) => `${i + 1}. ${n.title} (${n.sourceName})`).join('\n')}` },
-  { label: "Makro analiz", prompt: (news) => `Global makroekonomik gelişmeleri ve Bitcoin'e etkisini anlatan bir thread hazırla.\nGüncel haberler:\n${news.slice(0, 5).map(n => `- ${n.title}`).join('\n')}` },
+  { label: "Bugün neler var?", prompt: (news) => `Aşağıdaki güncel haberleri analiz et ve en önemli 3-5 tanesi için Volkan tarzında birer tweet yaz. Sonunda yayın planı tablosu ekle.${getGoldenExamplesBlock('tweet')}\n\nHABERLER:\n${news.map((n, i) => `${i + 1}. ${n.title} (${n.sourceName}) [${n.category === 'ai_tech' ? 'AI/Tech' : 'Kripto'}]`).join('\n')}` },
+  { label: "Makro analiz", prompt: (news) => `Global makroekonomik gelişmeleri ve Bitcoin'e etkisini anlatan bir thread hazırla.${getGoldenExamplesBlock('thread')}\nGüncel haberler:\n${news.slice(0, 5).map(n => `- ${n.title} [${n.category === 'ai_tech' ? 'AI/Tech' : 'Kripto'}]`).join('\n')}` },
 ];
 
 // ======= Component =======
@@ -144,7 +157,7 @@ export default function ContentView() {
   const [news, setNews] = useState([]);
   const [newsLoading, setNewsLoading] = useState(true);
   const [selectedNews, setSelectedNews] = useState(null);
-  const [ccKey, setCcKey] = useState(() => getCryptoCompareKey());
+  const [newsExpanded, setNewsExpanded] = useState(true);
   const newsCacheRef = useRef({ data: null, timestamp: 0 });
 
   // Chat
@@ -158,7 +171,6 @@ export default function ContentView() {
   const [geminiKey, setGeminiKey] = useState(() => localStorage.getItem(GEMINI_KEY_STORAGE) || '');
   const [showKeyModal, setShowKeyModal] = useState(false);
   const geminiInputRef = useRef(null);
-  const ccInputRef = useRef(null);
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -174,12 +186,18 @@ export default function ContentView() {
       return;
     }
     setNewsLoading(true);
-    let data = await fetchAllNews(ccKey);
-    data = await translateHeadlines(geminiKey, data);
+    let data = await fetchAllNews();
+    // Cache raw news immediately (so we don't re-fetch on translate fail)
     newsCacheRef.current = { data, timestamp: Date.now() };
     setNews(data);
     setNewsLoading(false);
-  }, [ccKey, geminiKey]);
+    // Translate in background — update cache + state when done
+    if (geminiKey && data.length) {
+      const translated = await translateHeadlines(geminiKey, data);
+      newsCacheRef.current = { data: translated, timestamp: Date.now() };
+      setNews(translated);
+    }
+  }, [geminiKey]);
 
   useEffect(() => { loadNews(); }, [loadNews]);
 
@@ -201,13 +219,14 @@ export default function ContentView() {
     setMessages(prev => [...prev, { role: 'user', content: userText }]);
     setInput('');
     setLoading(true);
+    setNewsExpanded(false); // Collapse news when generating content
 
     let finalPrompt = userText;
 
-    // URL detection: fetch content and enrich prompt
+    // URL detection
     const urlMatch = userText.match(URL_REGEX);
     if (urlMatch) {
-      const urlContent = await fetchUrlContent(urlMatch[0]);
+      const urlContent = await scrapeArticle(urlMatch[0]);
       if (urlContent) {
         finalPrompt = `Aşağıdaki URL'den çekilen içerik hakkında Volkan tarzında analiz ve yorum yaz:\n\nURL: ${urlMatch[0]}\n\nİçerik:\n${urlContent}`;
       }
@@ -225,17 +244,27 @@ export default function ContentView() {
   };
 
   const handleNewsOverlay = (item) => {
-    setSelectedNews(item);
+    setSelectedNews({ ...item, scrapedContent: null, scraping: false });
   };
+
+  // Scrape article content when overlay opens
+  useEffect(() => {
+    if (!selectedNews || selectedNews.scrapedContent || selectedNews.scraping) return;
+    setSelectedNews(prev => prev ? { ...prev, scraping: true } : null);
+    scrapeArticle(selectedNews.url).then(text => {
+      setSelectedNews(prev => prev ? { ...prev, scrapedContent: text || '', scraping: false } : null);
+    });
+  }, [selectedNews?.id]);
 
   const handleContentGenerate = (type) => {
     if (!selectedNews) return;
-    const { title, sourceName, body } = selectedNews;
-    const context = body ? `\n\nOrijinal haber (EN): ${body}` : '';
+    const { title, sourceName, scrapedContent } = selectedNews;
+    const context = scrapedContent ? `\n\nHaber içeriği (EN):\n${scrapedContent}` : '';
+    const golden = getGoldenExamplesBlock(type);
     const prompts = {
-      tweet: `Bu haber hakkında Volkan tarzında tek tweet yaz (max 280 karakter):\n\n"${title}"\nKaynak: ${sourceName}${context}`,
-      thread: `Bu haber hakkında Volkan tarzında 5-12 tweet'lik bir thread yaz. 🧵 hook ile başla, her tweet'i (1/n) formatında numarala, her tweet max 280 karakter, mantıksal kırılma noktalarında böl, son tweet "Sizce?" ile bitir:\n\n"${title}"\nKaynak: ${sourceName}${context}`,
-      youtube: `Bu haber hakkında YouTube video script'i hazırla. Başlık (max 60 kar), thumbnail fikri, SEO açıklama ve HOOK/BAĞLAM/ANA İÇERİK/SONUÇ yapısında script:\n\n"${title}"\nKaynak: ${sourceName}${context}`,
+      tweet: `Bu haber hakkında Volkan tarzında tek tweet yaz (max 280 karakter):\n\n"${title}"\nKaynak: ${sourceName}${context}${golden}`,
+      thread: `Bu haber hakkında Volkan tarzında 5-12 tweet'lik bir thread yaz. 🧵 hook ile başla, her tweet'i (1/n) formatında numarala, her tweet max 280 karakter, mantıksal kırılma noktalarında böl, son tweet "Sizce?" ile bitir:\n\n"${title}"\nKaynak: ${sourceName}${context}${golden}`,
+      youtube: `Bu haber hakkında YouTube video script'i hazırla. Başlık (max 60 kar), thumbnail fikri, SEO açıklama ve HOOK/BAĞLAM/ANA İÇERİK/SONUÇ yapısında script:\n\n"${title}"\nKaynak: ${sourceName}${context}${golden}`,
     };
     setSelectedNews(null);
     send(prompts[type]);
@@ -258,22 +287,20 @@ export default function ContentView() {
     else localStorage.removeItem(GEMINI_KEY_STORAGE);
   };
 
-  const saveCcKeyLocal = (key) => {
-    setCcKey(key);
-    saveCryptoCompareKey(key);
-  };
+
 
   return (
     <div className="fade-in content-view">
 
       {/* ===== News List ===== */}
       <div className="glass-card content-news-strip">
-        <div className="content-news-strip-header">
+        <div className="content-news-strip-header" onClick={() => setNewsExpanded(e => !e)} style={{ cursor: 'pointer' }}>
           <div className="content-news-strip-title">
             <span>Gündem</span>
             {!newsLoading && <span className="content-news-count">{news.length}</span>}
+            {newsExpanded ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
           </div>
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
             <button className="content-icon-btn" onClick={() => setShowKeyModal(true)} title="API Keys">
               <Key size={14} style={geminiKey ? { color: '#34A853' } : {}} />
             </button>
@@ -283,33 +310,32 @@ export default function ContentView() {
           </div>
         </div>
 
-        <div className="content-news-list">
+        <div className={`content-news-list${newsExpanded ? ' expanded' : ''}`}>
           {newsLoading ? (
             <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>
               <Loader size={18} className="cal-spin" />
             </div>
           ) : news.length === 0 ? (
-            <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>Haber bulunamadı.</p>
+            <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>
+              Haber bulunamadı.
+            </p>
           ) : (
-            news.map(item => {
-              const src = SOURCES[item.source] || SOURCES.other;
-              return (
+            news.map(item => (
                 <div key={item.id} className="content-news-strip-item" onClick={() => handleNewsOverlay(item)}>
-                  {item.trend && (
-                    <span className={`content-trend ${item.trend}`}>
-                      {item.trend === 'fire' ? <Flame size={10} /> : <TrendingUp size={10} />}
+                  <div className="content-news-row">
+                    <span className={`content-cat-badge ${item.category}`}>
+                      {item.category === 'ai_tech' ? <Cpu size={10} /> : <Bitcoin size={10} />}
                     </span>
-                  )}
-                  <span className="content-news-strip-text">{item.titleTr || item.title}</span>
+                    <span className="content-news-strip-text">{item.titleTr || item.title}</span>
+                  </div>
                   <div className="content-news-strip-meta">
-                    <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="content-source-link" style={{ color: src.color }} onClick={e => e.stopPropagation()}>
-                      {src.emoji} {item.sourceName} <ExternalLink size={9} />
+                    <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="content-source-link" onClick={e => e.stopPropagation()}>
+                      {item.sourceName} <ExternalLink size={9} />
                     </a>
                     <span className="content-time">{timeAgo(item.publishedAt)}</span>
                   </div>
                 </div>
-              );
-            })
+            ))
           )}
         </div>
       </div>
@@ -380,9 +406,17 @@ export default function ContentView() {
             </button>
             <p className="content-type-title">{selectedNews.titleTr || selectedNews.title}</p>
             <p className="content-type-original">{selectedNews.title}</p>
-            <p className="content-type-source">
-              {(SOURCES[selectedNews.source] || SOURCES.other).emoji} {selectedNews.sourceName}
-            </p>
+            <div className="content-type-meta">
+              <span>{selectedNews.sourceName}</span>
+              <span className={`content-cat-pill ${selectedNews.category}`}>
+                {selectedNews.category === 'ai_tech' ? 'AI/Tech' : 'Kripto'}
+              </span>
+              {selectedNews.scraping && (
+                <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                  <Loader size={10} className="cal-spin" style={{ marginRight: 3 }} />İçerik çekiliyor...
+                </span>
+              )}
+            </div>
 
             <div className="content-type-group">
               <div className="content-type-group-label">𝕏 Twitter</div>
@@ -423,42 +457,22 @@ export default function ContentView() {
               <input ref={geminiInputRef} type="password" defaultValue={geminiKey} placeholder="AIza..." className="todo-input" />
             </div>
 
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
-                CryptoCompare Key
-                {ccKey && <span style={{ color: '#34A853', fontSize: '0.7rem' }}>aktif</span>}
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem', fontWeight: 400 }}>(opsiyonel)</span>
-              </label>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginBottom: '8px', lineHeight: 1.4 }}>
-                CoinDesk, Decrypt haberleri için.
-                <a href="https://min-api.cryptocompare.com" target="_blank" rel="noopener noreferrer" style={{ color: '#00d4ff', marginLeft: '4px' }}>Buradan al</a>
-              </p>
-              <input ref={ccInputRef} type="password" defaultValue={ccKey} placeholder="Key..." className="todo-input" />
-            </div>
-
             <div style={{ display: 'flex', gap: '10px' }}>
               <button className="btn-cancel" onClick={() => setShowKeyModal(false)}>İptal</button>
               <button className="btn-save" style={{ background: '#00d4ff' }} onClick={() => {
                 saveGeminiKeyLocal(geminiInputRef.current?.value?.trim() || '');
-                saveCcKeyLocal(ccInputRef.current?.value?.trim() || '');
                 setShowKeyModal(false);
+                // Force re-translate with new key (cache'i temizle ki yeni key ile çeviri yapılsın)
+                newsCacheRef.current = { data: null, timestamp: 0 };
               }}>Kaydet</button>
             </div>
 
-            {(geminiKey || ccKey) && (
-              <div style={{ marginTop: '12px', display: 'flex', gap: '12px' }}>
-                {geminiKey && (
-                  <button style={{ background: 'none', border: 'none', color: 'var(--error-color)', fontSize: '0.72rem', cursor: 'pointer' }}
-                    onClick={() => { saveGeminiKeyLocal(''); if (geminiInputRef.current) geminiInputRef.current.value = ''; }}>
-                    Gemini key sil
-                  </button>
-                )}
-                {ccKey && (
-                  <button style={{ background: 'none', border: 'none', color: 'var(--error-color)', fontSize: '0.72rem', cursor: 'pointer' }}
-                    onClick={() => { saveCcKeyLocal(''); if (ccInputRef.current) ccInputRef.current.value = ''; }}>
-                    CC key sil
-                  </button>
-                )}
+            {geminiKey && (
+              <div style={{ marginTop: '12px' }}>
+                <button style={{ background: 'none', border: 'none', color: 'var(--error-color)', fontSize: '0.72rem', cursor: 'pointer' }}
+                  onClick={() => { saveGeminiKeyLocal(''); if (geminiInputRef.current) geminiInputRef.current.value = ''; }}>
+                  Gemini key sil
+                </button>
               </div>
             )}
           </div>

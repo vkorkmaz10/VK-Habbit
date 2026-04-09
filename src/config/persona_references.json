@@ -1,0 +1,20 @@
+{
+  "x_threads": [
+    {
+      "hook": "BURAYA EN BAŞARILI THREAD HOOK'UNUZU YAPIŞTIRIN",
+      "body": "Thread gövdesi — analiz ve geçiş cümleleri",
+      "closing": "Kapanış / CTA cümlesi"
+    }
+  ],
+  "x_single_tweets": [
+    {
+      "content": "BURAYA EN ÇOK ETKİLEŞİM ALAN TWEET'İNİZİ YAPIŞTIRIN"
+    }
+  ],
+  "youtube_scripts": [
+    {
+      "intro": "BURAYA EN BAŞARILI YOUTUBE VİDEONUZUN 20 SANİYELİK GİRİŞ METNİNİ YAPIŞTIRIN",
+      "structure": "Video akış şeması"
+    }
+  ]
+}

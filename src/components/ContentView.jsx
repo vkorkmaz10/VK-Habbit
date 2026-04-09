@@ -259,10 +259,17 @@ export default function ContentView() {
     });
   }, [selectedNews?.id]);
 
+  const cleanScrapedContent = (text) => {
+    if (!text) return '';
+    // Remove coin price widgets and trailing junk
+    return text.replace(/Coin Prices[\s\S]*/i, '').trim();
+  };
+
   const handleContentGenerate = (type) => {
     if (!selectedNews) return;
     const { title, sourceName, scrapedContent } = selectedNews;
-    const context = scrapedContent ? `\n\nHaber içeriği (EN):\n${scrapedContent.slice(0, 800)}` : '';
+    const cleaned = cleanScrapedContent(scrapedContent);
+    const context = cleaned ? `\n\nHaber içeriği (EN):\n${cleaned.slice(0, 800)}` : '';
     const golden = getGoldenExamplesBlock(type);
     const prompts = {
       tweet: `Bu haber hakkında Volkan tarzında tek tweet yaz (max 280 karakter):\n\n"${title}"\nKaynak: ${sourceName}${context}${golden}`,

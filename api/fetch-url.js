@@ -15,12 +15,16 @@ export default async function handler(req, res) {
     });
     const html = await response.text();
 
-    // Strip scripts, styles, and HTML tags — extract plain text
+    // Strip scripts, styles, nav, footer, sidebar, and HTML tags — extract plain text
     const text = html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+      .replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, '')
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
+      .replace(/Coin Prices[\s\S]*$/i, '') // Remove coin price widgets
       .trim()
       .slice(0, 3000);
 

@@ -100,12 +100,8 @@ export default async function handler(req, res) {
       }
     }
 
-    // Sort: Crypto first, then AI/Tech, within each group by date (newest first)
-    items.sort((a, b) => {
-      if (a.category === 'crypto' && b.category !== 'crypto') return -1;
-      if (b.category === 'crypto' && a.category !== 'crypto') return 1;
-      return b.publishedAt - a.publishedAt;
-    });
+    // Sort by date only (newest first)
+    items.sort((a, b) => b.publishedAt - a.publishedAt);
 
     items = items.slice(0, 35);
     cache = { items, timestamp: now };

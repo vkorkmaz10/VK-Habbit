@@ -82,14 +82,10 @@ function apiMiddleware() {
             }
           }
 
-          // Sort: AI/Tech first, then by date
-          items.sort((a, b) => {
-            if (a.category === 'ai_tech' && b.category !== 'ai_tech') return -1;
-            if (b.category === 'ai_tech' && a.category !== 'ai_tech') return 1;
-            return b.publishedAt - a.publishedAt;
-          });
+          // Sort by date only (newest first)
+          items.sort((a, b) => b.publishedAt - a.publishedAt);
 
-          items = items.slice(0, 25);
+          items = items.slice(0, 35);
 
           // Cache
           rssCache = { items, timestamp: Date.now() };

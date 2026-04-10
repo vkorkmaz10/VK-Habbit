@@ -27,30 +27,56 @@ export default async function handler(req, res) {
       .replace(/\s+/g, ' ')
       .trim();
 
-    // Remove crypto price tickers, market data, and site junk from all sources
-    const JUNK_PATTERNS = [
+    // ---- Comprehensive junk removal for crypto/tech news sites ----
+
+    // 1) Trailing sections that signal end of article content
+    const TRAILING_CUTOFFS = [
       /Coin Prices[\s\S]*$/i,
-      /Trending (Coins|Tokens)[\s\S]*$/i,
-      /Market (Data|Cap|Overview)[\s\S]*$/i,
-      /Top (Coins|Cryptocurrencies|Assets)[\s\S]*$/i,
+      /Trending (?:Coins|Tokens|News|Stories)[\s\S]*$/i,
+      /Market (?:Data|Cap|Overview|Highlights)[\s\S]*$/i,
+      /Top (?:Coins|Cryptocurrencies|Assets|Stories)[\s\S]*$/i,
       /Price Ticker[\s\S]*$/i,
       /Newsletter[\s\S]*$/i,
-      /Subscribe[\s\S]*$/i,
-      /Related (Articles|Stories|News)[\s\S]*$/i,
-      /Read (More|Next)[\s\S]*$/i,
-      /Popular (Stories|Articles)[\s\S]*$/i,
+      /Subscribe (?:to|for|now)[\s\S]*$/i,
+      /Sign up (?:for|to)[\s\S]*$/i,
+      /Related (?:Articles|Stories|News|Posts|Coverage)[\s\S]*$/i,
+      /Recommended (?:Articles|Stories|For You)[\s\S]*$/i,
+      /Popular (?:Stories|Articles|News)[\s\S]*$/i,
+      /More (?:Stories|Articles|News|From)[\s\S]*$/i,
+      /Read (?:More|Next|Also)[\s\S]*$/i,
       /Don't Miss[\s\S]*$/i,
-      /Sign up for[\s\S]*$/i,
+      /You (?:May|Might) (?:Also )?Like[\s\S]*$/i,
+      /Editor'?s? (?:Pick|Choice)s?[\s\S]*$/i,
       /Advertisement[\s\S]*$/i,
-      // Repeated price patterns: "BTC $72,789.00 2.05% ETH $2,231.78 ..."
-      /\b(BTC|ETH|XRP|BNB|SOL|DOGE|ADA|AVAX|SHIB|LINK|DOT)\s*\$[\d,.]+\s*[\d.]+%/g,
+      /Sponsored (?:Content|Post)[\s\S]*$/i,
+      /About (?:the )?Author[\s\S]*$/i,
+      /Share (?:this|article)[\s\S]*$/i,
+      /Tags:[\s\S]*$/i,
+      /Disclaimer[\s\S]*$/i,
+      /(?:Latest|Breaking|Top) (?:News|Headlines|Stories)[\s\S]*$/i,
+      /Stay (?:up to date|informed|connected)[\s\S]*$/i,
+      /Join (?:our|the) (?:community|newsletter|telegram)[\s\S]*$/i,
+      /Follow us on[\s\S]*$/i,
+      /Get the (?:latest|best|top)[\s\S]*$/i,
+      /©\s*\d{4}[\s\S]*$/i,
+      /All Rights Reserved[\s\S]*$/i,
+    ];
+
+    // 2) Inline junk patterns (repeated price tickers, percentage changes)
+    const INLINE_JUNK = [
+      // "BTC $72,789.00 2.05% ETH $2,231.78 1.31% ..."
+      /\b(?:BTC|ETH|XRP|BNB|SOL|DOGE|ADA|AVAX|SHIB|LINK|DOT|MATIC|UNI|ATOM|FIL|APT|ARB|OP|NEAR|FTM|ALGO|MANA|SAND|AXS|ICP|LDO|CRV|MKR|AAVE|SNX|COMP|SUSHI|YFI|BAL|UMA|REN|KNC|ZRX|USDT|USDC|USDS|BUSD|DAI|TUSD|PYUSD|WBT|HYPE|LEO|BCH|XMR|ZEC|LTC|TRX|HBAR|SUI|TAO|FIGR_HELOC|USD1|USDE|RAIN|CC)\s*\$[\d,.]+\s*-?[\d.]+%/g,
+      // "$72,789.00 +2.05%" standalone price patterns
+      /\$[\d,]+\.[\d]+\s+[+-]?[\d.]+%\s*/g,
+      // Cookie consent, GDPR
+      /(?:We use cookies|This (?:site|website) uses cookies|Cookie (?:Policy|Settings|Consent))[\s\S]{0,500}(?:Accept|Got it|I agree|OK|Manage)/gi,
     ];
 
     let text = cleaned;
-    for (const pattern of JUNK_PATTERNS) {
-      text = text.replace(pattern, '');
-    }
-    text = text.trim().slice(0, 3000);
+    for (const p of TRAILING_CUTOFFS) text = text.replace(p, '');
+    for (const p of INLINE_JUNK) text = text.replace(p, '');
+    // Clean up leftover whitespace
+    text = text.replace(/\s{3,}/g, ' ').trim().slice(0, 3000);
 
     return res.status(200).json({ text });
   } catch (e) {

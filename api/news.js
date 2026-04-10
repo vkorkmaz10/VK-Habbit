@@ -2,17 +2,25 @@
 // No API keys needed — uses public RSS feeds
 
 const RSS_SOURCES = [
-  { url: 'https://www.coindesk.com/arc/outboundfeeds/rss/', name: 'CoinDesk' },
-  { url: 'https://cointelegraph.com/rss', name: 'CoinTelegraph' },
-  { url: 'https://decrypt.co/feed', name: 'Decrypt' },
-  { url: 'https://www.theblock.co/rss.xml', name: 'TheBlock' },
+  // Crypto
+  { url: 'https://www.coindesk.com/arc/outboundfeeds/rss/', name: 'CoinDesk', forceCategory: null },
+  { url: 'https://cointelegraph.com/rss', name: 'CoinTelegraph', forceCategory: null },
+  { url: 'https://decrypt.co/feed', name: 'Decrypt', forceCategory: null },
+  { url: 'https://www.theblock.co/rss.xml', name: 'TheBlock', forceCategory: null },
+  // AI / Tech (forced ai_tech category)
+  { url: 'https://techcrunch.com/category/artificial-intelligence/feed/', name: 'TechCrunch AI', forceCategory: 'ai_tech' },
+  { url: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml', name: 'The Verge AI', forceCategory: 'ai_tech' },
+  { url: 'https://feeds.arstechnica.com/arstechnica/technology-lab', name: 'Ars Technica', forceCategory: 'ai_tech' },
 ];
 
 const AI_KEYWORDS = [
-  'artificial intelligence', ' ai ', 'machine learning', 'deep learning',
+  'artificial intelligence', ' ai ', ' ai,', 'machine learning', 'deep learning',
   'gpt', 'llm', 'openai', 'anthropic', 'neural', 'automation',
   'chatbot', 'generative', 'transformer', 'copilot', 'gemini',
   'claude', 'midjourney', 'stable diffusion', 'robotics',
+  'nvidia', 'gpu', 'apple intelligence', 'siri', 'alexa',
+  'hugging face', 'meta ai', 'google ai', 'microsoft ai',
+  'chatgpt', 'dall-e', 'sora', 'perplexity', 'mistral',
 ];
 
 function isAiTech(title) {
@@ -21,7 +29,7 @@ function isAiTech(title) {
 }
 
 // Simple XML RSS parser — no dependencies needed
-function parseRssXml(xml, sourceName) {
+function parseRssXml(xml, sourceName, forceCategory) {
   const items = [];
   const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
   let match;
@@ -38,7 +46,7 @@ function parseRssXml(xml, sourceName) {
         sourceUrl: link.trim(),
         sourceName,
         publishedAt: pubDate ? new Date(pubDate).getTime() : Date.now(),
-        category: isAiTech(title) ? 'ai_tech' : 'crypto',
+        category: forceCategory || (isAiTech(title) ? 'ai_tech' : 'crypto'),
       });
     }
   }
@@ -73,7 +81,7 @@ export default async function handler(req, res) {
         });
         if (!response.ok) return [];
         const xml = await response.text();
-        return parseRssXml(xml, src.name);
+        return parseRssXml(xml, src.name, src.forceCategory);
       })
     );
 
@@ -99,7 +107,7 @@ export default async function handler(req, res) {
       return b.publishedAt - a.publishedAt;
     });
 
-    items = items.slice(0, 25);
+    items = items.slice(0, 35);
     cache = { items, timestamp: now };
 
     return res.status(200).json({ items });

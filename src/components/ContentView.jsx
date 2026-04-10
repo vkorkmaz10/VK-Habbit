@@ -261,22 +261,33 @@ export default function ContentView() {
 
   const cleanScrapedContent = (text) => {
     if (!text) return '';
-    const junk = [
+    // Trailing section cutoffs
+    const trailing = [
       /Coin Prices[\s\S]*/i,
-      /Trending (?:Coins|Tokens)[\s\S]*/i,
+      /Trending (?:Coins|Tokens|News|Stories)[\s\S]*/i,
       /Market (?:Data|Cap|Overview)[\s\S]*/i,
-      /Top (?:Coins|Cryptocurrencies|Assets)[\s\S]*/i,
-      /Related (?:Articles|Stories|News)[\s\S]*/i,
+      /Top (?:Coins|Cryptocurrencies|Assets|Stories)[\s\S]*/i,
+      /Related (?:Articles|Stories|News|Posts)[\s\S]*/i,
+      /Recommended (?:Articles|Stories|For You)[\s\S]*/i,
+      /Popular (?:Stories|Articles)[\s\S]*/i,
+      /More (?:Stories|Articles|From)[\s\S]*/i,
       /Newsletter[\s\S]*/i,
       /Subscribe[\s\S]*/i,
-      /Popular (?:Stories|Articles)[\s\S]*/i,
+      /Sign up (?:for|to)[\s\S]*/i,
       /Don't Miss[\s\S]*/i,
-      /Sign up for[\s\S]*/i,
-      /\b(?:BTC|ETH|XRP|BNB|SOL|DOGE|ADA|AVAX|SHIB|LINK|DOT)\s*\$[\d,.]+\s*[\d.]+%/g,
+      /About (?:the )?Author[\s\S]*/i,
+      /Disclaimer[\s\S]*/i,
+      /©\s*\d{4}[\s\S]*/i,
+    ];
+    // Inline junk
+    const inline = [
+      /\b(?:BTC|ETH|XRP|BNB|SOL|DOGE|ADA|AVAX|SHIB|LINK|DOT|MATIC|UNI|ATOM|USDT|USDC|BUSD|DAI|WBT|HYPE|LEO|BCH|XMR|ZEC|LTC|TRX|HBAR|SUI|TAO)\s*\$[\d,.]+\s*-?[\d.]+%/g,
+      /\$[\d,]+\.[\d]+\s+[+-]?[\d.]+%\s*/g,
     ];
     let clean = text;
-    for (const p of junk) clean = clean.replace(p, '');
-    return clean.trim();
+    for (const p of trailing) clean = clean.replace(p, '');
+    for (const p of inline) clean = clean.replace(p, '');
+    return clean.replace(/\s{3,}/g, ' ').trim();
   };
 
   const handleContentGenerate = (type) => {

@@ -131,11 +131,10 @@ function App() {
         </>
       )}
 
-      {currentTab === 'content' && (
-        <div className="main-content">
-          <ContentView />
-        </div>
-      )}
+      {/* ContentView her zaman mount'ta kalır — tab değişince unmount olmaması için display:none */}
+      <div className="main-content" style={{ display: currentTab === 'content' ? '' : 'none' }}>
+        <ContentView />
+      </div>
 
       {currentTab === 'page5' && (
         <div className="main-content">

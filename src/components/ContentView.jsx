@@ -301,8 +301,13 @@ export default function ContentView() {
   const [cpExpanded, setCpExpanded] = useState(false);
   const cpCacheRef = useRef({ data: null, timestamp: 0 });
 
-  // Chat
-  const [messages, setMessages] = useState([]);
+  // Chat — sessionStorage ile korunur (tab/sayfa yenilemede kalır, tarayıcı kapanınca gider)
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('vkgym_content_messages');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -321,6 +326,11 @@ export default function ContentView() {
   const geminiInputRef = useRef(null);
   const cpTokenInputRef = useRef(null);
   const bottomRef = useRef(null);
+
+  // Mesajları sessionStorage'a kaydet (tab/sayfa yenilemede korunur)
+  useEffect(() => {
+    try { sessionStorage.setItem('vkgym_content_messages', JSON.stringify(messages)); } catch {}
+  }, [messages]);
 
   useEffect(() => {
     if (messages.length > 0) {

@@ -132,7 +132,7 @@ function App() {
       )}
 
       {/* ContentView her zaman mount'ta kalır — tab değişince unmount olmaması için display:none */}
-      <div className="main-content" style={{ display: currentTab === 'content' ? '' : 'none' }}>
+      <div className="main-content" style={{ display: currentTab === 'content' ? 'flex' : 'none' }}>
         <ContentView />
       </div>
 

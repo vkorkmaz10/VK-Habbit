@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import RSSParser from 'rss-parser';
@@ -31,7 +31,7 @@ let rssCache = { items: null, timestamp: 0 };
 const RSS_CACHE_TTL = 5 * 60 * 1000;
 
 // Custom Vite plugin for all API middleware
-function apiMiddleware() {
+function apiMiddleware(env = {}) {
   return {
     name: 'api-middleware',
     configureServer(server) {
@@ -100,40 +100,75 @@ function apiMiddleware() {
         }
       });
 
-      // /api/cp-news — CryptoPanic JSON API (requires free token)
-      const cpCaches = {};
+      // /api/cp-news — CryptoPanic via Discord Bot API
+      // Reads DISCORD_BOT_TOKEN + DISCORD_CHANNEL_ID from .env (no VITE_ prefix — stays server-side)
+      let cpCache = { items: null, timestamp: 0 };
+
+      function parseCPSentiment(text) {
+        const t = (text || '').toLowerCase();
+        if (t.includes('🐂') || t.includes('bullish')) return 'bullish';
+        if (t.includes('🐻') || t.includes('bearish')) return 'bearish';
+        return 'neutral';
+      }
+
+      function parseDiscordMsg(msg, index) {
+        const embed = msg.embeds?.[0];
+        const rawText = embed?.description || msg.content || '';
+        let title = '', url = '', sourceName = 'CryptoPanic';
+        const publishedAt = msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now();
+
+        if (embed?.title && embed?.url) {
+          title = embed.title;
+          url = embed.url;
+          sourceName = embed.footer?.text || embed.author?.name || 'CryptoPanic';
+        } else {
+          const titleMatch = (msg.content || '').match(/\*\*(.+?)\*\*/);
+          const urlMatch = (msg.content || '').match(/https:\/\/cryptopanic\.com\/news\/\S+/);
+          title = titleMatch ? titleMatch[1] : '';
+          url = urlMatch ? urlMatch[0] : '#';
+          const lines = (msg.content || '').split('\n').map(l => l.trim()).filter(Boolean);
+          const srcMatch = (lines[lines.length - 1] || '').match(/[^\w]*([A-Za-z0-9 ]+?)\s*\|/);
+          if (srcMatch) sourceName = srcMatch[1].trim();
+        }
+
+        if (!title) return null;
+
+        return {
+          id: `cp_${index}_${msg.id || Date.now()}`,
+          title, url, sourceUrl: url, sourceName, publishedAt,
+          category: isAiTech(title) ? 'ai_tech' : 'crypto',
+          sentiment: parseCPSentiment(rawText + ' ' + (msg.content || '')),
+        };
+      }
+
       server.middlewares.use('/api/cp-news', async (req, res) => {
-        const url = new URL(req.url, 'http://localhost');
-        const token = url.searchParams.get('token');
-        if (!token) {
-          res.statusCode = 400;
+        const discordToken = env.DISCORD_BOT_TOKEN || process.env.DISCORD_BOT_TOKEN;
+        const channelId = env.DISCORD_CHANNEL_ID || process.env.DISCORD_CHANNEL_ID;
+
+        if (!discordToken || !channelId) {
+          res.statusCode = 503;
           res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ error: 'token required' }));
+          res.end(JSON.stringify({ error: 'DISCORD_BOT_TOKEN and DISCORD_CHANNEL_ID must be set in .env' }));
           return;
         }
+
         try {
           const now = Date.now();
-          if (cpCaches[token]?.items && (now - cpCaches[token].timestamp < RSS_CACHE_TTL)) {
+          if (cpCache.items && (now - cpCache.timestamp < RSS_CACHE_TTL)) {
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ items: cpCaches[token].items }));
+            res.end(JSON.stringify({ items: cpCache.items }));
             return;
           }
+
           const apiRes = await fetch(
-            `https://cryptopanic.com/api/free/v1/posts/?auth_token=${token}&public=true&limit=15`,
-            { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VKGymBot/1.0)' } }
+            `https://discord.com/api/v10/channels/${channelId}/messages?limit=15`,
+            { headers: { Authorization: `Bot ${discordToken}`, 'User-Agent': 'VKGymBot (vkgym, 1.0)' } }
           );
-          if (!apiRes.ok) throw new Error(`CryptoPanic API ${apiRes.status}`);
-          const json = await apiRes.json();
-          const items = (json.results || []).map((post, i) => ({
-            id: `cp_${i}_${Date.now()}`,
-            title: post.title || '',
-            url: post.url || '#',
-            sourceUrl: post.url || '#',
-            sourceName: post.source?.title || 'CryptoPanic',
-            publishedAt: post.published_at ? new Date(post.published_at).getTime() : Date.now(),
-            category: isAiTech(post.title) ? 'ai_tech' : 'crypto',
-          }));
-          cpCaches[token] = { items, timestamp: Date.now() };
+          if (!apiRes.ok) throw new Error(`Discord API ${apiRes.status}`);
+          const messages = await apiRes.json();
+          const items = messages.map((m, i) => parseDiscordMsg(m, i)).filter(Boolean);
+
+          cpCache = { items, timestamp: Date.now() };
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({ items }));
         } catch (e) {
@@ -174,9 +209,13 @@ function apiMiddleware() {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // Load ALL .env vars (no prefix filter) — these stay server-side, never in client bundle
+  const env = loadEnv(mode, process.cwd(), '');
+
+  return {
   plugins: [
-    apiMiddleware(),
+    apiMiddleware(env),
     react(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -203,4 +242,5 @@ export default defineConfig({
       }
     })
   ],
+  };
 })

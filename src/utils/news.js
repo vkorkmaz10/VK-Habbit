@@ -20,12 +20,15 @@ export async function fetchAllNews() {
   }
 }
 
-// Fetch CryptoPanic news via API token (last 15 items)
-export async function fetchCPNews(token) {
-  if (!token) return [];
+// Fetch CryptoPanic news via Discord Bot API (credentials stored server-side in env vars)
+export async function fetchCPNews() {
   try {
-    const res = await fetch(`/api/cp-news?token=${encodeURIComponent(token)}`);
-    if (!res.ok) return [];
+    const res = await fetch('/api/cp-news');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error('CP News error:', err.error || res.status);
+      return [];
+    }
     const data = await res.json();
     return data.items || [];
   } catch {

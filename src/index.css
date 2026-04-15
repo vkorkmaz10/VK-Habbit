@@ -1491,9 +1491,12 @@ body {
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s;
+  border-left: 3px solid transparent;
 }
 .content-news-strip-item:hover { background: rgba(255, 255, 255, 0.04); }
 .content-news-strip-item:active { background: rgba(0, 212, 255, 0.06); }
+.content-news-strip-item[data-sentiment="bullish"] { border-left-color: #22c55e; }
+.content-news-strip-item[data-sentiment="bearish"] { border-left-color: #ef4444; }
 .content-news-strip-text {
   display: block;
   font-size: 0.78rem;

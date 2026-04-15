@@ -6,7 +6,6 @@ import { buildTweetPrompt, buildThreadPrompt, STYLE_CONFIG } from '../engine/vse
 import goldenExamples from '../config/persona_references.json';
 
 const GEMINI_KEY_STORAGE = 'vkgym_gemini_key';
-const CP_TOKEN_STORAGE = 'vkgym_cp_token';
 const CACHE_TTL = 5 * 60 * 1000;
 const URL_REGEX = /https?:\/\/[^\s]+/;
 
@@ -321,10 +320,8 @@ export default function ContentView() {
 
   // Keys
   const [geminiKey, setGeminiKey] = useState(() => localStorage.getItem(GEMINI_KEY_STORAGE) || '');
-  const [cpToken, setCpToken] = useState(() => localStorage.getItem(CP_TOKEN_STORAGE) || '');
   const [showKeyModal, setShowKeyModal] = useState(false);
   const geminiInputRef = useRef(null);
-  const cpTokenInputRef = useRef(null);
   const bottomRef = useRef(null);
 
   // Mesajları sessionStorage'a kaydet (tab/sayfa yenilemede korunur)
@@ -354,25 +351,23 @@ export default function ContentView() {
 
   useEffect(() => { loadNews(); }, [loadNews]);
 
-  const loadCPNews = useCallback(async (forceRefresh = false, token = null) => {
-    const tok = token ?? cpToken;
-    if (!tok) return;
+  const loadCPNews = useCallback(async (forceRefresh = false) => {
     const now = Date.now();
     if (!forceRefresh && cpCacheRef.current.data && (now - cpCacheRef.current.timestamp < CACHE_TTL)) {
       setCpNews(cpCacheRef.current.data);
       return;
     }
     setCpLoading(true);
-    const data = await fetchCPNews(tok);
+    const data = await fetchCPNews();
     cpCacheRef.current = { data, timestamp: Date.now() };
     setCpNews(data);
     setCpLoading(false);
-  }, [cpToken]);
+  }, []);
 
-  // Load CP news when section is first expanded (if token exists)
+  // Load CP news when section is first expanded
   useEffect(() => {
-    if (cpExpanded && cpToken && cpNews.length === 0 && !cpLoading) loadCPNews();
-  }, [cpExpanded, cpToken]);
+    if (cpExpanded && cpNews.length === 0 && !cpLoading) loadCPNews();
+  }, [cpExpanded]);
 
   const timeAgo = (ts) => {
     const diff = Date.now() - ts;
@@ -568,11 +563,6 @@ export default function ContentView() {
     else localStorage.removeItem(GEMINI_KEY_STORAGE);
   };
 
-  const saveCpToken = (tok) => {
-    setCpToken(tok);
-    if (tok) localStorage.setItem(CP_TOKEN_STORAGE, tok);
-    else localStorage.removeItem(CP_TOKEN_STORAGE);
-  };
 
   return (
     <div className="fade-in content-view">
@@ -645,23 +635,18 @@ export default function ContentView() {
             <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>
               <Loader size={18} className="cal-spin" />
             </div>
-          ) : !cpToken && cpExpanded ? (
-            <div className="content-cp-no-token">
-              <p>CryptoPanic API token gerekli.</p>
-              <button className="content-quick-sm" onClick={() => setShowKeyModal(true)}>
-                <Key size={11} /> Token ekle
-              </button>
-              <a href="https://cryptopanic.com/developers/api/" target="_blank" rel="noopener noreferrer" className="content-cp-token-link">
-                Ücretsiz token al →
-              </a>
-            </div>
           ) : cpNews.length === 0 && cpExpanded ? (
             <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>
               Haber bulunamadı.
             </p>
           ) : (
             cpNews.map(item => (
-              <div key={item.id} className="content-news-strip-item" onClick={() => handleNewsOverlay(item)}>
+              <div
+                key={item.id}
+                className="content-news-strip-item"
+                data-sentiment={item.sentiment || 'neutral'}
+                onClick={() => handleNewsOverlay(item)}
+              >
                 <div className="content-news-row">
                   <span className={`content-cat-badge ${item.category}`}>
                     {item.category === 'ai_tech' ? <Cpu size={10} /> : <Bitcoin size={10} />}
@@ -670,7 +655,7 @@ export default function ContentView() {
                 </div>
                 <div className="content-news-strip-meta">
                   <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="content-source-link" onClick={e => e.stopPropagation()}>
-                    cryptopanic.com <ExternalLink size={9} />
+                    {item.sourceName || 'CryptoPanic'} <ExternalLink size={9} />
                   </a>
                   <span className="content-time">{timeAgo(item.publishedAt)}</span>
                 </div>
@@ -879,28 +864,12 @@ export default function ContentView() {
               <input ref={geminiInputRef} type="password" defaultValue={geminiKey} placeholder="AIza..." className="todo-input" />
             </div>
 
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
-                CryptoPanic API Token
-                {cpToken && <span style={{ color: '#34A853', fontSize: '0.7rem' }}>aktif</span>}
-              </label>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginBottom: '8px', lineHeight: 1.4 }}>
-                CryptoPanic haber akışı için gerekli. Ücretsiz.
-                <a href="https://cryptopanic.com/developers/api/" target="_blank" rel="noopener noreferrer" style={{ color: '#00d4ff', marginLeft: '4px' }}>Buradan al</a>
-              </p>
-              <input ref={cpTokenInputRef} type="password" defaultValue={cpToken} placeholder="Token..." className="todo-input" />
-            </div>
-
             <div style={{ display: 'flex', gap: '10px' }}>
               <button className="btn-cancel" onClick={() => setShowKeyModal(false)}>İptal</button>
               <button className="btn-save" style={{ background: '#00d4ff' }} onClick={() => {
                 saveGeminiKeyLocal(geminiInputRef.current?.value?.trim() || '');
-                const newCpToken = cpTokenInputRef.current?.value?.trim() || '';
-                saveCpToken(newCpToken);
                 setShowKeyModal(false);
                 newsCacheRef.current = { data: null, timestamp: 0 };
-                cpCacheRef.current = { data: null, timestamp: 0 };
-                if (newCpToken) loadCPNews(true, newCpToken);
               }}>Kaydet</button>
             </div>
 
@@ -909,12 +878,6 @@ export default function ContentView() {
                 <button style={{ background: 'none', border: 'none', color: 'var(--error-color)', fontSize: '0.72rem', cursor: 'pointer' }}
                   onClick={() => { saveGeminiKeyLocal(''); if (geminiInputRef.current) geminiInputRef.current.value = ''; }}>
                   Gemini key sil
-                </button>
-              )}
-              {cpToken && (
-                <button style={{ background: 'none', border: 'none', color: 'var(--error-color)', fontSize: '0.72rem', cursor: 'pointer' }}
-                  onClick={() => { saveCpToken(''); if (cpTokenInputRef.current) cpTokenInputRef.current.value = ''; setCpNews([]); }}>
-                  CP token sil
                 </button>
               )}
             </div>

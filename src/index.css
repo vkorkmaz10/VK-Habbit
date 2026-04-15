@@ -1809,6 +1809,23 @@ body {
 }
 .content-manual-paste-area:focus { border-color: rgba(255, 170, 0, 0.4); }
 
+/* CryptoPanic no-token state */
+.content-cp-no-token {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+.content-cp-token-link {
+  font-size: 0.68rem;
+  color: #00d4ff;
+  text-decoration: none;
+}
+.content-cp-token-link:hover { text-decoration: underline; }
+
 /* Loading */
 .content-loading-dots { display: flex; gap: 5px; margin-bottom: 6px; }
 .content-dot {

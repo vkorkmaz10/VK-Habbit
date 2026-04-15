@@ -20,6 +20,19 @@ export async function fetchAllNews() {
   }
 }
 
+// Fetch CryptoPanic news via API token (last 15 items)
+export async function fetchCPNews(token) {
+  if (!token) return [];
+  try {
+    const res = await fetch(`/api/cp-news?token=${encodeURIComponent(token)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.items || [];
+  } catch {
+    return [];
+  }
+}
+
 // Scrape article content for deeper analysis.
 // Returns { text: string|null, blocked: boolean }
 export async function scrapeArticle(url) {

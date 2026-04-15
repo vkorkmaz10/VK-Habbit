@@ -100,6 +100,49 @@ function apiMiddleware() {
         }
       });
 
+      // /api/cp-news — CryptoPanic JSON API (requires free token)
+      const cpCaches = {};
+      server.middlewares.use('/api/cp-news', async (req, res) => {
+        const url = new URL(req.url, 'http://localhost');
+        const token = url.searchParams.get('token');
+        if (!token) {
+          res.statusCode = 400;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'token required' }));
+          return;
+        }
+        try {
+          const now = Date.now();
+          if (cpCaches[token]?.items && (now - cpCaches[token].timestamp < RSS_CACHE_TTL)) {
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ items: cpCaches[token].items }));
+            return;
+          }
+          const apiRes = await fetch(
+            `https://cryptopanic.com/api/free/v1/posts/?auth_token=${token}&public=true&limit=15`,
+            { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VKGymBot/1.0)' } }
+          );
+          if (!apiRes.ok) throw new Error(`CryptoPanic API ${apiRes.status}`);
+          const json = await apiRes.json();
+          const items = (json.results || []).map((post, i) => ({
+            id: `cp_${i}_${Date.now()}`,
+            title: post.title || '',
+            url: post.url || '#',
+            sourceUrl: post.url || '#',
+            sourceName: post.source?.title || 'CryptoPanic',
+            publishedAt: post.published_at ? new Date(post.published_at).getTime() : Date.now(),
+            category: isAiTech(post.title) ? 'ai_tech' : 'crypto',
+          }));
+          cpCaches[token] = { items, timestamp: Date.now() };
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ items }));
+        } catch (e) {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+
       // /api/fetch-url → URL content scraper
       server.middlewares.use('/api/fetch-url', async (req, res) => {
         if (req.method !== 'POST') { res.statusCode = 405; res.end('Method Not Allowed'); return; }

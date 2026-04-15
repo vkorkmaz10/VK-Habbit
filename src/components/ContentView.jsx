@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { RefreshCw, ExternalLink, Copy, Check, Key, Loader, Send, X, Cpu, Bitcoin, ChevronDown, ChevronUp, Pencil, Save } from 'lucide-react';
-import { fetchAllNews, scrapeArticle } from '../utils/news';
+import { fetchAllNews, fetchCPNews, scrapeArticle } from '../utils/news';
 import { saveFeedback } from '../utils/storage';
 import { buildTweetPrompt, buildThreadPrompt, STYLE_CONFIG } from '../engine/vse';
 import goldenExamples from '../config/persona_references.json';
 
 const GEMINI_KEY_STORAGE = 'vkgym_gemini_key';
+const CP_TOKEN_STORAGE = 'vkgym_cp_token';
 const CACHE_TTL = 5 * 60 * 1000;
 const URL_REGEX = /https?:\/\/[^\s]+/;
 
@@ -294,6 +295,12 @@ export default function ContentView() {
   const [newsExpanded, setNewsExpanded] = useState(true);
   const newsCacheRef = useRef({ data: null, timestamp: 0 });
 
+  // CryptoPanic
+  const [cpNews, setCpNews] = useState([]);
+  const [cpLoading, setCpLoading] = useState(false);
+  const [cpExpanded, setCpExpanded] = useState(false);
+  const cpCacheRef = useRef({ data: null, timestamp: 0 });
+
   // Chat
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -309,8 +316,10 @@ export default function ContentView() {
 
   // Keys
   const [geminiKey, setGeminiKey] = useState(() => localStorage.getItem(GEMINI_KEY_STORAGE) || '');
+  const [cpToken, setCpToken] = useState(() => localStorage.getItem(CP_TOKEN_STORAGE) || '');
   const [showKeyModal, setShowKeyModal] = useState(false);
   const geminiInputRef = useRef(null);
+  const cpTokenInputRef = useRef(null);
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -334,6 +343,26 @@ export default function ContentView() {
   }, []);
 
   useEffect(() => { loadNews(); }, [loadNews]);
+
+  const loadCPNews = useCallback(async (forceRefresh = false, token = null) => {
+    const tok = token ?? cpToken;
+    if (!tok) return;
+    const now = Date.now();
+    if (!forceRefresh && cpCacheRef.current.data && (now - cpCacheRef.current.timestamp < CACHE_TTL)) {
+      setCpNews(cpCacheRef.current.data);
+      return;
+    }
+    setCpLoading(true);
+    const data = await fetchCPNews(tok);
+    cpCacheRef.current = { data, timestamp: Date.now() };
+    setCpNews(data);
+    setCpLoading(false);
+  }, [cpToken]);
+
+  // Load CP news when section is first expanded (if token exists)
+  useEffect(() => {
+    if (cpExpanded && cpToken && cpNews.length === 0 && !cpLoading) loadCPNews();
+  }, [cpExpanded, cpToken]);
 
   const timeAgo = (ts) => {
     const diff = Date.now() - ts;
@@ -529,6 +558,12 @@ export default function ContentView() {
     else localStorage.removeItem(GEMINI_KEY_STORAGE);
   };
 
+  const saveCpToken = (tok) => {
+    setCpToken(tok);
+    if (tok) localStorage.setItem(CP_TOKEN_STORAGE, tok);
+    else localStorage.removeItem(CP_TOKEN_STORAGE);
+  };
+
   return (
     <div className="fade-in content-view">
 
@@ -571,6 +606,61 @@ export default function ContentView() {
                 <div className="content-news-strip-meta">
                   <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="content-source-link" onClick={e => e.stopPropagation()}>
                     {item.sourceName} <ExternalLink size={9} />
+                  </a>
+                  <span className="content-time">{timeAgo(item.publishedAt)}</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* ===== CryptoPanic ===== */}
+      <div className="glass-card content-news-strip">
+        <div className="content-news-strip-header" onClick={() => setCpExpanded(e => !e)} style={{ cursor: 'pointer' }}>
+          <div className="content-news-strip-title">
+            <span>CryptoPanic</span>
+            {!cpLoading && cpNews.length > 0 && <span className="content-news-count">{cpNews.length}</span>}
+            {cpExpanded ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
+          </div>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+            <button className="content-icon-btn" onClick={() => loadCPNews(true)} disabled={cpLoading}>
+              <RefreshCw size={14} className={cpLoading ? 'cal-spin' : ''} />
+            </button>
+          </div>
+        </div>
+
+        <div className={`content-news-list${cpExpanded ? ' expanded' : ''}`}>
+          {cpLoading ? (
+            <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>
+              <Loader size={18} className="cal-spin" />
+            </div>
+          ) : !cpToken && cpExpanded ? (
+            <div className="content-cp-no-token">
+              <p>CryptoPanic API token gerekli.</p>
+              <button className="content-quick-sm" onClick={() => setShowKeyModal(true)}>
+                <Key size={11} /> Token ekle
+              </button>
+              <a href="https://cryptopanic.com/developers/api/" target="_blank" rel="noopener noreferrer" className="content-cp-token-link">
+                Ücretsiz token al →
+              </a>
+            </div>
+          ) : cpNews.length === 0 && cpExpanded ? (
+            <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>
+              Haber bulunamadı.
+            </p>
+          ) : (
+            cpNews.map(item => (
+              <div key={item.id} className="content-news-strip-item" onClick={() => handleNewsOverlay(item)}>
+                <div className="content-news-row">
+                  <span className={`content-cat-badge ${item.category}`}>
+                    {item.category === 'ai_tech' ? <Cpu size={10} /> : <Bitcoin size={10} />}
+                  </span>
+                  <span className="content-news-strip-text">{item.title}</span>
+                </div>
+                <div className="content-news-strip-meta">
+                  <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="content-source-link" onClick={e => e.stopPropagation()}>
+                    cryptopanic.com <ExternalLink size={9} />
                   </a>
                   <span className="content-time">{timeAgo(item.publishedAt)}</span>
                 </div>
@@ -624,7 +714,27 @@ export default function ContentView() {
             </button>
           ))}
         </div>
-        <form className="content-form" onSubmit={e => { e.preventDefault(); send(input); }}>
+        <form className="content-form" onSubmit={e => {
+          e.preventDefault();
+          const text = input.trim();
+          if (!text || loading) return;
+          if (!geminiKey) { setShowKeyModal(true); return; }
+          // URL → direct send (scraping handled inside send())
+          if (URL_REGEX.test(text)) { send(text); return; }
+          // Free text → content type picker (same flow as news items)
+          setSelectedNews({
+            id: `freetext_${Date.now()}`,
+            title: text.length > 120 ? text.slice(0, 117) + '…' : text,
+            scrapedContent: text,
+            scrapedBlocked: false,
+            scraping: false,
+            url: null,
+            sourceName: 'Manuel Giriş',
+            category: 'crypto',
+            isFreeText: true,
+          });
+          setInput('');
+        }}>
           <input
             className="content-text-input"
             value={input}
@@ -648,9 +758,11 @@ export default function ContentView() {
             <p className="content-type-title">{selectedNews.title}</p>
             <div className="content-type-meta">
               <span>{selectedNews.sourceName}</span>
-              <span className={`content-cat-pill ${selectedNews.category}`}>
-                {selectedNews.category === 'ai_tech' ? 'AI/Tech' : 'Kripto'}
-              </span>
+              {!selectedNews.isFreeText && (
+                <span className={`content-cat-pill ${selectedNews.category}`}>
+                  {selectedNews.category === 'ai_tech' ? 'AI/Tech' : 'Kripto'}
+                </span>
+              )}
               {selectedNews.scraping && (
                 <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
                   <Loader size={10} className="cal-spin" style={{ marginRight: 3 }} />İçerik çekiliyor...
@@ -757,23 +869,45 @@ export default function ContentView() {
               <input ref={geminiInputRef} type="password" defaultValue={geminiKey} placeholder="AIza..." className="todo-input" />
             </div>
 
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
+                CryptoPanic API Token
+                {cpToken && <span style={{ color: '#34A853', fontSize: '0.7rem' }}>aktif</span>}
+              </label>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginBottom: '8px', lineHeight: 1.4 }}>
+                CryptoPanic haber akışı için gerekli. Ücretsiz.
+                <a href="https://cryptopanic.com/developers/api/" target="_blank" rel="noopener noreferrer" style={{ color: '#00d4ff', marginLeft: '4px' }}>Buradan al</a>
+              </p>
+              <input ref={cpTokenInputRef} type="password" defaultValue={cpToken} placeholder="Token..." className="todo-input" />
+            </div>
+
             <div style={{ display: 'flex', gap: '10px' }}>
               <button className="btn-cancel" onClick={() => setShowKeyModal(false)}>İptal</button>
               <button className="btn-save" style={{ background: '#00d4ff' }} onClick={() => {
                 saveGeminiKeyLocal(geminiInputRef.current?.value?.trim() || '');
+                const newCpToken = cpTokenInputRef.current?.value?.trim() || '';
+                saveCpToken(newCpToken);
                 setShowKeyModal(false);
                 newsCacheRef.current = { data: null, timestamp: 0 };
+                cpCacheRef.current = { data: null, timestamp: 0 };
+                if (newCpToken) loadCPNews(true, newCpToken);
               }}>Kaydet</button>
             </div>
 
-            {geminiKey && (
-              <div style={{ marginTop: '12px' }}>
+            <div style={{ marginTop: '12px', display: 'flex', gap: '16px' }}>
+              {geminiKey && (
                 <button style={{ background: 'none', border: 'none', color: 'var(--error-color)', fontSize: '0.72rem', cursor: 'pointer' }}
                   onClick={() => { saveGeminiKeyLocal(''); if (geminiInputRef.current) geminiInputRef.current.value = ''; }}>
                   Gemini key sil
                 </button>
-              </div>
-            )}
+              )}
+              {cpToken && (
+                <button style={{ background: 'none', border: 'none', color: 'var(--error-color)', fontSize: '0.72rem', cursor: 'pointer' }}
+                  onClick={() => { saveCpToken(''); if (cpTokenInputRef.current) cpTokenInputRef.current.value = ''; setCpNews([]); }}>
+                  CP token sil
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

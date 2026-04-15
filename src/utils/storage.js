@@ -276,3 +276,35 @@ export const removeCalendarEvent = (eventId) => {
   raw.calendarEvents = raw.calendarEvents.filter(e => e.id !== eventId);
   saveRawData(raw);
 };
+
+// ========================
+// VSE Feedback Log
+// ========================
+
+const VSE_FEEDBACK_KEY = 'vkgym_vse_feedback';
+
+/**
+ * Saves a VSE feedback entry (original vs user-edited content).
+ * Used by the engine to learn Volkan's style over time.
+ */
+export const saveFeedback = (entry) => {
+  const existing = getFeedbackLog();
+  existing.push({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    timestamp: new Date().toISOString(),
+    ...entry,
+  });
+  localStorage.setItem(VSE_FEEDBACK_KEY, JSON.stringify(existing));
+};
+
+/**
+ * Returns all saved VSE feedback entries.
+ */
+export const getFeedbackLog = () => {
+  try {
+    const data = localStorage.getItem(VSE_FEEDBACK_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+};

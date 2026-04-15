@@ -20,7 +20,8 @@ export async function fetchAllNews() {
   }
 }
 
-// Scrape article content for deeper analysis
+// Scrape article content for deeper analysis.
+// Returns { text: string|null, blocked: boolean }
 export async function scrapeArticle(url) {
   try {
     const res = await fetch('/api/fetch-url', {
@@ -28,10 +29,10 @@ export async function scrapeArticle(url) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) return { text: null, blocked: true };
     const data = await res.json();
-    return data.text || null;
+    return { text: data.text || null, blocked: data.blocked === true };
   } catch {
-    return null;
+    return { text: null, blocked: true };
   }
 }

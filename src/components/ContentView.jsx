@@ -1,16 +1,22 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { RefreshCw, ExternalLink, Copy, Check, Key, Loader, Send, X, Cpu, Bitcoin, ChevronDown, ChevronUp } from 'lucide-react';
-import { fetchAllNews, scrapeArticle } from '../utils/news';
+import { RefreshCw, ExternalLink, Copy, Check, Key, Loader, Send, X, Cpu, Bitcoin, ChevronDown, ChevronUp, Pencil, Save } from 'lucide-react';
+import { fetchAllNews, fetchCPNews, scrapeArticle } from '../utils/news';
+import { saveFeedback } from '../utils/storage';
+import { buildTweetPrompt, buildThreadPrompt, STYLE_CONFIG } from '../engine/vse';
 import goldenExamples from '../config/persona_references.json';
 
 const GEMINI_KEY_STORAGE = 'vkgym_gemini_key';
 const CACHE_TTL = 5 * 60 * 1000;
 const URL_REGEX = /https?:\/\/[^\s]+/;
 
-// ======= Golden Examples Injection =======
+// ======= Golden Examples (for YouTube / Quick Commands only) =======
 function getGoldenExamplesBlock(type) {
   const refs = goldenExamples;
   const isPlaceholder = (s) => !s || s.includes('BURAYA') || s.includes('YAPIŞTIRIN');
+  if (type === 'youtube' && refs.youtube_scripts?.length) {
+    const valid = refs.youtube_scripts.filter(t => !isPlaceholder(t.intro));
+    if (valid.length) return `\n\nALTIN ÖRNEKLER (giriş ve yapıyı taklit et):\n${valid.map(t => `Giriş: "${t.intro}"\nYapı: "${t.structure}"`).join('\n---\n')}`;
+  }
   if (type === 'tweet' && refs.x_single_tweets?.length) {
     const valid = refs.x_single_tweets.filter(t => !isPlaceholder(t.content));
     if (valid.length) return `\n\nALTIN ÖRNEKLER (bu tonu ve yapıyı taklit et):\n${valid.map(t => `- "${t.content}"`).join('\n')}`;
@@ -19,64 +25,13 @@ function getGoldenExamplesBlock(type) {
     const valid = refs.x_threads.filter(t => !isPlaceholder(t.hook));
     if (valid.length) return `\n\nALTIN ÖRNEKLER (hook, geçiş ve kapanış yapısını taklit et):\n${valid.map(t => `Hook: "${t.hook}"\nGövde: "${t.body}"\nKapanış: "${t.closing}"`).join('\n---\n')}`;
   }
-  if (type === 'youtube' && refs.youtube_scripts?.length) {
-    const valid = refs.youtube_scripts.filter(t => !isPlaceholder(t.intro));
-    if (valid.length) return `\n\nALTIN ÖRNEKLER (giriş ve yapıyı taklit et):\n${valid.map(t => `Giriş: "${t.intro}"\nYapı: "${t.structure}"`).join('\n---\n')}`;
-  }
   return '';
 }
-
-// ======= Volkan's Full System Prompt =======
-const SYSTEM_PROMPT = `Sen @vkorkmaz10 için X (Twitter) ve YouTube içerik üretici asistanısın.
-
-VOLKAN KİMDİR:
-- 2017'den beri aktif kripto yatırımcısı ve trader
-- Altcointurk kurucu ortağı, KriptoCuma organizatörü
-- Borsa İstanbul çalışanı, programcı, girişimci
-- X hesabı: @vkorkmaz10
-
-Temel ilgi alanları: Bitcoin & kripto paralar (birincil), finans & ekonomi, girişimcilik & iş dünyası, teknoloji & yapay zeka.
-Hedef kitle: Kripto/finans dünyasını takip eden, orta-ileri düzey bilgili Türk kullanıcılar.
-
-VOLKAN'IN SESİ:
-- Direkt ve özlü — lafı dolandırmaz, gereksiz giriş cümlesi yoktur
-- Analitik ama erişilebilir — teknik bilgiyi sade dille aktarır
-- Güven veren — yıllık piyasa deneyiminden gelen özgüven, asla kibirli değil
-- Meraklı & okuyucu — görüşleri kitaplar, tarihsel analoji ve verilerle desteklenir
-- Topluluk odaklı — "biz", "birlikte", "hep birlikte göreceğiz" gibi ifadeler doğal
-- Türkçe ama global bakış — Türkiye bağlamı güçlü, global piyasaları Türk okuyucuya tercüme eder
-- Emoji: Minimal, anlamlı (💎🔥📈), spamlanmaz
-- Karakteristik: "Nacizane söylüyorum...", "Ben bu piyasada 2017'den beri varım", "Daldan dala atlama"
-- Her analizde iki senaryo: olumlu ve olumsuz
-- "Panik yapma" çerçevesi, kademeli alım önerisi
-
-KAÇINILACAKLAR:
-- Aşırı iyimser/pump tarzı dil ("Bu coin 100x yapar!")
-- Clickbait başlıklar, ALL CAPS sensasyonalizm
-- Gereksiz uzun girişler
-- Finansal tavsiye: "benim görüşüm", "kendi araştırmanı yap" çerçevesini koru
-- 280 karakteri aşan tek tweetler
-- Coin fiyatları listeleme, fiyat tabloları veya "Coin Prices" bölümü ekleme — sadece verilen habere odaklan
-
-FORMAT KURALLARI:
-TEK TWEET: [Güçlü giriş] + [1-2 cümle yorum] + [$BTC ticker]
-THREAD: 🧵 hook ile başla, 5-12 tweet, her tweet'i (1/n) formatında numarala, her tweet max 280 karakter, mantıksal kırılma noktalarında böl, son tweet "Sizce?" ile bitir
-YOUTUBE: Başlık (max 60 kar) + Thumbnail fikri + SEO açıklama + Script (HOOK/BAĞLAM/ANA İÇERİK/SONUÇ)
-
-KALİTE KONTROLÜ:
-Yeni içerik üretmeden önce aşağıda verilen 'Altın Örnekler'i incele. Bu örneklerdeki cümle uzunluğunu, teknik terim kullanım sıklığını ve toplulukla kurulan bağı (biz dili) birebir modelle. Ürettiğin metin referanslara sadık olmalı — lafı dolandırma, çok fazla emoji kullanma.
-
-KONUYA GÖRE TON:
-- Bitcoin fiyat → Sakin, analitik
-- Altcoin → Temkinli, "İnceleyin, araştırın"
-- Makro → Eğitici, Türkiye-global köprüsü
-- AI/teknoloji → Meraklı, erken adopter
-- Regülasyon → Nötr-analizci`;
 
 // ======= Gemini API =======
 const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite'];
 
-async function callGemini(apiKey, userPrompt, systemPrompt = SYSTEM_PROMPT) {
+async function callGemini(apiKey, userPrompt, systemPrompt) {
   let lastError = null;
   for (let i = 0; i < GEMINI_MODELS.length; i++) {
     const model = GEMINI_MODELS[i];
@@ -87,9 +42,8 @@ async function callGemini(apiKey, userPrompt, systemPrompt = SYSTEM_PROMPT) {
       generationConfig: { temperature: 0.8, maxOutputTokens: 4096 },
     });
 
-    // Try each model up to 2 times (retry once on 429)
     for (let retry = 0; retry < 2; retry++) {
-      if (retry > 0) await new Promise(r => setTimeout(r, 2000)); // 2s wait before retry
+      if (retry > 0) await new Promise(r => setTimeout(r, 2000));
 
       const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
       if (res.ok) {
@@ -102,34 +56,22 @@ async function callGemini(apiKey, userPrompt, systemPrompt = SYSTEM_PROMPT) {
       try { detail = JSON.parse(errBody)?.error?.message || errBody; } catch { detail = errBody; }
       lastError = detail;
 
-      // Auth errors (401/403) — stop immediately
       if (res.status !== 503 && res.status !== 429) {
         throw new Error(`Gemini hatasi (${res.status}): ${detail}`);
       }
-
-      // 429 on first try — retry same model after delay
       if (res.status === 429 && retry === 0) {
         console.warn(`Gemini ${model} rate limited, retrying in 2s...`);
         continue;
       }
-
-      // Move to next model
       console.warn(`Gemini ${model} failed (${res.status}), trying next model...`);
       break;
     }
 
-    // Wait 1s between different models
     if (i < GEMINI_MODELS.length - 1) await new Promise(r => setTimeout(r, 1000));
   }
 
-  // All models failed — friendly Turkish message for 429
   throw new Error('Gemini API kotasi doldu. Lutfen birkac dakika bekleyip tekrar deneyin.');
 }
-
-// Headline translation removed — Gemini free tier quota is too limited.
-// All quota reserved for content generation.
-
-// URL content fetching uses scrapeArticle from news.js
 
 // ======= Markdown Renderer =======
 function renderMarkdown(text) {
@@ -153,11 +95,195 @@ function renderMarkdown(text) {
     .replace(/\n/g, "<br>");
 }
 
-// ======= Quick Commands (FAB only) =======
+// ======= Thread Block Splitter =======
+// Splits numbered thread tweets into individual blocks.
+// Handles Gemini output variants:
+//   "1/9", "(1/9)", "**1/9**", "🧵 1/9", "1/9:", "1.", "(1)" etc.
+function splitThreadBlocks(text) {
+  // Normalize: strip bold/italic markdown, parentheses around numbering
+  const normalized = text
+    .replace(/\r\n/g, '\n')
+    .replace(/^\*{1,2}\((\d+\/\d*)\)\*{1,2}/gm, '$1')  // **(1/9)**
+    .replace(/^\*{1,2}(\d+\/\d*)\*{1,2}/gm, '$1')       // **1/9**
+    .replace(/^_{1,2}(\d+\/\d*)_{1,2}/gm, '$1')          // __1/9__
+    .replace(/^\((\d+\/\d*)\)/gm, '$1');                  // (1/9) → 1/9
+
+  const lines = normalized.split('\n');
+  const blocks = [];
+  let current = [];
+
+  for (const line of lines) {
+    const t = line.trim();
+    const isNewBlock =
+      /^(?:🧵\s+)?\d+\/\d*[\s:—–\-]/.test(t) ||  // "1/9 text", "1/ :", "🧵 1/9 ..."
+      /^(?:🧵\s+)?\d+\/\d*$/.test(t) ||            // "1/9" alone on a line
+      /^(?:🧵\s+)?[1-9]\d*\.\s/.test(t) ||         // "1. text"
+      /^🧵$/.test(t);                               // 🧵 alone as opener
+
+    if (isNewBlock && current.length > 0) {
+      const block = current.join('\n').trim();
+      if (block) blocks.push(block);
+      current = [line];
+    } else {
+      current.push(line);
+    }
+  }
+  if (current.length > 0) {
+    const block = current.join('\n').trim();
+    if (block) blocks.push(block);
+  }
+
+  return blocks.length >= 3 ? blocks : null;
+}
+
+// ======= Quick Commands =======
 const QUICK_COMMANDS = [
   { label: "Bugün neler var?", prompt: (news) => `Aşağıdaki güncel haberleri analiz et ve en önemli 3-5 tanesi için Volkan tarzında birer tweet yaz. Sonunda yayın planı tablosu ekle.${getGoldenExamplesBlock('tweet')}\n\nHABERLER:\n${news.map((n, i) => `${i + 1}. ${n.title} (${n.sourceName}) [${n.category === 'ai_tech' ? 'AI/Tech' : 'Kripto'}]`).join('\n')}` },
   { label: "Makro analiz", prompt: (news) => `Global makroekonomik gelişmeleri ve Bitcoin'e etkisini anlatan bir thread hazırla.${getGoldenExamplesBlock('thread')}\nGüncel haberler:\n${news.slice(0, 5).map(n => `- ${n.title} [${n.category === 'ai_tech' ? 'AI/Tech' : 'Kripto'}]`).join('\n')}` },
 ];
+
+// ======= Thread Block (per-block edit/save/copy) =======
+function ThreadBlock({ block, blockId, onCopy, copied, onBlockSave }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(block);
+  const [displayContent, setDisplayContent] = useState(block);
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  }, [isEditing]);
+
+  const handleSave = () => {
+    const trimmed = editContent.trim();
+    if (trimmed && trimmed !== displayContent) {
+      onBlockSave(displayContent, trimmed);
+      setDisplayContent(trimmed);
+    }
+    setIsEditing(false);
+  };
+
+  return (
+    <div className="content-thread-block">
+      {isEditing ? (
+        <textarea
+          ref={textareaRef}
+          className="content-edit-textarea"
+          value={editContent}
+          onChange={e => {
+            setEditContent(e.target.value);
+            e.target.style.height = 'auto';
+            e.target.style.height = e.target.scrollHeight + 'px';
+          }}
+        />
+      ) : (
+        <div className="content-msg-text" dangerouslySetInnerHTML={{ __html: renderMarkdown(displayContent) }} />
+      )}
+      <div className="content-block-actions">
+        <button
+          className="content-block-copy"
+          onClick={() => onCopy(displayContent, blockId)}
+          title="Bu bölümü kopyala"
+        >
+          {copied === blockId ? <Check size={11} /> : <Copy size={11} />}
+        </button>
+        {isEditing ? (
+          <button className="content-block-edit content-block-save" onClick={handleSave}>
+            <Save size={11} /> Kaydet
+          </button>
+        ) : (
+          <button className="content-block-edit" onClick={() => { setEditContent(displayContent); setIsEditing(true); }}>
+            <Pencil size={11} /> Düzenle
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ======= Editable Message Component =======
+function EditableMessage({ msg, msgIndex, onCopy, copied, onSaveFeedback }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(msg.content);
+  const [displayContent, setDisplayContent] = useState(msg.content);
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  }, [isEditing]);
+
+  const handleEdit = () => {
+    setEditContent(displayContent);
+    setIsEditing(true);
+  };
+
+  const handleSave = () => {
+    const trimmed = editContent.trim();
+    if (trimmed && trimmed !== displayContent.trim()) {
+      onSaveFeedback(msg.content, trimmed);
+      setDisplayContent(trimmed);
+    }
+    setIsEditing(false);
+  };
+
+  // Thread rendering with per-block edit/copy
+  const isThread = msg.vse?.mode === 'thread';
+  const threadBlocks = isThread ? splitThreadBlocks(displayContent) : null;
+
+  return (
+    <div className="content-msg-assistant glass-card">
+      {isEditing ? (
+        <textarea
+          ref={textareaRef}
+          className="content-edit-textarea"
+          value={editContent}
+          onChange={e => {
+            setEditContent(e.target.value);
+            e.target.style.height = 'auto';
+            e.target.style.height = e.target.scrollHeight + 'px';
+          }}
+        />
+      ) : isThread && threadBlocks ? (
+        <div className="content-thread-blocks">
+          {threadBlocks.map((block, bi) => (
+            <ThreadBlock
+              key={bi}
+              block={block}
+              blockId={`${msgIndex}-${bi}`}
+              onCopy={onCopy}
+              copied={copied}
+              onBlockSave={(original, edited) => onSaveFeedback(original, edited)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="content-msg-text" dangerouslySetInnerHTML={{ __html: renderMarkdown(displayContent) }} />
+      )}
+
+      <div className="content-msg-actions">
+        <button className="content-msg-copy" onClick={() => onCopy(displayContent, msgIndex)}>
+          {copied === msgIndex ? <><Check size={12} /> Kopyalandı</> : <><Copy size={12} /> Kopyala</>}
+        </button>
+        {isEditing ? (
+          <button className="content-msg-edit content-msg-save" onClick={handleSave}>
+            <Save size={12} /> Kaydet
+          </button>
+        ) : (
+          <button className="content-msg-edit" onClick={handleEdit}>
+            <Pencil size={12} /> Düzenle
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ======= Component =======
 export default function ContentView() {
@@ -168,12 +294,29 @@ export default function ContentView() {
   const [newsExpanded, setNewsExpanded] = useState(true);
   const newsCacheRef = useRef({ data: null, timestamp: 0 });
 
-  // Chat
-  const [messages, setMessages] = useState([]);
+  // CryptoPanic
+  const [cpNews, setCpNews] = useState([]);
+  const [cpLoading, setCpLoading] = useState(false);
+  const [cpExpanded, setCpExpanded] = useState(false);
+  const cpCacheRef = useRef({ data: null, timestamp: 0 });
+
+  // Chat — sessionStorage ile korunur (tab/sayfa yenilemede kalır, tarayıcı kapanınca gider)
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('vkgym_content_messages');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(null);
+
+  // Style Picker
+  const [showStylePicker, setShowStylePicker] = useState(false);
+  const [pendingMode, setPendingMode] = useState(null);      // 'tweet' | 'thread'
+  const [pendingNews, setPendingNews] = useState(null);      // { title, content, source, blocked }
+  const [manualContent, setManualContent] = useState('');    // user-pasted content when blocked
 
   // Keys
   const [geminiKey, setGeminiKey] = useState(() => localStorage.getItem(GEMINI_KEY_STORAGE) || '');
@@ -181,13 +324,17 @@ export default function ContentView() {
   const geminiInputRef = useRef(null);
   const bottomRef = useRef(null);
 
+  // Mesajları sessionStorage'a kaydet (tab/sayfa yenilemede korunur)
+  useEffect(() => {
+    try { sessionStorage.setItem('vkgym_content_messages', JSON.stringify(messages)); } catch {}
+  }, [messages]);
+
   useEffect(() => {
     if (messages.length > 0) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, loading]);
 
-  // Fetch news + translate
   const loadNews = useCallback(async (forceRefresh = false) => {
     const now = Date.now();
     if (!forceRefresh && newsCacheRef.current.data && (now - newsCacheRef.current.timestamp < CACHE_TTL)) {
@@ -204,6 +351,24 @@ export default function ContentView() {
 
   useEffect(() => { loadNews(); }, [loadNews]);
 
+  const loadCPNews = useCallback(async (forceRefresh = false) => {
+    const now = Date.now();
+    if (!forceRefresh && cpCacheRef.current.data && (now - cpCacheRef.current.timestamp < CACHE_TTL)) {
+      setCpNews(cpCacheRef.current.data);
+      return;
+    }
+    setCpLoading(true);
+    const data = await fetchCPNews();
+    cpCacheRef.current = { data, timestamp: Date.now() };
+    setCpNews(data);
+    setCpLoading(false);
+  }, []);
+
+  // Load CP news when section is first expanded
+  useEffect(() => {
+    if (cpExpanded && cpNews.length === 0 && !cpLoading) loadCPNews();
+  }, [cpExpanded]);
+
   const timeAgo = (ts) => {
     const diff = Date.now() - ts;
     const mins = Math.floor(diff / 60000);
@@ -213,8 +378,8 @@ export default function ContentView() {
     return `${Math.floor(hrs / 24)}g`;
   };
 
-  // Send message (with URL detection)
-  const send = async (userText) => {
+  // Send with explicit systemPrompt (for VSE) or fallback to free-text
+  const send = async (userText, systemPrompt = null) => {
     if (!userText.trim() || loading) return;
     if (!geminiKey) { setShowKeyModal(true); return; }
     setError('');
@@ -222,21 +387,26 @@ export default function ContentView() {
     setMessages(prev => [...prev, { role: 'user', content: userText }]);
     setInput('');
     setLoading(true);
-    setNewsExpanded(false); // Collapse news when generating content
+    setNewsExpanded(false);
 
     let finalPrompt = userText;
+    let finalSystem = systemPrompt;
 
-    // URL detection
-    const urlMatch = userText.match(URL_REGEX);
-    if (urlMatch) {
-      const urlContent = await scrapeArticle(urlMatch[0]);
-      if (urlContent) {
-        finalPrompt = `Aşağıdaki URL'den çekilen içerik hakkında Volkan tarzında analiz ve yorum yaz:\n\nURL: ${urlMatch[0]}\n\nİçerik:\n${urlContent}`;
+    // URL detection (free-text mode only)
+    if (!systemPrompt) {
+      const urlMatch = userText.match(URL_REGEX);
+      if (urlMatch) {
+        const { text: urlContent } = await scrapeArticle(urlMatch[0]);
+        if (urlContent) {
+          finalPrompt = `Aşağıdaki URL'den çekilen içerik hakkında Volkan tarzında analiz ve yorum yaz:\n\nURL: ${urlMatch[0]}\n\nİçerik:\n${urlContent}`;
+        }
       }
+      // Default system for free-text: use the old SYSTEM_PROMPT content inline
+      finalSystem = `Sen @vkorkmaz10 için X ve YouTube içerik üretici asistanısın. Türkçe yaz. Volkan tarzında: direkt, analitik, minimal emoji, finansal tavsiye vermez ama senaryo sunar.`;
     }
 
     try {
-      const result = await callGemini(geminiKey, finalPrompt);
+      const result = await callGemini(geminiKey, finalPrompt, finalSystem);
       if (!result) throw new Error('Boş yanıt geldi.');
       setMessages(prev => [...prev, { role: 'assistant', content: result }]);
     } catch (e) {
@@ -246,40 +416,64 @@ export default function ContentView() {
     }
   };
 
-  const handleNewsOverlay = (item) => {
-    setSelectedNews({ ...item, scrapedContent: null, scraping: false });
+  // VSE-powered generation with mode metadata
+  const generateVSE = async (newsInput, mode, style) => {
+    if (!geminiKey) { setShowKeyModal(true); return; }
+    setError('');
+
+    const label = mode === 'tweet' ? 'Tweet' : 'Thread';
+    const styleLabel = STYLE_CONFIG[style]?.label || style;
+    setMessages(prev => [...prev, { role: 'user', content: `${label} (${styleLabel}): "${newsInput.title}"` }]);
+    setLoading(true);
+    setNewsExpanded(false);
+
+    try {
+      const { systemPrompt, userPrompt } = mode === 'tweet'
+        ? buildTweetPrompt(newsInput, style)
+        : buildThreadPrompt(newsInput, style);
+
+      const result = await callGemini(geminiKey, userPrompt, systemPrompt);
+      if (!result) throw new Error('Boş yanıt geldi.');
+
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: result,
+        vse: { mode, style, newsTitle: newsInput.title, newsSource: newsInput.source },
+      }]);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Scrape article content when overlay opens
+  const handleNewsOverlay = (item) => {
+    setSelectedNews({ ...item, scraping: false });
+  };
+
   useEffect(() => {
-    if (!selectedNews || selectedNews.scrapedContent || selectedNews.scraping) return;
+    if (!selectedNews || selectedNews.scrapedContent !== undefined || selectedNews.scraping) return;
     setSelectedNews(prev => prev ? { ...prev, scraping: true } : null);
-    scrapeArticle(selectedNews.url).then(text => {
-      setSelectedNews(prev => prev ? { ...prev, scrapedContent: text || '', scraping: false } : null);
+    scrapeArticle(selectedNews.url).then(({ text, blocked }) => {
+      setSelectedNews(prev => prev ? {
+        ...prev,
+        scrapedContent: text || '',
+        scrapedBlocked: blocked,
+        scraping: false,
+      } : null);
     });
   }, [selectedNews?.id]);
 
   const cleanScrapedContent = (text) => {
     if (!text) return '';
-    // Trailing section cutoffs
     const trailing = [
-      /Coin Prices[\s\S]*/i,
-      /Trending (?:Coins|Tokens|News|Stories)[\s\S]*/i,
-      /Market (?:Data|Cap|Overview)[\s\S]*/i,
-      /Top (?:Coins|Cryptocurrencies|Assets|Stories)[\s\S]*/i,
-      /Related (?:Articles|Stories|News|Posts)[\s\S]*/i,
-      /Recommended (?:Articles|Stories|For You)[\s\S]*/i,
-      /Popular (?:Stories|Articles)[\s\S]*/i,
-      /More (?:Stories|Articles|From)[\s\S]*/i,
-      /Newsletter[\s\S]*/i,
-      /Subscribe[\s\S]*/i,
-      /Sign up (?:for|to)[\s\S]*/i,
-      /Don't Miss[\s\S]*/i,
-      /About (?:the )?Author[\s\S]*/i,
-      /Disclaimer[\s\S]*/i,
-      /©\s*\d{4}[\s\S]*/i,
+      /Coin Prices[\s\S]*/i, /Trending (?:Coins|Tokens|News|Stories)[\s\S]*/i,
+      /Market (?:Data|Cap|Overview)[\s\S]*/i, /Top (?:Coins|Cryptocurrencies|Assets|Stories)[\s\S]*/i,
+      /Related (?:Articles|Stories|News|Posts)[\s\S]*/i, /Recommended (?:Articles|Stories|For You)[\s\S]*/i,
+      /Popular (?:Stories|Articles)[\s\S]*/i, /More (?:Stories|Articles|From)[\s\S]*/i,
+      /Newsletter[\s\S]*/i, /Subscribe[\s\S]*/i, /Sign up (?:for|to)[\s\S]*/i,
+      /Don't Miss[\s\S]*/i, /About (?:the )?Author[\s\S]*/i, /Disclaimer[\s\S]*/i, /©\s*\d{4}[\s\S]*/i,
     ];
-    // Inline junk
     const inline = [
       /\b(?:BTC|ETH|XRP|BNB|SOL|DOGE|ADA|AVAX|SHIB|LINK|DOT|MATIC|UNI|ATOM|USDT|USDC|BUSD|DAI|WBT|HYPE|LEO|BCH|XMR|ZEC|LTC|TRX|HBAR|SUI|TAO)\s*\$[\d,.]+\s*-?[\d.]+%/g,
       /\$[\d,]+\.[\d]+\s+[+-]?[\d.]+%\s*/g,
@@ -290,24 +484,59 @@ export default function ContentView() {
     return clean.replace(/\s{3,}/g, ' ').trim();
   };
 
+  // Called when user picks a content type (tweet/thread) from first modal
   const handleContentGenerate = (type) => {
     if (!selectedNews) return;
-    const { title, sourceName, scrapedContent } = selectedNews;
+    const { title, sourceName, scrapedContent, url } = selectedNews;
+
+    if (type === 'youtube') {
+      // YouTube: keep old flow
+      const cleaned = cleanScrapedContent(scrapedContent);
+      const context = cleaned ? `\n\nHaber içeriği (EN):\n${cleaned.slice(0, 800)}` : '';
+      const golden = getGoldenExamplesBlock('youtube');
+      const prompt = `Bu haber hakkında YouTube video script'i hazırla. Başlık (max 60 kar), thumbnail fikri, SEO açıklama ve HOOK/BAĞLAM/ANA İÇERİK/SONUÇ yapısında script:\n\n"${title}"\nKaynak: ${sourceName}${context}${golden}`;
+      setSelectedNews(null);
+      const youtubeSystem = `Sen @vkorkmaz10 için YouTube içerik üretici asistanısın. Türkçe yaz. Volkan tarzında: direkt, analitik, eğitici, minimal emoji.`;
+      send(prompt, youtubeSystem);
+      return;
+    }
+
+    // Tweet / Thread → show style picker
     const cleaned = cleanScrapedContent(scrapedContent);
-    const context = cleaned ? `\n\nHaber içeriği (EN):\n${cleaned.slice(0, 800)}` : '';
-    const golden = getGoldenExamplesBlock(type);
-    const prompts = {
-      tweet: `Bu haber hakkında Volkan tarzında tek tweet yaz (max 280 karakter):\n\n"${title}"\nKaynak: ${sourceName}${context}${golden}`,
-      thread: `Bu haber hakkında Volkan tarzında 5-12 tweet'lik bir thread yaz. 🧵 hook ile başla, her tweet'i (1/n) formatında numarala, her tweet max 280 karakter, mantıksal kırılma noktalarında böl, son tweet "Sizce?" ile bitir:\n\n"${title}"\nKaynak: ${sourceName}${context}${golden}`,
-      youtube: `Bu haber hakkında YouTube video script'i hazırla. Başlık (max 60 kar), thumbnail fikri, SEO açıklama ve HOOK/BAĞLAM/ANA İÇERİK/SONUÇ yapısında script:\n\n"${title}"\nKaynak: ${sourceName}${context}${golden}`,
-    };
+    // Blocked if: explicitly flagged, OR scraping finished but content is empty/too short
+    const scrapingDone = scrapedContent !== undefined;
+    const isBlocked = scrapingDone && (selectedNews.scrapedBlocked || !cleaned || cleaned.length < 80);
+    setPendingMode(type);
+    setPendingNews({
+      title,
+      content: cleaned ? cleaned.slice(0, 1200) : '',
+      source: url || sourceName,
+      blocked: isBlocked,
+      articleUrl: url,
+    });
+    setManualContent('');
     setSelectedNews(null);
-    send(prompts[type]);
+    setShowStylePicker(true);
+  };
+
+  // Called when user picks a style from the style picker
+  const handleStyleSelected = (style) => {
+    setShowStylePicker(false);
+    if (!pendingNews || !pendingMode) return;
+    // Merge manual content if user pasted something
+    const finalNews = manualContent.trim()
+      ? { ...pendingNews, content: manualContent.trim() }
+      : pendingNews;
+    generateVSE(finalNews, pendingMode, style);
+    setPendingMode(null);
+    setPendingNews(null);
+    setManualContent('');
   };
 
   const handleQuickCommand = (cmd) => {
     const prompt = cmd.prompt(news);
-    send(prompt);
+    const sys = `Sen @vkorkmaz10 için X içerik üretici asistanısın. Türkçe yaz. Volkan tarzı: direkt, analitik, minimal emoji, iki senaryo sun.`;
+    send(prompt, sys);
   };
 
   const handleCopy = (text, idx) => {
@@ -316,12 +545,23 @@ export default function ContentView() {
     setTimeout(() => setCopied(null), 2000);
   };
 
+  const handleSaveFeedback = (msg, original, edited) => {
+    if (!msg.vse) return;
+    saveFeedback({
+      newsTitle: msg.vse.newsTitle,
+      newsSource: msg.vse.newsSource,
+      mode: msg.vse.mode,
+      style: msg.vse.style,
+      original,
+      edited,
+    });
+  };
+
   const saveGeminiKeyLocal = (key) => {
     setGeminiKey(key);
     if (key) localStorage.setItem(GEMINI_KEY_STORAGE, key);
     else localStorage.removeItem(GEMINI_KEY_STORAGE);
   };
-
 
 
   return (
@@ -356,20 +596,70 @@ export default function ContentView() {
             </p>
           ) : (
             news.map(item => (
-                <div key={item.id} className="content-news-strip-item" onClick={() => handleNewsOverlay(item)}>
-                  <div className="content-news-row">
-                    <span className={`content-cat-badge ${item.category}`}>
-                      {item.category === 'ai_tech' ? <Cpu size={10} /> : <Bitcoin size={10} />}
-                    </span>
-                    <span className="content-news-strip-text">{item.title}</span>
-                  </div>
-                  <div className="content-news-strip-meta">
-                    <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="content-source-link" onClick={e => e.stopPropagation()}>
-                      {item.sourceName} <ExternalLink size={9} />
-                    </a>
-                    <span className="content-time">{timeAgo(item.publishedAt)}</span>
-                  </div>
+              <div key={item.id} className="content-news-strip-item" onClick={() => handleNewsOverlay(item)}>
+                <div className="content-news-row">
+                  <span className={`content-cat-badge ${item.category}`}>
+                    {item.category === 'ai_tech' ? <Cpu size={10} /> : <Bitcoin size={10} />}
+                  </span>
+                  <span className="content-news-strip-text">{item.title}</span>
                 </div>
+                <div className="content-news-strip-meta">
+                  <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="content-source-link" onClick={e => e.stopPropagation()}>
+                    {item.sourceName} <ExternalLink size={9} />
+                  </a>
+                  <span className="content-time">{timeAgo(item.publishedAt)}</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* ===== CryptoPanic ===== */}
+      <div className="glass-card content-news-strip">
+        <div className="content-news-strip-header" onClick={() => setCpExpanded(e => !e)} style={{ cursor: 'pointer' }}>
+          <div className="content-news-strip-title">
+            <span>CryptoPanic</span>
+            {!cpLoading && cpNews.length > 0 && <span className="content-news-count">{cpNews.length}</span>}
+            {cpExpanded ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
+          </div>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+            <button className="content-icon-btn" onClick={() => loadCPNews(true)} disabled={cpLoading}>
+              <RefreshCw size={14} className={cpLoading ? 'cal-spin' : ''} />
+            </button>
+          </div>
+        </div>
+
+        <div className={`content-news-list${cpExpanded ? ' expanded' : ''}`}>
+          {cpLoading ? (
+            <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>
+              <Loader size={18} className="cal-spin" />
+            </div>
+          ) : cpNews.length === 0 && cpExpanded ? (
+            <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>
+              Haber bulunamadı.
+            </p>
+          ) : (
+            cpNews.map(item => (
+              <div
+                key={item.id}
+                className="content-news-strip-item"
+                data-sentiment={item.sentiment || 'neutral'}
+                onClick={() => handleNewsOverlay(item)}
+              >
+                <div className="content-news-row">
+                  <span className={`content-cat-badge ${item.category}`}>
+                    {item.category === 'ai_tech' ? <Cpu size={10} /> : <Bitcoin size={10} />}
+                  </span>
+                  <span className="content-news-strip-text">{item.title}</span>
+                </div>
+                <div className="content-news-strip-meta">
+                  <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="content-source-link" onClick={e => e.stopPropagation()}>
+                    {item.sourceName || 'CryptoPanic'} <ExternalLink size={9} />
+                  </a>
+                  <span className="content-time">{timeAgo(item.publishedAt)}</span>
+                </div>
+              </div>
             ))
           )}
         </div>
@@ -382,12 +672,13 @@ export default function ContentView() {
             {msg.role === 'user' ? (
               <div className="content-msg-user">{msg.content}</div>
             ) : (
-              <div className="content-msg-assistant glass-card">
-                <div className="content-msg-text" dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
-                <button className="content-msg-copy" onClick={() => handleCopy(msg.content, i)}>
-                  {copied === i ? <><Check size={12} /> Kopyalandı</> : <><Copy size={12} /> Kopyala</>}
-                </button>
-              </div>
+              <EditableMessage
+                msg={msg}
+                msgIndex={i}
+                onCopy={handleCopy}
+                copied={copied}
+                onSaveFeedback={(original, edited) => handleSaveFeedback(msg, original, edited)}
+              />
             )}
           </div>
         ))}
@@ -418,7 +709,27 @@ export default function ContentView() {
             </button>
           ))}
         </div>
-        <form className="content-form" onSubmit={e => { e.preventDefault(); send(input); }}>
+        <form className="content-form" onSubmit={e => {
+          e.preventDefault();
+          const text = input.trim();
+          if (!text || loading) return;
+          if (!geminiKey) { setShowKeyModal(true); return; }
+          // URL → direct send (scraping handled inside send())
+          if (URL_REGEX.test(text)) { send(text); return; }
+          // Free text → content type picker (same flow as news items)
+          setSelectedNews({
+            id: `freetext_${Date.now()}`,
+            title: text.length > 120 ? text.slice(0, 117) + '…' : text,
+            scrapedContent: text,
+            scrapedBlocked: false,
+            scraping: false,
+            url: null,
+            sourceName: 'Manuel Giriş',
+            category: 'crypto',
+            isFreeText: true,
+          });
+          setInput('');
+        }}>
           <input
             className="content-text-input"
             value={input}
@@ -442,9 +753,11 @@ export default function ContentView() {
             <p className="content-type-title">{selectedNews.title}</p>
             <div className="content-type-meta">
               <span>{selectedNews.sourceName}</span>
-              <span className={`content-cat-pill ${selectedNews.category}`}>
-                {selectedNews.category === 'ai_tech' ? 'AI/Tech' : 'Kripto'}
-              </span>
+              {!selectedNews.isFreeText && (
+                <span className={`content-cat-pill ${selectedNews.category}`}>
+                  {selectedNews.category === 'ai_tech' ? 'AI/Tech' : 'Kripto'}
+                </span>
+              )}
               {selectedNews.scraping && (
                 <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
                   <Loader size={10} className="cal-spin" style={{ marginRight: 3 }} />İçerik çekiliyor...
@@ -455,8 +768,8 @@ export default function ContentView() {
             <div className="content-type-group">
               <div className="content-type-group-label">𝕏 Twitter</div>
               <div className="content-type-group-btns">
-                <button className="content-type-btn" onClick={() => handleContentGenerate('tweet')}>Tek Tweet</button>
-                <button className="content-type-btn" onClick={() => handleContentGenerate('thread')}>Thread</button>
+                <button className="content-type-btn" disabled={selectedNews.scraping} onClick={() => handleContentGenerate('tweet')}>Tek Tweet</button>
+                <button className="content-type-btn" disabled={selectedNews.scraping} onClick={() => handleContentGenerate('thread')}>Thread</button>
               </div>
             </div>
 
@@ -465,6 +778,66 @@ export default function ContentView() {
               <div className="content-type-group-btns">
                 <button className="content-type-btn" onClick={() => handleContentGenerate('youtube')}>Script / Outline</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Style Picker Overlay ===== */}
+      {showStylePicker && (
+        <div className="modal-overlay" onClick={() => { setShowStylePicker(false); setManualContent(''); }}>
+          <div className="modal-content glass-card content-style-modal" onClick={e => e.stopPropagation()}>
+            <button className="content-type-close" onClick={() => { setShowStylePicker(false); setManualContent(''); }}>
+              <X size={16} />
+            </button>
+            <p className="content-style-modal-title">
+              {pendingMode === 'tweet' ? 'Tweet' : 'Thread'} tarzı seç
+            </p>
+            <p className="content-style-modal-sub">
+              {pendingNews?.title && `"${pendingNews.title.slice(0, 60)}${pendingNews.title.length > 60 ? '…' : ''}"`}
+            </p>
+
+            {/* Manual paste — shown when article is blocked AND mode is thread */}
+            {pendingMode === 'thread' && pendingNews?.blocked && (
+              <div className="content-manual-paste-block">
+                <div className="content-manual-paste-header">
+                  <span className="content-manual-paste-warn">⚠ İçeriğe erişilemedi</span>
+                  {pendingNews.articleUrl && (
+                    <button
+                      className="content-manual-url-copy"
+                      onClick={() => {
+                        navigator.clipboard.writeText(pendingNews.articleUrl);
+                      }}
+                      title="Haber URL'sini kopyala"
+                    >
+                      <Copy size={11} /> URL kopyala
+                    </button>
+                  )}
+                </div>
+                <p className="content-manual-paste-label">
+                  Haber içeriğini tarayıcıdan kopyalayıp buraya yapıştır — thread kalitesini artırır (opsiyonel):
+                </p>
+                <textarea
+                  className="content-manual-paste-area"
+                  placeholder="Haber içeriğini buraya yapıştır..."
+                  value={manualContent}
+                  onChange={e => setManualContent(e.target.value)}
+                  rows={4}
+                />
+              </div>
+            )}
+
+            <div className="content-style-options">
+              {Object.entries(STYLE_CONFIG).map(([key, cfg]) => (
+                <button
+                  key={key}
+                  className="content-style-option"
+                  onClick={() => handleStyleSelected(key)}
+                >
+                  <span className="content-style-label">{cfg.label}</span>
+                  <span className="content-style-desc">{cfg.description}</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -485,7 +858,7 @@ export default function ContentView() {
                 {geminiKey && <span style={{ color: '#34A853', fontSize: '0.7rem' }}>aktif</span>}
               </label>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginBottom: '8px', lineHeight: 1.4 }}>
-                İçerik üretimi ve çeviri için gerekli.
+                İçerik üretimi için gerekli.
                 <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#00d4ff', marginLeft: '4px' }}>Buradan al</a>
               </p>
               <input ref={geminiInputRef} type="password" defaultValue={geminiKey} placeholder="AIza..." className="todo-input" />
@@ -496,19 +869,18 @@ export default function ContentView() {
               <button className="btn-save" style={{ background: '#00d4ff' }} onClick={() => {
                 saveGeminiKeyLocal(geminiInputRef.current?.value?.trim() || '');
                 setShowKeyModal(false);
-                // Force re-translate with new key (cache'i temizle ki yeni key ile çeviri yapılsın)
                 newsCacheRef.current = { data: null, timestamp: 0 };
               }}>Kaydet</button>
             </div>
 
-            {geminiKey && (
-              <div style={{ marginTop: '12px' }}>
+            <div style={{ marginTop: '12px', display: 'flex', gap: '16px' }}>
+              {geminiKey && (
                 <button style={{ background: 'none', border: 'none', color: 'var(--error-color)', fontSize: '0.72rem', cursor: 'pointer' }}
                   onClick={() => { saveGeminiKeyLocal(''); if (geminiInputRef.current) geminiInputRef.current.value = ''; }}>
                   Gemini key sil
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}

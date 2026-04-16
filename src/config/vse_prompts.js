@@ -8,7 +8,7 @@
  * Yeni stil eklemek için: STYLE_CONFIG'e yeni bir anahtar ekle.
  */
 
-import persona from './volkan_dev_persona.json' with { type: 'json' };
+import persona from './volkan_dev_persona.json';
 
 // ─── Persona → Base Identity String ─────────────────────────────────────────
 

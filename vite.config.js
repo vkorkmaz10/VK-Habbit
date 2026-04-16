@@ -100,75 +100,56 @@ function apiMiddleware(env = {}) {
         }
       });
 
-      // /api/cp-news — CryptoPanic via Discord Bot API
-      // Reads DISCORD_BOT_TOKEN + DISCORD_CHANNEL_ID from .env (no VITE_ prefix — stays server-side)
-      let cpCache = { items: null, timestamp: 0 };
+      // /api/cp-news — CryptoCompare News API
+      // Reads CRYPTOCOMPARE_API_KEY from .env (no VITE_ prefix — stays server-side)
+      let ccCache = { items: null, timestamp: 0 };
 
-      function parseCPSentiment(text) {
-        const t = (text || '').toLowerCase();
-        if (t.includes('🐂') || t.includes('bullish')) return 'bullish';
-        if (t.includes('🐻') || t.includes('bearish')) return 'bearish';
+      function normalizeSentiment(val) {
+        if (!val) return 'neutral';
+        const v = val.toLowerCase();
+        if (v === 'positive') return 'positive';
+        if (v === 'negative') return 'negative';
         return 'neutral';
       }
 
-      function parseDiscordMsg(msg, index) {
-        const embed = msg.embeds?.[0];
-        const rawText = embed?.description || msg.content || '';
-        let title = '', url = '', sourceName = 'CryptoPanic';
-        const publishedAt = msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now();
-
-        if (embed?.title && embed?.url) {
-          title = embed.title;
-          url = embed.url;
-          sourceName = embed.footer?.text || embed.author?.name || 'CryptoPanic';
-        } else {
-          const titleMatch = (msg.content || '').match(/\*\*(.+?)\*\*/);
-          const urlMatch = (msg.content || '').match(/https:\/\/cryptopanic\.com\/news\/\S+/);
-          title = titleMatch ? titleMatch[1] : '';
-          url = urlMatch ? urlMatch[0] : '#';
-          const lines = (msg.content || '').split('\n').map(l => l.trim()).filter(Boolean);
-          const srcMatch = (lines[lines.length - 1] || '').match(/[^\w]*([A-Za-z0-9 ]+?)\s*\|/);
-          if (srcMatch) sourceName = srcMatch[1].trim();
-        }
-
-        if (!title) return null;
-
-        return {
-          id: `cp_${index}_${msg.id || Date.now()}`,
-          title, url, sourceUrl: url, sourceName, publishedAt,
-          category: isAiTech(title) ? 'ai_tech' : 'crypto',
-          sentiment: parseCPSentiment(rawText + ' ' + (msg.content || '')),
-        };
-      }
-
       server.middlewares.use('/api/cp-news', async (req, res) => {
-        const discordToken = env.DISCORD_BOT_TOKEN || process.env.DISCORD_BOT_TOKEN;
-        const channelId = env.DISCORD_CHANNEL_ID || process.env.DISCORD_CHANNEL_ID;
+        const apiKey = env.CRYPTOCOMPARE_API_KEY || process.env.CRYPTOCOMPARE_API_KEY;
 
-        if (!discordToken || !channelId) {
+        if (!apiKey) {
           res.statusCode = 503;
           res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ error: 'DISCORD_BOT_TOKEN and DISCORD_CHANNEL_ID must be set in .env' }));
+          res.end(JSON.stringify({ error: 'CRYPTOCOMPARE_API_KEY must be set in .env' }));
           return;
         }
 
         try {
           const now = Date.now();
-          if (cpCache.items && (now - cpCache.timestamp < RSS_CACHE_TTL)) {
+          if (ccCache.items && (now - ccCache.timestamp < RSS_CACHE_TTL)) {
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ items: cpCache.items }));
+            res.end(JSON.stringify({ items: ccCache.items }));
             return;
           }
 
           const apiRes = await fetch(
-            `https://discord.com/api/v10/channels/${channelId}/messages?limit=15`,
-            { headers: { Authorization: `Bot ${discordToken}`, 'User-Agent': 'VKGymBot (vkgym, 1.0)' } }
+            `https://min-api.cryptocompare.com/data/v2/news/?lang=EN&api_key=${apiKey}`,
+            { headers: { 'User-Agent': 'VKGymBot (vkgym, 1.0)' } }
           );
-          if (!apiRes.ok) throw new Error(`Discord API ${apiRes.status}`);
-          const messages = await apiRes.json();
-          const items = messages.map((m, i) => parseDiscordMsg(m, i)).filter(Boolean);
+          if (!apiRes.ok) throw new Error(`CryptoCompare API ${apiRes.status}`);
+          const json = await apiRes.json();
+          const articles = json.Data || [];
 
-          cpCache = { items, timestamp: Date.now() };
+          const items = articles.slice(0, 20).map((news) => ({
+            id: `cc_${news.id}`,
+            title: news.title || '',
+            url: news.url || '#',
+            sourceUrl: news.url || '#',
+            sourceName: news.source_info?.name || news.source || 'CryptoCompare',
+            publishedAt: news.published_on ? news.published_on * 1000 : Date.now(),
+            category: isAiTech(news.title) ? 'ai_tech' : 'crypto',
+            sentiment: normalizeSentiment(news.sentiment),
+          }));
+
+          ccCache = { items, timestamp: Date.now() };
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({ items }));
         } catch (e) {

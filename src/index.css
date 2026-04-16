@@ -1497,6 +1497,14 @@ body {
 .content-news-strip-item:active { background: rgba(0, 212, 255, 0.06); }
 .content-news-strip-item[data-sentiment="bullish"] { border-left-color: #22c55e; }
 .content-news-strip-item[data-sentiment="bearish"] { border-left-color: #ef4444; }
+.content-news-strip-item[data-sentiment="positive"] { border-left-color: #22c55e; }
+.content-news-strip-item[data-sentiment="negative"] { border-left-color: #ef4444; }
+.content-sentiment-dot {
+  font-size: 0.6rem;
+  flex-shrink: 0;
+  line-height: 1;
+  margin-top: 1px;
+}
 .content-news-strip-text {
   display: block;
   font-size: 0.78rem;
@@ -1812,22 +1820,6 @@ body {
 }
 .content-manual-paste-area:focus { border-color: rgba(255, 170, 0, 0.4); }
 
-/* CryptoPanic no-token state */
-.content-cp-no-token {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  flex-wrap: wrap;
-}
-.content-cp-token-link {
-  font-size: 0.68rem;
-  color: #00d4ff;
-  text-decoration: none;
-}
-.content-cp-token-link:hover { text-decoration: underline; }
 
 /* Loading */
 .content-loading-dots { display: flex; gap: 5px; margin-bottom: 6px; }

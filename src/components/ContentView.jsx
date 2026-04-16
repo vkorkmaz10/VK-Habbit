@@ -8,7 +8,59 @@ import goldenExamples from '../config/persona_references.json';
 const GEMINI_KEY_STORAGE = 'vkgym_gemini_key';
 const CC_KEY_STORAGE = 'vkgym_cc_key';
 const CACHE_TTL = 5 * 60 * 1000;
+const TR_CACHE_KEY = 'vkgym_tr_cache';
+const TR_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 saat
 const URL_REGEX = /https?:\/\/[^\s]+/;
+
+// ─── Translation Cache ────────────────────────────────────────────────────────
+function getTrCache() {
+  try {
+    const raw = localStorage.getItem(TR_CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (Date.now() - (parsed._ts || 0) > TR_CACHE_TTL) {
+      localStorage.removeItem(TR_CACHE_KEY);
+      return {};
+    }
+    return parsed;
+  } catch { return {}; }
+}
+
+function saveTrCache(updates) {
+  try {
+    const existing = getTrCache();
+    localStorage.setItem(TR_CACHE_KEY, JSON.stringify({ ...existing, ...updates, _ts: Date.now() }));
+  } catch {}
+}
+
+// Başlıkları Türkçeye çevirir. Cache-first: sadece cache'te olmayanlar API'ye gider.
+async function translateTitles(items, apiKey) {
+  if (!items.length) return items;
+  const cache = getTrCache();
+  const uncached = items.filter(item => !cache[item.title]);
+
+  if (uncached.length > 0 && apiKey) {
+    try {
+      const numbered = uncached.map((item, i) => `${i + 1}. ${item.title}`).join('\n');
+      const system = 'Kripto ve finans haberi başlıklarını Türkçeye çevir. Sıra numarasını koru, her satıra yalnızca çeviriyi yaz. Açıklama, yorum veya ek kelime ekleme.';
+      const result = await callGemini(apiKey, numbered, system);
+      const lines = result.split('\n').map(l => l.trim()).filter(Boolean);
+      const newEntries = {};
+      uncached.forEach((item, i) => {
+        const match = lines.find(l => l.match(new RegExp(`^${i + 1}[.)]`)));
+        const tr = match ? match.replace(/^\d+[.)]\s*/, '').trim() : null;
+        if (tr) newEntries[item.title] = tr;
+      });
+      saveTrCache(newEntries);
+      Object.assign(cache, newEntries);
+    } catch {} // hata → orijinal başlık kalır
+  }
+
+  return items.map(item => ({
+    ...item,
+    ...(cache[item.title] ? { titleTr: cache[item.title] } : {}),
+  }));
+}
 
 // ======= Golden Examples (for YouTube / Quick Commands only) =======
 function getGoldenExamplesBlock(type) {
@@ -354,8 +406,10 @@ export default function ContentView() {
     }
     setNewsLoading(true);
     const data = await fetchAllNews();
-    newsCacheRef.current = { data, timestamp: Date.now() };
-    setNews(data);
+    const gemKey = localStorage.getItem(GEMINI_KEY_STORAGE) || '';
+    const translated = await translateTitles(data, gemKey);
+    newsCacheRef.current = { data: translated, timestamp: Date.now() };
+    setNews(translated);
     setNewsLoading(false);
   }, []);
 
@@ -370,8 +424,10 @@ export default function ContentView() {
     setCpLoading(true);
     const key = localStorage.getItem(CC_KEY_STORAGE) || ccKey;
     const data = await fetchCPNews(key);
-    cpCacheRef.current = { data, timestamp: Date.now() };
-    setCpNews(data);
+    const gemKey = localStorage.getItem(GEMINI_KEY_STORAGE) || '';
+    const translated = await translateTitles(data, gemKey);
+    cpCacheRef.current = { data: translated, timestamp: Date.now() };
+    setCpNews(translated);
     setCpLoading(false);
   }, [ccKey]);
 
@@ -611,7 +667,7 @@ export default function ContentView() {
                   <span className={`content-cat-badge ${item.category}`}>
                     {item.category === 'ai_tech' ? <Cpu size={10} /> : <Bitcoin size={10} />}
                   </span>
-                  <span className="content-news-strip-text">{item.title}</span>
+                  <span className="content-news-strip-text">{item.titleTr || item.title}</span>
                 </div>
                 <div className="content-news-strip-meta">
                   <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="content-source-link" onClick={e => e.stopPropagation()}>
@@ -660,7 +716,7 @@ export default function ContentView() {
                   <span className={`content-cat-badge ${item.category}`}>
                     {item.category === 'ai_tech' ? <Cpu size={10} /> : <Bitcoin size={10} />}
                   </span>
-                  <span className="content-news-strip-text">{item.title}</span>
+                  <span className="content-news-strip-text">{item.titleTr || item.title}</span>
                 </div>
                 <div className="content-news-strip-meta">
                   <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="content-source-link" onClick={e => e.stopPropagation()}>
@@ -760,7 +816,7 @@ export default function ContentView() {
             <button className="content-type-close" onClick={() => setSelectedNews(null)}>
               <X size={16} />
             </button>
-            <p className="content-type-title">{selectedNews.title}</p>
+            <p className="content-type-title">{selectedNews.titleTr || selectedNews.title}</p>
             <div className="content-type-meta">
               <span>{selectedNews.sourceName}</span>
               {!selectedNews.isFreeText && (

@@ -107,6 +107,7 @@ export default function SettingsView() {
       localStorage.removeItem(GEMINI_KEY_STORAGE);
       showToast('API anahtari silindi.');
     }
+    window.dispatchEvent(new CustomEvent('vkgym_key_updated'));
   };
 
   const deleteKey = () => {
@@ -114,6 +115,7 @@ export default function SettingsView() {
     localStorage.removeItem(GEMINI_KEY_STORAGE);
     if (keyInputRef.current) keyInputRef.current.value = '';
     showToast('API anahtari silindi.');
+    window.dispatchEvent(new CustomEvent('vkgym_key_updated'));
   };
 
   // ===== Delete All =====

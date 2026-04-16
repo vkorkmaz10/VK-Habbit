@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { RefreshCw, ExternalLink, Copy, Check, Key, Loader, Send, X, Cpu, Bitcoin, ChevronDown, ChevronUp, Pencil, Save } from 'lucide-react';
+import { RefreshCw, ExternalLink, Copy, Check, Loader, Send, X, Cpu, Bitcoin, ChevronDown, ChevronUp, Pencil, Save } from 'lucide-react';
 import { fetchAllNews, fetchCPNews, scrapeArticle } from '../utils/news';
 import { saveFeedback } from '../utils/storage';
 import { buildTweetPrompt, buildThreadPrompt, STYLE_CONFIG } from '../engine/vse';
@@ -8,13 +8,6 @@ import goldenExamples from '../config/persona_references.json';
 const GEMINI_KEY_STORAGE = 'vkgym_gemini_key';
 const CACHE_TTL = 5 * 60 * 1000;
 const URL_REGEX = /https?:\/\/[^\s]+/;
-
-// CryptoCompare sentiment → emoji
-const SENTIMENT_EMOJI = {
-  positive: '🟢', Positive: '🟢',
-  negative: '🔴', Negative: '🔴',
-  neutral:  '⚪', Neutral:  '⚪',
-};
 
 // ======= Golden Examples (for YouTube / Quick Commands only) =======
 function getGoldenExamplesBlock(type) {
@@ -298,7 +291,7 @@ export default function ContentView() {
   const [news, setNews] = useState([]);
   const [newsLoading, setNewsLoading] = useState(true);
   const [selectedNews, setSelectedNews] = useState(null);
-  const [newsExpanded, setNewsExpanded] = useState(true);
+  const [newsExpanded, setNewsExpanded] = useState(false);
   const newsCacheRef = useRef({ data: null, timestamp: 0 });
 
   // CryptoCompare
@@ -325,16 +318,21 @@ export default function ContentView() {
   const [pendingNews, setPendingNews] = useState(null);      // { title, content, source, blocked }
   const [manualContent, setManualContent] = useState('');    // user-pasted content when blocked
 
-  // Keys
+  // Keys — read from localStorage; refreshed when SettingsView saves/deletes
   const [geminiKey, setGeminiKey] = useState(() => localStorage.getItem(GEMINI_KEY_STORAGE) || '');
-  const [showKeyModal, setShowKeyModal] = useState(false);
-  const geminiInputRef = useRef(null);
   const bottomRef = useRef(null);
 
   // Mesajları sessionStorage'a kaydet (tab/sayfa yenilemede korunur)
   useEffect(() => {
     try { sessionStorage.setItem('vkgym_content_messages', JSON.stringify(messages)); } catch {}
   }, [messages]);
+
+  // SettingsView API key değiştiğinde yenile
+  useEffect(() => {
+    const handler = () => setGeminiKey(localStorage.getItem(GEMINI_KEY_STORAGE) || '');
+    window.addEventListener('vkgym_key_updated', handler);
+    return () => window.removeEventListener('vkgym_key_updated', handler);
+  }, []);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -388,7 +386,7 @@ export default function ContentView() {
   // Send with explicit systemPrompt (for VSE) or fallback to free-text
   const send = async (userText, systemPrompt = null) => {
     if (!userText.trim() || loading) return;
-    if (!geminiKey) { setShowKeyModal(true); return; }
+    if (!geminiKey) { window.dispatchEvent(new CustomEvent('vkgym_goto_settings')); return; }
     setError('');
 
     setMessages(prev => [...prev, { role: 'user', content: userText }]);
@@ -425,7 +423,7 @@ export default function ContentView() {
 
   // VSE-powered generation with mode metadata
   const generateVSE = async (newsInput, mode, style) => {
-    if (!geminiKey) { setShowKeyModal(true); return; }
+    if (!geminiKey) { window.dispatchEvent(new CustomEvent('vkgym_goto_settings')); return; }
     setError('');
 
     const label = mode === 'tweet' ? 'Tweet' : 'Thread';
@@ -564,13 +562,6 @@ export default function ContentView() {
     });
   };
 
-  const saveGeminiKeyLocal = (key) => {
-    setGeminiKey(key);
-    if (key) localStorage.setItem(GEMINI_KEY_STORAGE, key);
-    else localStorage.removeItem(GEMINI_KEY_STORAGE);
-  };
-
-
   return (
     <div className="fade-in content-view">
 
@@ -583,9 +574,6 @@ export default function ContentView() {
             {newsExpanded ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
           </div>
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
-            <button className="content-icon-btn" onClick={() => setShowKeyModal(true)} title="API Keys">
-              <Key size={14} style={geminiKey ? { color: '#34A853' } : {}} />
-            </button>
             <button className="content-icon-btn" onClick={() => loadNews(true)} disabled={newsLoading}>
               <RefreshCw size={14} className={newsLoading ? 'cal-spin' : ''} />
             </button>
@@ -651,13 +639,9 @@ export default function ContentView() {
               <div
                 key={item.id}
                 className="content-news-strip-item"
-                data-sentiment={item.sentiment || 'neutral'}
                 onClick={() => handleNewsOverlay(item)}
               >
                 <div className="content-news-row">
-                  <span className="content-sentiment-dot">
-                    {SENTIMENT_EMOJI[item.sentiment] || '⚪'}
-                  </span>
                   <span className={`content-cat-badge ${item.category}`}>
                     {item.category === 'ai_tech' ? <Cpu size={10} /> : <Bitcoin size={10} />}
                   </span>
@@ -723,7 +707,7 @@ export default function ContentView() {
           e.preventDefault();
           const text = input.trim();
           if (!text || loading) return;
-          if (!geminiKey) { setShowKeyModal(true); return; }
+          if (!geminiKey) { window.dispatchEvent(new CustomEvent('vkgym_goto_settings')); return; }
           // URL → direct send (scraping handled inside send())
           if (URL_REGEX.test(text)) { send(text); return; }
           // Free text → content type picker (same flow as news items)
@@ -853,47 +837,6 @@ export default function ContentView() {
         </div>
       )}
 
-      {/* ===== API Keys Modal ===== */}
-      {showKeyModal && (
-        <div className="modal-overlay" onClick={() => setShowKeyModal(false)}>
-          <div className="modal-content glass-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '380px' }}>
-            <h3 style={{ color: '#00d4ff', marginBottom: '16px', fontSize: '1rem' }}>
-              <Key size={18} style={{ marginRight: '8px', verticalAlign: 'text-bottom' }} />
-              API Keys
-            </h3>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
-                Gemini API Key
-                {geminiKey && <span style={{ color: '#34A853', fontSize: '0.7rem' }}>aktif</span>}
-              </label>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginBottom: '8px', lineHeight: 1.4 }}>
-                İçerik üretimi için gerekli.
-                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#00d4ff', marginLeft: '4px' }}>Buradan al</a>
-              </p>
-              <input ref={geminiInputRef} type="password" defaultValue={geminiKey} placeholder="AIza..." className="todo-input" />
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn-cancel" onClick={() => setShowKeyModal(false)}>İptal</button>
-              <button className="btn-save" style={{ background: '#00d4ff' }} onClick={() => {
-                saveGeminiKeyLocal(geminiInputRef.current?.value?.trim() || '');
-                setShowKeyModal(false);
-                newsCacheRef.current = { data: null, timestamp: 0 };
-              }}>Kaydet</button>
-            </div>
-
-            <div style={{ marginTop: '12px', display: 'flex', gap: '16px' }}>
-              {geminiKey && (
-                <button style={{ background: 'none', border: 'none', color: 'var(--error-color)', fontSize: '0.72rem', cursor: 'pointer' }}
-                  onClick={() => { saveGeminiKeyLocal(''); if (geminiInputRef.current) geminiInputRef.current.value = ''; }}>
-                  Gemini key sil
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

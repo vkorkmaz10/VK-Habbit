@@ -59,6 +59,13 @@ function App() {
     return () => window.removeEventListener('calendarDateSelect', handler);
   }, []);
 
+  // ContentView API key yokken Ayarlar'a yönlendirir
+  useEffect(() => {
+    const handler = () => setCurrentTab('page5');
+    window.addEventListener('vkgym_goto_settings', handler);
+    return () => window.removeEventListener('vkgym_goto_settings', handler);
+  }, []);
+
   return (
     <div className="app-container">
       {currentTab === 'habit' && (
@@ -152,13 +159,13 @@ function App() {
           <CheckSquare size={24} />
           <span>To-Do</span>
         </button>
-        <button className={`bottom-nav-item ${currentTab === 'calendar' ? 'active' : ''}`} onClick={() => setCurrentTab('calendar')}>
-          <Calendar size={24} />
-          <span>Takvim</span>
-        </button>
         <button className={`bottom-nav-item ${currentTab === 'content' ? 'active' : ''}`} onClick={() => setCurrentTab('content')}>
           <Sparkles size={24} />
           <span>Content</span>
+        </button>
+        <button className={`bottom-nav-item ${currentTab === 'calendar' ? 'active' : ''}`} onClick={() => setCurrentTab('calendar')}>
+          <Calendar size={24} />
+          <span>Takvim</span>
         </button>
         <button className={`bottom-nav-item ${currentTab === 'page5' ? 'active' : ''}`} onClick={() => setCurrentTab('page5')}>
           <Settings size={24} />

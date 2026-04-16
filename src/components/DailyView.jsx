@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CHECKBOX_ITEMS } from '../data/constants';
 import { getDayData, getLatestWeight, updateWeight, updateCheck, updateMuscles } from '../utils/storage';
+import { getActiveDateString } from '../utils/date';
 
 const MUSCLES = ['Chest', 'Back', 'Biceps', 'Triceps', 'Core', 'Legs'];
 
@@ -100,8 +101,8 @@ export default function DailyView({ selectedDateStr, onDataChange }) {
     }
   };
 
-  // Kilo null ise, yani kullanıcı henüz ağırlık "kaydetmediyse", ufak bir not düşebiliriz.
-  const isWeightSet = dayData.w !== null;
+  // Geçmiş günler salt okunur
+  const isPast = selectedDateStr < getActiveDateString();
 
   return (
     <div className="fade-in">
@@ -110,31 +111,29 @@ export default function DailyView({ selectedDateStr, onDataChange }) {
         <div className="weight-section">
           <div className="weight-header">
             <span style={{ fontSize: '1.2rem', fontWeight: 700 }}>Günlük Kilo</span>
-            <span 
-              className="weight-value" 
+            <span
+              className="weight-value"
               onClick={() => {
+                if (isPast) return;
                 setWeightInputValue(displayWeight.toFixed(2));
                 setShowWeightModal(true);
               }}
-              style={{ cursor: 'pointer', textDecoration: 'underline' }}
+              style={{ cursor: isPast ? 'default' : 'pointer', textDecoration: isPast ? 'none' : 'underline', opacity: isPast ? 0.6 : 1 }}
             >
               {displayWeight.toFixed(2)} <span style={{fontSize: '1rem', color: 'var(--text-muted)', textDecoration: 'none'}}>kg</span>
             </span>
           </div>
-          <input 
-            type="range" 
-            className="weight-slider" 
-            min={bounds.min} 
-            max={bounds.max} 
-            step="0.05" 
-            value={displayWeight} 
-            onChange={handleWeightChange} 
+          <input
+            type="range"
+            className="weight-slider"
+            min={bounds.min}
+            max={bounds.max}
+            step="0.05"
+            value={displayWeight}
+            onChange={handleWeightChange}
+            disabled={isPast}
+            style={{ opacity: isPast ? 0.45 : 1 }}
           />
-          {!isWeightSet && (
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'right', marginTop: '4px' }}>
-              * Kaydırarak kilonuzu kaydedin
-            </div>
-          )}
         </div>
       </div>
 
@@ -144,10 +143,11 @@ export default function DailyView({ selectedDateStr, onDataChange }) {
         {CHECKBOX_ITEMS.map((item, idx) => {
           const checked = dayData.c[idx] === 1;
           return (
-            <div 
-              key={item.id} 
+            <div
+              key={item.id}
               className={`check-item ${checked ? 'checked' : ''}`}
-              onClick={() => handleCheckToggle(idx)}
+              onClick={() => { if (!isPast) handleCheckToggle(idx); }}
+              style={{ opacity: isPast ? 0.6 : 1, cursor: isPast ? 'default' : 'pointer' }}
             >
               <div className="check-left">
                 <span className="check-emoji">{item.emoji}</span>

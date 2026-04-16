@@ -383,10 +383,18 @@ export default function ContentView() {
     return `${Math.floor(hrs / 24)}g`;
   };
 
+  // Her çağrıda localStorage'dan taze key oku (stale state sorununu önler)
+  const resolveKey = () => {
+    const fresh = localStorage.getItem(GEMINI_KEY_STORAGE) || '';
+    if (fresh && fresh !== geminiKey) setGeminiKey(fresh);
+    return fresh || geminiKey;
+  };
+
   // Send with explicit systemPrompt (for VSE) or fallback to free-text
   const send = async (userText, systemPrompt = null) => {
     if (!userText.trim() || loading) return;
-    if (!geminiKey) { window.dispatchEvent(new CustomEvent('vkgym_goto_settings')); return; }
+    const key = resolveKey();
+    if (!key) { setError('Gemini API key eksik. Ayarlar sekmesinden ekleyebilirsin.'); return; }
     setError('');
 
     setMessages(prev => [...prev, { role: 'user', content: userText }]);
@@ -411,7 +419,7 @@ export default function ContentView() {
     }
 
     try {
-      const result = await callGemini(geminiKey, finalPrompt, finalSystem);
+      const result = await callGemini(key, finalPrompt, finalSystem);
       if (!result) throw new Error('Boş yanıt geldi.');
       setMessages(prev => [...prev, { role: 'assistant', content: result }]);
     } catch (e) {
@@ -423,7 +431,8 @@ export default function ContentView() {
 
   // VSE-powered generation with mode metadata
   const generateVSE = async (newsInput, mode, style) => {
-    if (!geminiKey) { window.dispatchEvent(new CustomEvent('vkgym_goto_settings')); return; }
+    const key = resolveKey();
+    if (!key) { setError('Gemini API key eksik. Ayarlar sekmesinden ekleyebilirsin.'); return; }
     setError('');
 
     const label = mode === 'tweet' ? 'Tweet' : 'Thread';
@@ -437,7 +446,7 @@ export default function ContentView() {
         ? buildTweetPrompt(newsInput, style)
         : buildThreadPrompt(newsInput, style);
 
-      const result = await callGemini(geminiKey, userPrompt, systemPrompt);
+      const result = await callGemini(key, userPrompt, systemPrompt);
       if (!result) throw new Error('Boş yanıt geldi.');
 
       setMessages(prev => [...prev, {
@@ -707,7 +716,8 @@ export default function ContentView() {
           e.preventDefault();
           const text = input.trim();
           if (!text || loading) return;
-          if (!geminiKey) { window.dispatchEvent(new CustomEvent('vkgym_goto_settings')); return; }
+          const key = resolveKey();
+          if (!key) { setError('Gemini API key eksik. Ayarlar sekmesinden ekleyebilirsin.'); return; }
           // URL → direct send (scraping handled inside send())
           if (URL_REGEX.test(text)) { send(text); return; }
           // Free text → content type picker (same flow as news items)

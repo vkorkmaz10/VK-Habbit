@@ -9,6 +9,13 @@ const GEMINI_KEY_STORAGE = 'vkgym_gemini_key';
 const CACHE_TTL = 5 * 60 * 1000;
 const URL_REGEX = /https?:\/\/[^\s]+/;
 
+// CryptoCompare sentiment → emoji
+const SENTIMENT_EMOJI = {
+  positive: '🟢', Positive: '🟢',
+  negative: '🔴', Negative: '🔴',
+  neutral:  '⚪', Neutral:  '⚪',
+};
+
 // ======= Golden Examples (for YouTube / Quick Commands only) =======
 function getGoldenExamplesBlock(type) {
   const refs = goldenExamples;
@@ -294,7 +301,7 @@ export default function ContentView() {
   const [newsExpanded, setNewsExpanded] = useState(true);
   const newsCacheRef = useRef({ data: null, timestamp: 0 });
 
-  // CryptoPanic
+  // CryptoCompare
   const [cpNews, setCpNews] = useState([]);
   const [cpLoading, setCpLoading] = useState(false);
   const [cpExpanded, setCpExpanded] = useState(false);
@@ -615,11 +622,11 @@ export default function ContentView() {
         </div>
       </div>
 
-      {/* ===== CryptoPanic ===== */}
+      {/* ===== CryptoCompare ===== */}
       <div className="glass-card content-news-strip">
         <div className="content-news-strip-header" onClick={() => setCpExpanded(e => !e)} style={{ cursor: 'pointer' }}>
           <div className="content-news-strip-title">
-            <span>CryptoPanic</span>
+            <span>CryptoCompare</span>
             {!cpLoading && cpNews.length > 0 && <span className="content-news-count">{cpNews.length}</span>}
             {cpExpanded ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
           </div>
@@ -648,6 +655,9 @@ export default function ContentView() {
                 onClick={() => handleNewsOverlay(item)}
               >
                 <div className="content-news-row">
+                  <span className="content-sentiment-dot">
+                    {SENTIMENT_EMOJI[item.sentiment] || '⚪'}
+                  </span>
                   <span className={`content-cat-badge ${item.category}`}>
                     {item.category === 'ai_tech' ? <Cpu size={10} /> : <Bitcoin size={10} />}
                   </span>
@@ -655,7 +665,7 @@ export default function ContentView() {
                 </div>
                 <div className="content-news-strip-meta">
                   <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="content-source-link" onClick={e => e.stopPropagation()}>
-                    {item.sourceName || 'CryptoPanic'} <ExternalLink size={9} />
+                    {item.sourceName || 'CryptoCompare'} <ExternalLink size={9} />
                   </a>
                   <span className="content-time">{timeAgo(item.publishedAt)}</span>
                 </div>

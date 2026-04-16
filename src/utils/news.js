@@ -1,7 +1,6 @@
-// ======= News Engine — CryptoPanic Public RSS =======
-// Fetches pre-parsed news from /api/news server endpoint.
-// Server handles RSS fetch, XML→JSON parsing, AI/Tech prioritization.
-// No API key needed — uses CryptoPanic's public RSS feed.
+// ======= News Engine =======
+// /api/news   — Multi-source crypto RSS feeds (CoinDesk, CoinTelegraph, etc.)
+// /api/cp-news — CryptoCompare News API (requires CRYPTOCOMPARE_API_KEY in env)
 
 // Main fetch — calls server-side RSS endpoint
 export async function fetchAllNews() {
@@ -20,7 +19,7 @@ export async function fetchAllNews() {
   }
 }
 
-// Fetch CryptoPanic news via Discord Bot API (credentials stored server-side in env vars)
+// Fetch CryptoCompare news (CRYPTOCOMPARE_API_KEY stored server-side in env vars)
 export async function fetchCPNews() {
   try {
     const res = await fetch('/api/cp-news');

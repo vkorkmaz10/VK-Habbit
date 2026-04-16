@@ -22,6 +22,47 @@ export default function SettingsView() {
   const [showCcKey, setShowCcKey] = useState(false);
   const ccKeyInputRef = useRef(null);
 
+  // Key reveal password modal
+  const KEY_REVEAL_PASSWORD = 'vk2017';
+  const [keyRevealModal, setKeyRevealModal] = useState(null); // null | 'gemini' | 'cc'
+  const [revealPwInput, setRevealPwInput] = useState('');
+  const [revealError, setRevealError] = useState(false);
+  const revealPwRef = useRef(null);
+  const revealTimerRef = useRef(null);
+
+  const openRevealModal = (target) => {
+    setKeyRevealModal(target);
+    setRevealPwInput('');
+    setRevealError(false);
+  };
+
+  const confirmReveal = () => {
+    if (revealPwInput !== KEY_REVEAL_PASSWORD) {
+      setRevealError(true);
+      return;
+    }
+    if (keyRevealModal === 'gemini') setShowKey(true);
+    if (keyRevealModal === 'cc') setShowCcKey(true);
+    setKeyRevealModal(null);
+    setRevealPwInput('');
+    // Otomatik gizle: 30 saniye sonra
+    if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+    revealTimerRef.current = setTimeout(() => {
+      setShowKey(false);
+      setShowCcKey(false);
+    }, 30000);
+  };
+
+  const handleEyeClick = (field, isShown) => {
+    if (isShown) {
+      if (field === 'gemini') setShowKey(false);
+      if (field === 'cc') setShowCcKey(false);
+      if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+    } else {
+      openRevealModal(field);
+    }
+  };
+
   // Import
   const fileInputRef = useRef(null);
   const [importModal, setImportModal] = useState(null); // { parsed, filename }
@@ -209,7 +250,7 @@ export default function SettingsView() {
               placeholder="AIza..."
               className="settings-key-input"
             />
-            <button className="settings-key-toggle" onClick={() => setShowKey(s => !s)}>
+            <button className="settings-key-toggle" onClick={() => handleEyeClick('gemini', showKey)}>
               {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
           </div>
@@ -246,7 +287,7 @@ export default function SettingsView() {
               placeholder="API key..."
               className="settings-key-input"
             />
-            <button className="settings-key-toggle" onClick={() => setShowCcKey(s => !s)}>
+            <button className="settings-key-toggle" onClick={() => handleEyeClick('cc', showCcKey)}>
               {showCcKey ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
           </div>
@@ -296,6 +337,41 @@ export default function SettingsView() {
           <Trash2 size={16} /> Tum Verileri Sil
         </button>
       </div>
+
+      {/* ===== Key Reveal Password Modal ===== */}
+      {keyRevealModal && (
+        <div className="modal-overlay" onClick={() => setKeyRevealModal(null)}>
+          <div className="modal-content glass-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '320px' }}>
+            <h3 className="settings-modal-title" style={{ fontSize: '0.95rem' }}>
+              <Key size={15} style={{ marginRight: 6, verticalAlign: 'text-bottom' }} />
+              API Key'i Görüntüle
+            </h3>
+            <p className="settings-modal-desc" style={{ marginBottom: 12 }}>
+              Güvenlik şifresini gir. 30 saniye sonra otomatik gizlenir.
+            </p>
+            <input
+              ref={revealPwRef}
+              className="settings-delete-input"
+              type="password"
+              value={revealPwInput}
+              onChange={e => { setRevealPwInput(e.target.value); setRevealError(false); }}
+              onKeyDown={e => e.key === 'Enter' && confirmReveal()}
+              placeholder="Şifre"
+              autoFocus
+              style={revealError ? { borderColor: 'var(--error-color)' } : {}}
+            />
+            {revealError && (
+              <p style={{ color: 'var(--error-color)', fontSize: '0.75rem', marginTop: 6 }}>
+                Hatalı şifre.
+              </p>
+            )}
+            <div className="settings-btn-row" style={{ marginTop: 14 }}>
+              <button className="btn-cancel" onClick={() => setKeyRevealModal(null)}>İptal</button>
+              <button className="btn-save" onClick={confirmReveal}>Göster</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== Import Confirmation Modal ===== */}
       {importModal && (

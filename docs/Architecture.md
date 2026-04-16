@@ -20,7 +20,7 @@ VK-Habbit, iki ana iş birimini tek PWA çatısı altında birleştiren kişisel
 |---|---|
 | UI | React 19, vanilla CSS (`index.css`) |
 | Build | Vite 7, vite-plugin-pwa |
-| Ikonlar | lucide-react |
+| İkonlar | lucide-react |
 | Tarih | date-fns |
 | AI | Google Gemini API (gemini-2.5-flash, fallback: 2.0-flash, 2.5-flash-lite) |
 | Depolama | localStorage (backend yok) |
@@ -34,7 +34,7 @@ VK-Habbit, iki ana iş birimini tek PWA çatısı altında birleştiren kişisel
 ```
 vkgym/
 ├── api/                          # Vercel Serverless Functions
-│   ├── cp-news.js                # CryptoCompare News API proxy
+│   ├── cp-news.js                # CryptoCompare News API proxy (req.query.key || env var)
 │   ├── news.js                   # Multi-source RSS feed parser
 │   ├── fetch-url.js              # URL scraper (Jina AI fallback)
 │   └── chat.js                   # Claude API proxy (legacy)
@@ -45,21 +45,21 @@ vkgym/
 │   ├── index.css                 # Global styles (Dark Neon theme)
 │   │
 │   ├── components/
-│   │   ├── Header.jsx            # Week navigator + SVG score rings
-│   │   ├── DailyView.jsx         # Habit checklist + weight slider
+│   │   ├── Header.jsx            # Week navigator + SVG score rings + swipe navigation
+│   │   ├── DailyView.jsx         # Habit checklist + weight slider (geçmiş günler read-only)
 │   │   ├── WeeklyReport.jsx      # Weekly stats + body heatmap
 │   │   ├── TodoView.jsx          # Task manager + Pomodoro timer
 │   │   ├── CalendarView.jsx      # Local events + Google Calendar sync
 │   │   ├── ContentView.jsx       # News feed + VSE content generator
 │   │   ├── BodyHighlighter.jsx   # SVG muscle group visualizer
-│   │   └── SettingsView.jsx      # Backup/restore + API key management
+│   │   └── SettingsView.jsx      # Backup/restore + API key management (şifre korumalı)
 │   │
 │   ├── engine/
-│   │   └── vse.js                # VSE: prompt composition logic (pure JS)
+│   │   └── vse.js                # VSE: prompt composition logic (pure JS, hardcoded VOLKAN_BASE)
 │   │
 │   ├── config/
-│   │   ├── vse_prompts.js        # Prompt constants: VOLKAN_BASE, CLASSIFICATION_BLOCK, STYLE_CONFIG
-│   │   ├── volkan_dev_persona.json  # Persona tanımı (identity, tone, platform rules)
+│   │   ├── vse_prompts.js        # (dead code — vse.js artık buradan import etmiyor)
+│   │   ├── volkan_dev_persona.json  # Persona tanımı (referans, prompt'a doğrudan beslenmez)
 │   │   └── persona_references.json # Referans içerik şablonları (tweet, thread, YouTube)
 │   │
 │   ├── utils/
@@ -94,18 +94,26 @@ vkgym/
 React Router kullanılmaz. `App.jsx` bir `currentTab` state'i yönetir ve beş sekmeyi koşullu render ile gösterir.
 
 ```
-currentTab değeri → Render edilen içerik
-─────────────────────────────────────────
-'habit'    → Header + DailyView + WeeklyReport
-'todo'     → Header + TodoView
-'calendar' → Header + CalendarView
-'content'  → ContentView  (display:none ile gizlenir, unmount edilmez!)
-'page5'    → SettingsView
+currentTab değeri → Render edilen içerik          → Alt Nav sırası
+──────────────────────────────────────────────────────────────────
+'habit'    → Header + DailyView + WeeklyReport     → 1. Habit
+'todo'     → Header + TodoView                     → 2. To-Do
+'content'  → ContentView  (display:none!)          → 3. Content
+'calendar' → Header + CalendarView                 → 4. Takvim
+'page5'    → SettingsView                          → 5. Ayarlar
 ```
 
 > **Önemli:** `ContentView` her zaman mount'ta kalır (`display:none` / `display:flex` toggle). Tab değişince React state'i sıfırlanmaz. Üretilen içerikler `sessionStorage`'da da yedeklenir.
 
 Her sekmenin **bağımsız** `selectedDateStr` ve `refreshTrigger` state'i vardır.
+
+### Custom Window Events (cross-component iletişim)
+
+| Event | Tetikleyen | Dinleyen | Amaç |
+|---|---|---|---|
+| `calendarDateSelect` | CalendarView (ay modal) | App.jsx | Takvim tarih seçimi |
+| `vkgym_goto_settings` | ContentView (key eksik) | App.jsx | Ayarlar'a yönlendir |
+| `vkgym_key_updated` | SettingsView (key kaydet/sil) | ContentView | Gemini + CC key state'ini tazele |
 
 ---
 
@@ -145,7 +153,19 @@ Dinlenme günü:
   score = round((coreChecked / 9) * maxScore)
 ```
 
-### 4.3 Veri Şeması
+### 4.3 Geçmiş Gün Kilidi (DailyView.jsx)
+
+```js
+const isPast = selectedDateStr < getActiveDateString();
+```
+
+`isPast === true` ise:
+- Kilo slider `disabled`, opacity 0.45
+- Kilo value tıklanamaz (cursor: default)
+- Checkbox'lar tıklanamaz (onClick guard + opacity 0.6)
+- Kilo hint metni gösterilmez
+
+### 4.4 Veri Şeması
 
 ```json
 {
@@ -195,11 +215,11 @@ CalendarView bileşeni `calendarDateSelect` custom window event'i ile ay görün
 ```
 CryptoCompare API                  RSS Feeds (CoinDesk, CoinTelegraph...)
        ↓                                          ↓
-  /api/cp-news                              /api/news
-  (Vercel serverless)                  (Vite middleware / Vercel)
-       ↓                                          ↓
-  sentiment field                          AI/Tech sınıflandırma
-  (positive/negative/neutral)              (isAiTech keyword check)
+  /api/cp-news?key=...                      /api/news
+  (key: localStorage → query param)    (Vite middleware / Vercel)
+  (fallback: Vercel env var)                    ↓
+       ↓                                  AI/Tech sınıflandırma
+  fetchCPNews(apiKey)                     (isAiTech keyword check)
        ↓                                          ↓
                 ContentView.jsx
                   ↓          ↓
@@ -216,18 +236,58 @@ CryptoCompare API                  RSS Feeds (CoinDesk, CoinTelegraph...)
               Chat alanında göster + Edit/Kaydet → saveFeedback()
 ```
 
-### 7.1 URL Scraper Katmanları (`api/fetch-url.js`)
+### 7.1 CryptoCompare Key Akışı
+
+1. Kullanıcı Ayarlar → CryptoCompare API Key alanına key girer
+2. `localStorage['vkgym_cc_key']` olarak saklanır
+3. `ContentView.loadCPNews()` → `fetchCPNews(key)` → `/api/cp-news?key=<key>`
+4. `api/cp-news.js`: `req.query.key || process.env.CRYPTOCOMPARE_API_KEY`
+5. Dev ortamında `vite.config.js` middleware de aynı önceliği uygular
+
+### 7.2 URL Scraper Katmanları (`api/fetch-url.js`)
 1. Doğrudan fetch (browser headers)
 2. Cloudflare tespit → **Jina AI fallback** (`https://r.jina.ai/{url}`)
 3. `blocked: true` flag döner → ContentView sarı uyarı + URL kopyala
 
+### 7.3 Gemini Key Yönetimi (ContentView)
+
+```js
+const resolveKey = () => {
+  const fresh = localStorage.getItem(GEMINI_KEY_STORAGE) || '';
+  if (fresh && fresh !== geminiKey) setGeminiKey(fresh);
+  return fresh || geminiKey;
+};
+```
+
+Her generate çağrısında localStorage'dan taze okuma yapılır. Stale state sorunu önlenir.
+
 ---
 
-## 8. API Katmanı (Vercel Serverless)
+## 8. Header — Swipe Navigasyonu
+
+`Header.jsx` hafta geçişini dokunmatik swipe ile yönetir. Ok butonları kaldırılmıştır.
+
+```js
+const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
+const handleTouchEnd = (e) => {
+  const dx = e.changedTouches[0].clientX - touchStartX.current;
+  if (Math.abs(dx) > 50) dx < 0 ? handleNextWeek() : handlePrevWeek();
+  touchStartX.current = null;
+};
+```
+
+- Sola kaydır (dx < 0) → sonraki hafta
+- Sağa kaydır (dx > 0) → önceki hafta
+- Threshold: 50px
+- Gelecek haftaya geçiş engellenir
+
+---
+
+## 9. API Katmanı (Vercel Serverless)
 
 | Endpoint | Dosya | Yöntem | Açıklama |
 |---|---|---|---|
-| `/api/cp-news` | `api/cp-news.js` | GET | CryptoCompare News, 20 haber, 5dk cache |
+| `/api/cp-news` | `api/cp-news.js` | GET | CryptoCompare News, `?key=` query param önce, env var fallback |
 | `/api/news` | `api/news.js` | GET | Multi-source RSS (CoinDesk, CoinTelegraph, Decrypt, TheBlock) |
 | `/api/fetch-url` | `api/fetch-url.js` | POST `{url}` | URL içerik kazıyıcı, Jina AI fallback |
 | `/api/chat` | `api/chat.js` | POST | Claude API proxy (legacy) |
@@ -237,18 +297,24 @@ CryptoCompare API                  RSS Feeds (CoinDesk, CoinTelegraph...)
 
 ---
 
-## 9. Güvenlik & Environment Variables
+## 10. Güvenlik & Environment Variables
 
 ### Kural
 > Hiçbir API anahtarı frontend bundle'ına girmez. `VITE_` prefix'i **kullanılmaz**.
 
 | Değişken | Nerede kullanılır | Nerede saklanır |
 |---|---|---|
-| `CRYPTOCOMPARE_API_KEY` | `api/cp-news.js` | Vercel Dashboard + `.env` |
+| `CRYPTOCOMPARE_API_KEY` | `api/cp-news.js` (fallback) | Vercel Dashboard + `.env` |
 | `ANTHROPIC_API_KEY` | `api/chat.js` | Vercel Dashboard + `.env` |
-| `GEMINI_API_KEY` | Frontend localStorage (`vkgym_gemini_key`) | Kullanıcı girer |
+| `GEMINI_API_KEY` | Frontend localStorage (`vkgym_gemini_key`) | Kullanıcı Ayarlar'dan girer |
+| `CC_API_KEY` | Frontend localStorage (`vkgym_cc_key`) | Kullanıcı Ayarlar'dan girer |
 
-**Gemini key** kullanıcı tarafından Settings → API Keys alanından girilir ve localStorage'da saklanır. Bu bilinçli bir trade-off: uygulama backend'siz çalışıyor.
+### API Key Görüntüleme Koruması (SettingsView)
+
+Gemini ve CryptoCompare key'lerindeki göz (👁) butonuna basıldığında şifre modalı açılır:
+- Şifre: `vk2017` (aynı şifre "Tüm Verileri Sil" ile paylaşılır)
+- Doğru şifre → key 30 saniye görünür, sonra otomatik gizlenir
+- Yanlış şifre → hata mesajı, key gizli kalır
 
 ### `.env` Kuralları
 - `.env` dosyası `.gitignore`'da — asla commit edilmez
@@ -257,7 +323,7 @@ CryptoCompare API                  RSS Feeds (CoinDesk, CoinTelegraph...)
 
 ---
 
-## 10. UI/UX — Dark Neon Tema
+## 11. UI/UX — Dark Neon Tema
 
 Tüm stiller `src/index.css` içinde, CSS custom properties ile:
 
@@ -273,19 +339,19 @@ Tüm stiller `src/index.css` içinde, CSS custom properties ile:
 **Component hiyerarşisi:**
 ```
 App.jsx
-├── Header.jsx          (SVG progress rings, hafta navigasyonu)
+├── Header.jsx          (SVG progress rings, swipe hafta navigasyonu)
 ├── [Tab Content]
-│   ├── DailyView       → WeightSlider + CheckboxList + MuscleModal
+│   ├── DailyView       → WeightSlider + CheckboxList + MuscleModal (geçmiş günler read-only)
 │   ├── TodoView        → TaskList + PomodoroTimer
 │   ├── CalendarView    → MonthView + DayEvents + GoogleSync
-│   ├── ContentView     → NewsFeed + ChatArea + StylePicker
-│   └── SettingsView    → BackupPanel + APIKeys
-└── BottomNav           (5 sekme)
+│   ├── ContentView     → NewsFeed (Gündem + CryptoCompare) + ChatArea + StylePicker
+│   └── SettingsView    → BackupPanel + APIKeys (şifre korumalı görüntüleme)
+└── BottomNav           (5 sekme: Habit, To-Do, Content, Takvim, Ayarlar)
 ```
 
 ---
 
-## 11. PWA Yapısı
+## 12. PWA Yapısı
 
 `vite-plugin-pwa` ile yapılandırılmıştır. `vite.config.js`:
 
@@ -305,7 +371,7 @@ Service worker `autoUpdate` modunda — yeni deploy sonrası sessizce güncellen
 
 ---
 
-## 12. Tarih Mantığı (`src/utils/date.js`)
+## 13. Tarih Mantığı (`src/utils/date.js`)
 
 > **Kritik:** Günlük sıfırlanma gece yarısı değil, **03:00'da** gerçekleşir.
 
@@ -322,7 +388,18 @@ export function getActiveDateString() {
 
 ---
 
-## 13. Yeni Bir AI Asistanına Onboarding
+## 14. VSE — Volkan Style Engine (`src/engine/vse.js`)
+
+> Detaylı dokümantasyon: `docs/VSEngine.md`
+
+- `VOLKAN_BASE`: Hardcoded persona tanımı. **Persona JSON'dan beslenmez** (refactor geri alındı — bkz. Değişiklik Geçmişi).
+- `CLASSIFICATION_BLOCK`: Model iç analiz için kullanır, çıktıya yazmaz.
+- `STYLE_CONFIG`: `prime` (Dengeli), `viral` (Viral), `clean` (Sade)
+- Golden Examples: `getFeedbackLog()` → son 3 kullanıcı düzenlemesi prompt'a eklenir
+
+---
+
+## 15. Yeni Bir AI Asistanına Onboarding
 
 Projeyi ilk kez açıyorsan şu dosyaları sırayla oku:
 
@@ -330,8 +407,22 @@ Projeyi ilk kez açıyorsan şu dosyaları sırayla oku:
 2. `src/data/constants.js` — 12 alışkanlık (sıra değiştirme)
 3. `src/utils/storage.js` — tüm veri okuma/yazma fonksiyonları
 4. `src/utils/date.js` — tarih mantığı (03:00 kuralı)
-5. `src/engine/vse.js` + `src/config/vse_prompts.js` — içerik üretim motoru
+5. `src/engine/vse.js` — içerik üretim motoru (tek kaynak, dışa bağımlılık yok)
 6. `src/App.jsx` — tab routing ve global state
 7. `docs/VSEngine.md` — VSE detayları
 
 **Asla:** component içinden doğrudan `localStorage` okuma/yazma. Her şey `storage.js` üzerinden.
+
+---
+
+## 16. Değişiklik Geçmişi (Önemli Kararlar)
+
+| Tarih | Değişiklik | Neden |
+|---|---|---|
+| 2026-04 | CryptoPanic → CryptoCompare | CryptoPanic API erişim sorunu; CryptoCompare daha kararlı |
+| 2026-04 | Discord bot kaldırıldı | Doğrudan API entegrasyonu yeterli |
+| 2026-04 | VSE refactor geri alındı | `volkan_dev_persona.json` entegrasyonu "Dostlar/Arkadaşlar/Hadi bakalım" klişelerine yol açtı; hardcoded VOLKAN_BASE daha güvenilir |
+| 2026-04 | Header ok butonları → swipe | Mobil UX iyileştirmesi |
+| 2026-04 | Geçmiş gün read-only | Geri tarihli veri değişikliğini önler |
+| 2026-04 | CC key localStorage'a taşındı | Kullanıcı kendi key'ini Ayarlar'dan girebilir, env var fallback kalır |
+| 2026-04 | API key şifre koruması | Shoulder surfing ve yetkisiz görüntülemeye karşı |

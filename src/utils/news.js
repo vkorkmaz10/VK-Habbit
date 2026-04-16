@@ -19,10 +19,15 @@ export async function fetchAllNews() {
   }
 }
 
-// Fetch CryptoCompare news (CRYPTOCOMPARE_API_KEY stored server-side in env vars)
-export async function fetchCPNews() {
+// Fetch CryptoCompare news.
+// apiKey: kullanıcının localStorage'dan girdiği key (önce denenir).
+// Yoksa sunucu env varına düşer.
+export async function fetchCPNews(apiKey = '') {
   try {
-    const res = await fetch('/api/cp-news');
+    const url = apiKey
+      ? `/api/cp-news?key=${encodeURIComponent(apiKey)}`
+      : '/api/cp-news';
+    const res = await fetch(url);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       console.error('CP News error:', err.error || res.status);

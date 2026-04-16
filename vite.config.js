@@ -113,7 +113,9 @@ function apiMiddleware(env = {}) {
       }
 
       server.middlewares.use('/api/cp-news', async (req, res) => {
-        const apiKey = env.CRYPTOCOMPARE_API_KEY || process.env.CRYPTOCOMPARE_API_KEY;
+        const urlParams = new URL(req.url, 'http://localhost').searchParams;
+        const clientKey = urlParams.get('key');
+        const apiKey = clientKey || env.CRYPTOCOMPARE_API_KEY || process.env.CRYPTOCOMPARE_API_KEY;
 
         if (!apiKey) {
           res.statusCode = 503;

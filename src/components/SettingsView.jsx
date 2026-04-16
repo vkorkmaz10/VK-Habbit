@@ -9,12 +9,18 @@ import {
 } from '../utils/backup';
 
 const GEMINI_KEY_STORAGE = 'vkgym_gemini_key';
+const CC_KEY_STORAGE = 'vkgym_cc_key';
 
 export default function SettingsView() {
   // Gemini key
   const [geminiKey, setGeminiKey] = useState(() => localStorage.getItem(GEMINI_KEY_STORAGE) || '');
   const [showKey, setShowKey] = useState(false);
   const keyInputRef = useRef(null);
+
+  // CryptoCompare key
+  const [ccKey, setCcKey] = useState(() => localStorage.getItem(CC_KEY_STORAGE) || '');
+  const [showCcKey, setShowCcKey] = useState(false);
+  const ccKeyInputRef = useRef(null);
 
   // Import
   const fileInputRef = useRef(null);
@@ -118,6 +124,28 @@ export default function SettingsView() {
     window.dispatchEvent(new CustomEvent('vkgym_key_updated'));
   };
 
+  // ===== CryptoCompare Key =====
+  const saveCcKey = () => {
+    const val = ccKeyInputRef.current?.value?.trim() || '';
+    setCcKey(val);
+    if (val) {
+      localStorage.setItem(CC_KEY_STORAGE, val);
+      showToast('CryptoCompare key kaydedildi.');
+    } else {
+      localStorage.removeItem(CC_KEY_STORAGE);
+      showToast('CryptoCompare key silindi.');
+    }
+    window.dispatchEvent(new CustomEvent('vkgym_key_updated'));
+  };
+
+  const deleteCcKey = () => {
+    setCcKey('');
+    localStorage.removeItem(CC_KEY_STORAGE);
+    if (ccKeyInputRef.current) ccKeyInputRef.current.value = '';
+    showToast('CryptoCompare key silindi.');
+    window.dispatchEvent(new CustomEvent('vkgym_key_updated'));
+  };
+
   // ===== Delete All =====
   const DELETE_PASSWORD = 'vk2017';
   const confirmDeleteAll = () => {
@@ -194,6 +222,43 @@ export default function SettingsView() {
           <button className="settings-btn settings-btn-save" onClick={saveKey}>Kaydet</button>
           {geminiKey && (
             <button className="settings-btn settings-btn-delete-key" onClick={deleteKey}>Sil</button>
+          )}
+        </div>
+      </div>
+
+      {/* ===== CryptoCompare API Key ===== */}
+      <div className="glass-card settings-card">
+        <div className="settings-card-title">
+          <Key size={16} /> CryptoCompare API Key
+        </div>
+        <p className="settings-desc">
+          CryptoCompare haber paneli için gerekli.{' '}
+          <a href="https://www.cryptocompare.com/cryptopian/api-keys" target="_blank" rel="noopener noreferrer" className="settings-link">
+            Buradan alin
+          </a>
+        </p>
+        <div className="settings-key-row">
+          <div className="settings-key-input-wrap">
+            <input
+              ref={ccKeyInputRef}
+              type={showCcKey ? 'text' : 'password'}
+              defaultValue={ccKey}
+              placeholder="API key..."
+              className="settings-key-input"
+            />
+            <button className="settings-key-toggle" onClick={() => setShowCcKey(s => !s)}>
+              {showCcKey ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
+          <div className="settings-key-status">
+            <span className={`settings-status-dot ${ccKey ? 'active' : ''}`} />
+            <span className="settings-status-text">{ccKey ? 'Aktif' : 'Girilmedi'}</span>
+          </div>
+        </div>
+        <div className="settings-btn-row" style={{ marginTop: '10px' }}>
+          <button className="settings-btn settings-btn-save" onClick={saveCcKey}>Kaydet</button>
+          {ccKey && (
+            <button className="settings-btn settings-btn-delete-key" onClick={deleteCcKey}>Sil</button>
           )}
         </div>
       </div>

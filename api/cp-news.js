@@ -26,7 +26,7 @@ function normalizeSentiment(val) {
 }
 
 export default async function handler(req, res) {
-  const apiKey = process.env.CRYPTOCOMPARE_API_KEY;
+  const apiKey = req.query?.key || process.env.CRYPTOCOMPARE_API_KEY;
 
   if (!apiKey) {
     return res.status(503).json({

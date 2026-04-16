@@ -6,6 +6,7 @@ import { buildTweetPrompt, buildThreadPrompt, STYLE_CONFIG } from '../engine/vse
 import goldenExamples from '../config/persona_references.json';
 
 const GEMINI_KEY_STORAGE = 'vkgym_gemini_key';
+const CC_KEY_STORAGE = 'vkgym_cc_key';
 const CACHE_TTL = 5 * 60 * 1000;
 const URL_REGEX = /https?:\/\/[^\s]+/;
 
@@ -320,6 +321,7 @@ export default function ContentView() {
 
   // Keys — read from localStorage; refreshed when SettingsView saves/deletes
   const [geminiKey, setGeminiKey] = useState(() => localStorage.getItem(GEMINI_KEY_STORAGE) || '');
+  const [ccKey, setCcKey] = useState(() => localStorage.getItem(CC_KEY_STORAGE) || '');
   const bottomRef = useRef(null);
 
   // Mesajları sessionStorage'a kaydet (tab/sayfa yenilemede korunur)
@@ -329,7 +331,10 @@ export default function ContentView() {
 
   // SettingsView API key değiştiğinde yenile
   useEffect(() => {
-    const handler = () => setGeminiKey(localStorage.getItem(GEMINI_KEY_STORAGE) || '');
+    const handler = () => {
+      setGeminiKey(localStorage.getItem(GEMINI_KEY_STORAGE) || '');
+      setCcKey(localStorage.getItem(CC_KEY_STORAGE) || '');
+    };
     window.addEventListener('vkgym_key_updated', handler);
     return () => window.removeEventListener('vkgym_key_updated', handler);
   }, []);
@@ -363,11 +368,12 @@ export default function ContentView() {
       return;
     }
     setCpLoading(true);
-    const data = await fetchCPNews();
+    const key = localStorage.getItem(CC_KEY_STORAGE) || ccKey;
+    const data = await fetchCPNews(key);
     cpCacheRef.current = { data, timestamp: Date.now() };
     setCpNews(data);
     setCpLoading(false);
-  }, []);
+  }, [ccKey]);
 
   // Load CP news when section is first expanded
   useEffect(() => {

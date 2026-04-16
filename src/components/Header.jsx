@@ -1,28 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
 import { addWeeks, isAfter } from 'date-fns';
 import { getWeekDays, formatWeekTitle, getActiveDateObj } from '../utils/date';
 import { calculateDayScore, calculateTodoScore } from '../utils/storage';
 
 export default function Header({ selectedDateStr, onSelectDate, refreshTrigger, mode = 'habit' }) {
   const [weekBaseDate, setWeekBaseDate] = useState(getActiveDateObj());
+  const touchStartX = useRef(null);
 
   useEffect(() => {
     setWeekBaseDate(new Date(selectedDateStr));
   }, [selectedDateStr]);
 
   const handlePrevWeek = () => {
-    setWeekBaseDate(addWeeks(weekBaseDate, -1));
+    setWeekBaseDate(prev => addWeeks(prev, -1));
   };
 
   const handleNextWeek = () => {
-    const nextWk = addWeeks(weekBaseDate, 1);
-    if (isAfter(nextWk, addWeeks(getActiveDateObj(), 0))) {
+    setWeekBaseDate(prev => {
+      const nextWk = addWeeks(prev, 1);
       const { start: activeStart } = getWeekDays(getActiveDateObj());
       const { start: nextStart } = getWeekDays(nextWk);
-      if (isAfter(nextStart, activeStart)) return;
+      if (isAfter(nextStart, activeStart)) return prev;
+      return nextWk;
+    });
+  };
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(dx) > 50) {
+      if (dx < 0) handleNextWeek();
+      else handlePrevWeek();
     }
-    setWeekBaseDate(nextWk);
+    touchStartX.current = null;
   };
 
   const { days } = getWeekDays(weekBaseDate);
@@ -37,16 +51,15 @@ export default function Header({ selectedDateStr, onSelectDate, refreshTrigger, 
   const circleCircumference = 2 * Math.PI * circleRadius;
 
   return (
-    <div className="header-container glass-card" style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingBottom: "16px" }}>
+    <div
+      className="header-container glass-card"
+      style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingBottom: "16px" }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
 
       <div className="summary-header">
-        <button onClick={handlePrevWeek} style={{ background: 'transparent', border: 'none', color: 'white' }}>
-          <ChevronLeft size={28} />
-        </button>
         <div className="week-title" style={{ marginBottom: 0 }}>{weekTitle}</div>
-        <button onClick={handleNextWeek} style={{ background: 'transparent', border: 'none', color: 'white' }}>
-          <ChevronRight size={28} />
-        </button>
       </div>
 
       <div className="days-row" style={{ marginTop: '16px' }}>

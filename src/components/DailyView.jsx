@@ -101,7 +101,7 @@ export default function DailyView({ selectedDateStr, onDataChange }) {
     }
   };
 
-  // Geçmiş günler salt okunur
+  // Geçmiş günler (günlük sıfırlanma sonrası) salt okunur
   const isPast = selectedDateStr < getActiveDateString();
 
   return (
@@ -120,7 +120,7 @@ export default function DailyView({ selectedDateStr, onDataChange }) {
               }}
               style={{ cursor: isPast ? 'default' : 'pointer', textDecoration: isPast ? 'none' : 'underline', opacity: isPast ? 0.6 : 1 }}
             >
-              {displayWeight.toFixed(2)} <span style={{fontSize: '1rem', color: 'var(--text-muted)', textDecoration: 'none'}}>kg</span>
+              {displayWeight.toFixed(2)} <span style={{ fontSize: '1rem', color: 'var(--text-muted)', textDecoration: 'none' }}>kg</span>
             </span>
           </div>
           <input

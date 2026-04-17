@@ -39,6 +39,20 @@ export default function Header({ selectedDateStr, onSelectDate, refreshTrigger, 
     touchStartX.current = null;
   };
 
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(dx) > 50) {
+      if (dx < 0) handleNextWeek();
+      else handlePrevWeek();
+    }
+    touchStartX.current = null;
+  };
+
   const { days } = getWeekDays(weekBaseDate);
   const weekTitle = formatWeekTitle(weekBaseDate);
 

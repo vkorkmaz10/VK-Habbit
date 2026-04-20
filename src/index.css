@@ -2177,3 +2177,110 @@ body {
   from { opacity: 0; transform: translateX(-50%) translateY(10px); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+
+/* ─── ReachOS Score Badge ────────────────────────────────────────────── */
+.reach-badge {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  font-size: 0.74rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.reach-low    { border-color: rgba(255,82,82,0.35);  background: rgba(255,82,82,0.05); }
+.reach-mid    { border-color: rgba(255,193,7,0.35);  background: rgba(255,193,7,0.05); }
+.reach-high   { border-color: rgba(52,168,83,0.35);  background: rgba(52,168,83,0.05); }
+
+.reach-badge-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.reach-score-block {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+.reach-score-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.reach-score-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.reach-low .reach-score-value  { color: #ff5252; }
+.reach-mid .reach-score-value  { color: #ffc107; }
+.reach-high .reach-score-value { color: #34A853; }
+.reach-score-max {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+
+.reach-badge-actions {
+  display: flex;
+  gap: 6px;
+}
+.reach-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-color);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.reach-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.08);
+}
+.reach-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.reach-btn-boost {
+  border-color: rgba(0,212,255,0.4);
+  color: #00d4ff;
+}
+.reach-btn-boost:hover:not(:disabled) {
+  background: rgba(0,212,255,0.12);
+}
+.reach-btn-revert {
+  color: var(--text-muted);
+}
+
+.reach-issue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.reach-issue {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+.reach-issue-mark {
+  margin-right: 4px;
+}
+.reach-sev-high  .reach-issue-mark { color: #ff5252; }
+.reach-sev-med   .reach-issue-mark { color: #ffc107; }
+.reach-sev-low   .reach-issue-mark { color: var(--text-muted); }
+
+.reach-all-good {
+  font-size: 0.7rem;
+  color: #34A853;
+  font-weight: 600;
+}

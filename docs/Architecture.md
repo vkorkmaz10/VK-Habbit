@@ -397,8 +397,32 @@ export function getActiveDateString() {
 
 - `VOLKAN_BASE`: Hardcoded persona tanımı. **Persona JSON'dan beslenmez** (refactor geri alındı — bkz. Değişiklik Geçmişi).
 - `CLASSIFICATION_BLOCK`: Model iç analiz için kullanır, çıktıya yazmaz.
+- `REACHOS_DIRECTIVES`: Sadece **tweet** prompt'una enjekte edilen X algoritma kuralları (hook, link pozisyonu, hashtag, slop ban, karakter aralığı, CTA, satır boşluğu).
 - `STYLE_CONFIG`: `prime` (Dengeli), `viral` (Viral), `clean` (Sade)
 - Golden Examples: `getFeedbackLog()` → son 3 kullanıcı düzenlemesi prompt'a eklenir
+
+---
+
+## 14.1 ReachOS — Reach Optimizer Katmanı
+
+VSE'nin yanına eklenmiş **client-side** optimizasyon katmanı. X algoritmasının cezalandırdığı/ödüllendirdiği faktörlere göre üretilen tweet'i puanlar ve gerekirse yeniden ürettirir.
+
+**Dosyalar:**
+- `src/config/reachos_rules.js` — 10 kural (regex tabanlı), her birinin `weight`, `severity`, `boostInstruction` alanları
+- `src/engine/reachOS.js` — `scoreTweet(text)` ve `buildBoostPrompt(text, breakdown)` public API'leri
+- `src/components/ReachScoreBadge.jsx` — UI: skor (0-100), kural ihlalleri, "Reach'i Artır" + "Geri Al" butonları
+
+**Akış:**
+1. `generateVSE` (mode='tweet') → Gemini'den ilk tweet gelir (zaten `REACHOS_DIRECTIVES` ile prompt'lanmış olduğu için skor genelde 80+)
+2. `EditableMessage` her render'da `scoreTweet(currentText)` çağırır → badge anlık günceldir
+3. **Kullanıcı manuel düzenlerse** her tuş vuruşunda skor + ihlaller yeniden hesaplanır (regex tabanlı, ms cinsinden)
+4. **"Reach'i Artır"** → `buildBoostPrompt` ile düşen kuralların `boostInstruction`'ları toplanır, **aynı persona system prompt'u** ile 2. Gemini çağrısı yapılır → eski sürüm `reachVersions[]` stack'ine push edilir
+5. **"Geri Al"** → `reachVersions` stack'inden son sürüm geri yüklenir
+6. **Save feedback** → `reachScore`, `reachScoreFinal`, `boostUsed` alanları `vkgym_vse_feedback` entry'sine eklenir (geriye dönük uyumlu)
+
+**Persona koruma garantisi:** Boost çağrısında `system_instruction` orijinal `buildTweetPrompt` çıktısıyla aynı; user prompt sadece "şu kuralları düzelt" der. Volkan'ın sesi/keywords/forbidden listesi değişmez.
+
+**Skor renk kodu:** `<65 kırmızı`, `65-84 sarı`, `≥85 yeşil`. "Reach'i Artır" butonu sadece skor `<85` olduğunda görünür.
 
 ---
 
@@ -429,3 +453,4 @@ Projeyi ilk kez açıyorsan şu dosyaları sırayla oku:
 | 2026-04 | Geçmiş gün read-only | Geri tarihli veri değişikliğini önler |
 | 2026-04 | CC key localStorage'a taşındı | Kullanıcı kendi key'ini Ayarlar'dan girebilir, env var fallback kalır |
 | 2026-04 | API key şifre koruması | Shoulder surfing ve yetkisiz görüntülemeye karşı |
+| 2026-04 | ReachOS katmanı eklendi | VSE çıktısının X algoritmasına göre puanlanması + tek tık iyileştirme; persona prompt'u dokunulmadı, sadece reach kuralları post-processing |

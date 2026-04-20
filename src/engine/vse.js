@@ -74,6 +74,22 @@ VOLKAN FİLTRESİ – BUNLARI UYGULA:
 const CLASSIFICATION_BLOCK = `
 [İÇ ANALİZ — ÇIKTIYA YAZMA]: Yazmadan önce haberin makro/proje/onchain/sentiment etkisini ve piyasa yönelimini zihninde değerlendir. Bu değerlendirmeyi doğrudan tona yansıt. Hiçbir etiket, başlık veya meta bilgi çıktıya girmesin.`;
 
+// ─── ReachOS Directives (Tweet için) ────────────────────────────────────────
+// X (Twitter) algoritmasının cezalandırdığı/ödüllendirdiği faktörler.
+// Bu blok yalnızca tek tweet üretiminde enjekte edilir; thread'de değil.
+
+const REACHOS_DIRECTIVES = `
+[REACH OPTİMİZASYONU — X ALGORİTMASI]
+- İlk cümle merak uyandırsın: soru, somut sayı veya karşıt iddia ile başla. Düz bilgi cümlesi açılışı yasak.
+- Link varsa SADECE en sona koy. Metnin ortasındaki link erişimi düşürür.
+- Hashtag kullanma; zorunluysa maksimum 1 tane.
+- Yapay/AI tarzı ifadeler yasak: "delve into", "leverage", "navigate the landscape", "in conclusion", "bilindiği üzere", "en nihayetinde", "söylenebilir ki", "değerlendirildiğinde".
+- Karakter aralığı 140-275 arası tercih edilir. Çok kısa = düşük etkileşim, çok uzun = scroll edilir.
+- Doğal CTA: "Sence?", "Ne düşünüyorsun?", "Kaydet" — forced değil, organik.
+- Uzun tweet'lerde okunabilirlik için satır boşluğu bırak.
+- ALL CAPS spam yok (sadece coin tickerları büyük kalabilir: BTC, ETH).
+- Mümkünse kaydedilebilir format (numaralı liste, "şu 3 şey", framework).`;
+
 // ─── Golden Examples from Feedback ──────────────────────────────────────────
 
 export function buildGoldenExamplesFromFeedback(mode, style) {
@@ -115,7 +131,8 @@ FORMAT KURALLARI:
 - Yapı: güçlü açılış → ana insight → çatışma/nüans → yumuşak sonuç
 - Maksimum 1 emoji
 - Gereksiz giriş cümlesi yok
-- Hashtag spam yok${goldenExamples}`;
+- Hashtag spam yok
+${REACHOS_DIRECTIVES}${goldenExamples}`;
 }
 
 function getThreadSystemPrompt(style) {
@@ -161,7 +178,7 @@ FORMAT KURALLARI:
 
 // ─── User Prompt Builder ─────────────────────────────────────────────────────
 
-function buildUserPrompt(newsInput, mode) {
+function buildUserPrompt(newsInput) {
   const { title, content, source } = newsInput;
   const contentBlock = content
     ? `\n\nHaber içeriği:\n${content.slice(0, 1200)}`
@@ -182,7 +199,7 @@ function buildUserPrompt(newsInput, mode) {
 export function buildTweetPrompt(newsInput, style = 'prime') {
   return {
     systemPrompt: getTweetSystemPrompt(style),
-    userPrompt: buildUserPrompt(newsInput, 'tweet'),
+    userPrompt: buildUserPrompt(newsInput),
   };
 }
 
@@ -195,7 +212,7 @@ export function buildTweetPrompt(newsInput, style = 'prime') {
 export function buildThreadPrompt(newsInput, style = 'prime') {
   return {
     systemPrompt: getThreadSystemPrompt(style),
-    userPrompt: buildUserPrompt(newsInput, 'thread'),
+    userPrompt: buildUserPrompt(newsInput),
   };
 }
 

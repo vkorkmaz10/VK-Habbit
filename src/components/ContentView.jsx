@@ -3,6 +3,8 @@ import { RefreshCw, ExternalLink, Copy, Check, Loader, Send, X, Cpu, Bitcoin, Ch
 import { fetchAllNews, fetchCPNews, scrapeArticle } from '../utils/news';
 import { saveFeedback } from '../utils/storage';
 import { buildTweetPrompt, buildThreadPrompt, STYLE_CONFIG } from '../engine/vse';
+import { scoreTweet, buildBoostPrompt } from '../engine/reachOS';
+import ReachScoreBadge from './ReachScoreBadge';
 import goldenExamples from '../config/persona_references.json';
 
 const GEMINI_KEY_STORAGE = 'vkgym_gemini_key';
@@ -258,11 +260,17 @@ function ThreadBlock({ block, blockId, onCopy, copied, onBlockSave }) {
 }
 
 // ======= Editable Message Component =======
-function EditableMessage({ msg, msgIndex, onCopy, copied, onSaveFeedback }) {
+function EditableMessage({ msg, msgIndex, onCopy, copied, onSaveFeedback, onBoost, onRevert, boosting }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(msg.content);
   const [displayContent, setDisplayContent] = useState(msg.content);
   const textareaRef = useRef(null);
+
+  // msg.content değişirse (boost veya revert sonrası) display'i senkronize et
+  useEffect(() => {
+    setDisplayContent(msg.content);
+    setEditContent(msg.content);
+  }, [msg.content]);
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -288,7 +296,13 @@ function EditableMessage({ msg, msgIndex, onCopy, copied, onSaveFeedback }) {
 
   // Thread rendering with per-block edit/copy
   const isThread = msg.vse?.mode === 'thread';
+  const isTweet = msg.vse?.mode === 'tweet';
   const threadBlocks = isThread ? splitThreadBlocks(displayContent) : null;
+
+  // Tweet için canlı skorlama: edit modundayken textarea içeriği, değilse displayContent
+  const liveText = isTweet ? (isEditing ? editContent : displayContent) : null;
+  const liveScore = isTweet ? scoreTweet(liveText || '') : null;
+  const hasPreviousVersions = isTweet && Array.isArray(msg.reachVersions) && msg.reachVersions.length > 0;
 
   return (
     <div className="content-msg-assistant glass-card">
@@ -318,6 +332,16 @@ function EditableMessage({ msg, msgIndex, onCopy, copied, onSaveFeedback }) {
         </div>
       ) : (
         <div className="content-msg-text" dangerouslySetInnerHTML={{ __html: renderMarkdown(displayContent) }} />
+      )}
+
+      {isTweet && liveScore && (
+        <ReachScoreBadge
+          score={liveScore.score}
+          breakdown={liveScore.breakdown}
+          onBoost={() => onBoost(msgIndex, isEditing ? editContent : displayContent)}
+          onRevert={hasPreviousVersions ? () => onRevert(msgIndex) : undefined}
+          boosting={boosting === msgIndex}
+        />
       )}
 
       <div className="content-msg-actions">
@@ -364,6 +388,7 @@ export default function ContentView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(null);
+  const [boostingIdx, setBoostingIdx] = useState(null);  // ReachOS boost in-flight için
 
   // Style Picker
   const [showStylePicker, setShowStylePicker] = useState(false);
@@ -515,6 +540,8 @@ export default function ContentView() {
         role: 'assistant',
         content: result,
         vse: { mode, style, newsTitle: newsInput.title, newsSource: newsInput.source },
+        // Tweet için boost çağrısında aynı persona prompt'unu kullanmak için sakla
+        ...(mode === 'tweet' ? { reachSystemPrompt: systemPrompt, reachVersions: [] } : {}),
       }]);
     } catch (e) {
       setError(e.message);
@@ -623,14 +650,57 @@ export default function ContentView() {
 
   const handleSaveFeedback = (msg, original, edited) => {
     if (!msg.vse) return;
-    saveFeedback({
+    const entry = {
       newsTitle: msg.vse.newsTitle,
       newsSource: msg.vse.newsSource,
       mode: msg.vse.mode,
       style: msg.vse.style,
       original,
       edited,
-    });
+    };
+    // Tweet için reach skoru telemetrisi
+    if (msg.vse.mode === 'tweet') {
+      entry.reachScore = scoreTweet(original).score;
+      entry.reachScoreFinal = scoreTweet(edited).score;
+      entry.boostUsed = Array.isArray(msg.reachVersions) && msg.reachVersions.length > 0;
+    }
+    saveFeedback(entry);
+  };
+
+  // ReachOS: Düşük skorlu tweet'i ikinci Gemini çağrısıyla iyileştir
+  const handleBoost = async (msgIdx, currentText) => {
+    const key = resolveKey();
+    if (!key) { setError('Gemini API key eksik. Ayarlar sekmesinden ekleyebilirsin.'); return; }
+    const msg = messages[msgIdx];
+    if (!msg || !msg.reachSystemPrompt) return;
+
+    const { breakdown } = scoreTweet(currentText);
+    const boostPrompt = buildBoostPrompt(currentText, breakdown);
+
+    setBoostingIdx(msgIdx);
+    setError('');
+    try {
+      const result = await callGemini(key, boostPrompt, msg.reachSystemPrompt);
+      if (!result) throw new Error('Boş yanıt geldi.');
+      const cleaned = result.trim().replace(/^["“]|["”]$/g, '');
+      setMessages(prev => prev.map((m, i) => i === msgIdx
+        ? { ...m, content: cleaned, reachVersions: [...(m.reachVersions || []), currentText] }
+        : m));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBoostingIdx(null);
+    }
+  };
+
+  const handleRevert = (msgIdx) => {
+    setMessages(prev => prev.map((m, i) => {
+      if (i !== msgIdx) return m;
+      const versions = m.reachVersions || [];
+      if (versions.length === 0) return m;
+      const previous = versions[versions.length - 1];
+      return { ...m, content: previous, reachVersions: versions.slice(0, -1) };
+    }));
   };
 
   return (
@@ -743,6 +813,9 @@ export default function ContentView() {
                 onCopy={handleCopy}
                 copied={copied}
                 onSaveFeedback={(original, edited) => handleSaveFeedback(msg, original, edited)}
+                onBoost={handleBoost}
+                onRevert={handleRevert}
+                boosting={boostingIdx}
               />
             )}
           </div>

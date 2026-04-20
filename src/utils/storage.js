@@ -308,3 +308,38 @@ export const getFeedbackLog = () => {
     return [];
   }
 };
+
+// ========================
+// ReachOS Settings (BYOK + X profile)
+// ========================
+
+const ANTHROPIC_KEY_STORAGE = 'vkgym_anthropic_key';
+const X_FOLLOWERS_STORAGE = 'vkgym_x_followers';
+
+export const getAnthropicKey = () => {
+  try { return localStorage.getItem(ANTHROPIC_KEY_STORAGE) || ''; }
+  catch { return ''; }
+};
+
+export const setAnthropicKey = (key) => {
+  try {
+    if (key) localStorage.setItem(ANTHROPIC_KEY_STORAGE, key);
+    else localStorage.removeItem(ANTHROPIC_KEY_STORAGE);
+  } catch { /* noop */ }
+};
+
+export const getXFollowers = () => {
+  try {
+    const v = localStorage.getItem(X_FOLLOWERS_STORAGE);
+    const n = v ? parseInt(v, 10) : 0;
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch { return 0; }
+};
+
+export const setXFollowers = (count) => {
+  try {
+    const n = parseInt(count, 10);
+    if (Number.isFinite(n) && n > 0) localStorage.setItem(X_FOLLOWERS_STORAGE, String(n));
+    else localStorage.removeItem(X_FOLLOWERS_STORAGE);
+  } catch { /* noop */ }
+};

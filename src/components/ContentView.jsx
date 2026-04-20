@@ -3,7 +3,8 @@ import { RefreshCw, ExternalLink, Copy, Check, Loader, Send, X, Cpu, Bitcoin, Ch
 import { fetchAllNews, fetchCPNews, scrapeArticle } from '../utils/news';
 import { saveFeedback } from '../utils/storage';
 import { buildTweetPrompt, buildThreadPrompt, STYLE_CONFIG } from '../engine/vse';
-import { scoreTweet, buildBoostPrompt } from '../engine/reachOS';
+import { scoreTweet, buildBoostPrompt } from '../engine/reach';
+import { getXFollowers } from '../utils/storage';
 import ReachScoreBadge from './ReachScoreBadge';
 import goldenExamples from '../config/persona_references.json';
 
@@ -336,8 +337,8 @@ function EditableMessage({ msg, msgIndex, onCopy, copied, onSaveFeedback, onBoos
 
       {isTweet && liveScore && (
         <ReachScoreBadge
-          score={liveScore.score}
-          breakdown={liveScore.breakdown}
+          analysis={liveScore}
+          followers={getXFollowers()}
           onBoost={() => onBoost(msgIndex, isEditing ? editContent : displayContent)}
           onRevert={hasPreviousVersions ? () => onRevert(msgIndex) : undefined}
           boosting={boosting === msgIndex}
@@ -660,8 +661,8 @@ export default function ContentView() {
     };
     // Tweet için reach skoru telemetrisi
     if (msg.vse.mode === 'tweet') {
-      entry.reachScore = scoreTweet(original).score;
-      entry.reachScoreFinal = scoreTweet(edited).score;
+      entry.reachScore = scoreTweet(original).reachScore;
+      entry.reachScoreFinal = scoreTweet(edited).reachScore;
       entry.boostUsed = Array.isArray(msg.reachVersions) && msg.reachVersions.length > 0;
     }
     saveFeedback(entry);
@@ -674,8 +675,8 @@ export default function ContentView() {
     const msg = messages[msgIdx];
     if (!msg || !msg.reachSystemPrompt) return;
 
-    const { breakdown } = scoreTweet(currentText);
-    const boostPrompt = buildBoostPrompt(currentText, breakdown);
+    const analysis = scoreTweet(currentText);
+    const boostPrompt = buildBoostPrompt(currentText, analysis);
 
     setBoostingIdx(msgIdx);
     setError('');

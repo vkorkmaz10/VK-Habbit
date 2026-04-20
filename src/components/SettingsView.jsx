@@ -7,6 +7,12 @@ import {
   importData,
   getStorageStats,
 } from '../utils/backup';
+import {
+  getAnthropicKey,
+  setAnthropicKey,
+  getXFollowers,
+  setXFollowers,
+} from '../utils/storage';
 
 const GEMINI_KEY_STORAGE = 'vkgym_gemini_key';
 const CC_KEY_STORAGE = 'vkgym_cc_key';
@@ -22,9 +28,18 @@ export default function SettingsView() {
   const [showCcKey, setShowCcKey] = useState(false);
   const ccKeyInputRef = useRef(null);
 
+  // Anthropic key (ReachOS AI-augmented checks)
+  const [anthropicKey, setAnthropicKeyState] = useState(() => getAnthropicKey());
+  const [showAnthropicKey, setShowAnthropicKey] = useState(false);
+  const anthropicKeyInputRef = useRef(null);
+
+  // X follower count (forecast)
+  const [xFollowers, setXFollowersState] = useState(() => getXFollowers());
+  const xFollowersInputRef = useRef(null);
+
   // Key reveal password modal
   const KEY_REVEAL_PASSWORD = 'vk2017';
-  const [keyRevealModal, setKeyRevealModal] = useState(null); // null | 'gemini' | 'cc'
+  const [keyRevealModal, setKeyRevealModal] = useState(null); // null | 'gemini' | 'cc' | 'anthropic'
   const [revealPwInput, setRevealPwInput] = useState('');
   const [revealError, setRevealError] = useState(false);
   const revealPwRef = useRef(null);
@@ -43,6 +58,7 @@ export default function SettingsView() {
     }
     if (keyRevealModal === 'gemini') setShowKey(true);
     if (keyRevealModal === 'cc') setShowCcKey(true);
+    if (keyRevealModal === 'anthropic') setShowAnthropicKey(true);
     setKeyRevealModal(null);
     setRevealPwInput('');
     // Otomatik gizle: 30 saniye sonra
@@ -50,6 +66,7 @@ export default function SettingsView() {
     revealTimerRef.current = setTimeout(() => {
       setShowKey(false);
       setShowCcKey(false);
+      setShowAnthropicKey(false);
     }, 30000);
   };
 
@@ -57,6 +74,7 @@ export default function SettingsView() {
     if (isShown) {
       if (field === 'gemini') setShowKey(false);
       if (field === 'cc') setShowCcKey(false);
+      if (field === 'anthropic') setShowAnthropicKey(false);
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
     } else {
       openRevealModal(field);
@@ -187,6 +205,36 @@ export default function SettingsView() {
     window.dispatchEvent(new CustomEvent('vkgym_key_updated'));
   };
 
+  // ===== Anthropic Key =====
+  const saveAnthropicKey = () => {
+    const val = anthropicKeyInputRef.current?.value?.trim() || '';
+    setAnthropicKeyState(val);
+    setAnthropicKey(val);
+    showToast(val ? 'Anthropic key kaydedildi.' : 'Anthropic key silindi.');
+  };
+
+  const deleteAnthropicKey = () => {
+    setAnthropicKeyState('');
+    setAnthropicKey('');
+    if (anthropicKeyInputRef.current) anthropicKeyInputRef.current.value = '';
+    showToast('Anthropic key silindi.');
+  };
+
+  // ===== X Followers =====
+  const saveXFollowers = () => {
+    const raw = xFollowersInputRef.current?.value || '';
+    const n = parseInt(raw, 10);
+    if (Number.isFinite(n) && n > 0) {
+      setXFollowers(n);
+      setXFollowersState(n);
+      showToast('Takipçi sayısı kaydedildi.');
+    } else {
+      setXFollowers(0);
+      setXFollowersState(0);
+      showToast('Takipçi sayısı temizlendi.');
+    }
+  };
+
   // ===== Delete All =====
   const DELETE_PASSWORD = 'vk2017';
   const confirmDeleteAll = () => {
@@ -301,6 +349,72 @@ export default function SettingsView() {
           {ccKey && (
             <button className="settings-btn settings-btn-delete-key" onClick={deleteCcKey}>Sil</button>
           )}
+        </div>
+      </div>
+
+      {/* ===== Anthropic API Key (ReachOS AI) ===== */}
+      <div className="glass-card settings-card">
+        <div className="settings-card-title">
+          <Key size={16} /> Anthropic API Key (ReachOS AI)
+        </div>
+        <p className="settings-desc">
+          ReachOS'un AI-augmented hook/slop kontrolleri için opsiyonel. Olmadan da temel skor çalışır.{' '}
+          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="settings-link">
+            Buradan alın
+          </a>
+        </p>
+        <div className="settings-key-row">
+          <div className="settings-key-input-wrap">
+            <input
+              ref={anthropicKeyInputRef}
+              type={showAnthropicKey ? 'text' : 'password'}
+              defaultValue={anthropicKey}
+              placeholder="sk-ant-..."
+              className="settings-key-input"
+            />
+            <button className="settings-key-toggle" onClick={() => handleEyeClick('anthropic', showAnthropicKey)}>
+              {showAnthropicKey ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
+          <div className="settings-key-status">
+            <span className={`settings-status-dot ${anthropicKey ? 'active' : ''}`} />
+            <span className="settings-status-text">{anthropicKey ? 'Aktif' : 'Girilmedi'}</span>
+          </div>
+        </div>
+        <div className="settings-btn-row" style={{ marginTop: '10px' }}>
+          <button className="settings-btn settings-btn-save" onClick={saveAnthropicKey}>Kaydet</button>
+          {anthropicKey && (
+            <button className="settings-btn settings-btn-delete-key" onClick={deleteAnthropicKey}>Sil</button>
+          )}
+        </div>
+      </div>
+
+      {/* ===== X Followers (ReachOS Forecast) ===== */}
+      <div className="glass-card settings-card">
+        <div className="settings-card-title">
+          <Info size={16} /> 𝕏 Takipçi Sayısı
+        </div>
+        <p className="settings-desc">
+          Tahmini erişim hesabı için. Boş bırakırsan forecast bloğu gizlenir.
+        </p>
+        <div className="settings-key-row">
+          <div className="settings-key-input-wrap">
+            <input
+              ref={xFollowersInputRef}
+              type="number"
+              min="0"
+              defaultValue={xFollowers || ''}
+              placeholder="Örn. 1500"
+              className="settings-key-input"
+            />
+          </div>
+          <div className="settings-key-status">
+            <span className={`settings-status-dot ${xFollowers ? 'active' : ''}`} />
+            <span className="settings-status-text">{xFollowers ? `${xFollowers.toLocaleString('tr-TR')}` : 'Girilmedi'}</span>
+          </div>
+        </div>
+        <div className="settings-btn-row" style={{ marginTop: '10px' }}>
+          <button className="settings-btn settings-btn-save" onClick={saveXFollowers}>Kaydet</button>
         </div>
       </div>
 

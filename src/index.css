@@ -2190,8 +2190,10 @@ body {
   flex-direction: column;
   gap: 8px;
 }
+.reach-critical { border-color: rgba(220,38,38,0.45); background: rgba(220,38,38,0.06); }
 .reach-low    { border-color: rgba(255,82,82,0.35);  background: rgba(255,82,82,0.05); }
 .reach-mid    { border-color: rgba(255,193,7,0.35);  background: rgba(255,193,7,0.05); }
+.reach-midhigh{ border-color: rgba(0,212,255,0.35);  background: rgba(0,212,255,0.05); }
 .reach-high   { border-color: rgba(52,168,83,0.35);  background: rgba(52,168,83,0.05); }
 
 .reach-badge-head {
@@ -2216,9 +2218,18 @@ body {
   font-size: 1.15rem;
   font-weight: 700;
 }
+.reach-critical .reach-score-value { color: #dc2626; }
 .reach-low .reach-score-value  { color: #ff5252; }
 .reach-mid .reach-score-value  { color: #ffc107; }
+.reach-midhigh .reach-score-value { color: #00d4ff; }
 .reach-high .reach-score-value { color: #34A853; }
+.reach-tier-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
 .reach-score-max {
   font-size: 0.7rem;
   font-weight: 500;
@@ -2284,3 +2295,81 @@ body {
   color: #34A853;
   font-weight: 600;
 }
+
+/* ─── ReachOS v3.0 — Bars / Forecast / Suggestions ──────────────────── */
+.reach-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0;
+  border-top: 1px dashed rgba(255,255,255,0.06);
+  border-bottom: 1px dashed rgba(255,255,255,0.06);
+}
+.reach-bar-row { display: flex; flex-direction: column; gap: 3px; }
+.reach-bar-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 0.66rem;
+}
+.reach-bar-label { color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.reach-bar-val { font-weight: 700; color: var(--text-color); }
+.reach-bar-max { color: var(--text-muted); font-weight: 500; margin-left: 2px; font-size: 0.62rem; }
+.reach-bar-track {
+  height: 5px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden;
+}
+.reach-bar-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, #00d4ff, #34A853);
+  transition: width 0.25s ease;
+}
+.reach-bar-fill.neg { background: linear-gradient(90deg, #ff5252, #dc2626); }
+
+.reach-forecast {
+  margin-top: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0,212,255,0.04);
+  border: 1px solid rgba(0,212,255,0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.reach-forecast-head { display: flex; justify-content: space-between; align-items: baseline; }
+.reach-forecast-label {
+  font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted);
+}
+.reach-forecast-value { font-size: 1.05rem; font-weight: 700; color: #00d4ff; }
+.reach-forecast-meta { font-size: 0.66rem; color: var(--text-muted); }
+.reach-peak { color: #34A853; font-weight: 600; margin-left: 4px; }
+
+.reach-scenario-list {
+  list-style: none; margin: 4px 0 0; padding: 0;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.reach-scenario {
+  display: grid;
+  grid-template-columns: 18px 1fr auto auto;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.68rem;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.02);
+}
+.reach-scenario.hl { background: rgba(0,212,255,0.08); }
+.reach-scenario-emoji { font-size: 0.85rem; line-height: 1; }
+.reach-scenario-label { color: var(--text-color); }
+.reach-scenario-delta {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-weight: 700; color: #34A853; font-size: 0.65rem;
+}
+.reach-scenario-val { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+.reach-suggestions {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.reach-suggestions .reach-issue {
+  display: flex; gap: 4px; align-items: flex-start;
+}
+.reach-issue-text { flex: 1; }
+.reach-issue-text strong { color: var(--text-color); font-weight: 600; }

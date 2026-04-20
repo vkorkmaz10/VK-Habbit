@@ -403,26 +403,39 @@ export function getActiveDateString() {
 
 ---
 
-## 14.1 ReachOS — Reach Optimizer Katmanı
+## 14.1 ReachOS v3.0 — Deep Migration (AytuncYildizli/reach-optimizer)
 
-VSE'nin yanına eklenmiş **client-side** optimizasyon katmanı. X algoritmasının cezalandırdığı/ödüllendirdiği faktörlere göre üretilen tweet'i puanlar ve gerekirse yeniden ürettirir.
+VSE'nin yanına eklenmiş **client-side** optimizasyon katmanı. v1 (10 regex kuralı) → v3.0 (36 kural + 5 kategori + tier sistemi + reach forecast + opsiyonel Claude AI augmentation) olarak portlandı. Kaynak: [AytuncYildizli/reach-optimizer](https://github.com/AytuncYildizli/reach-optimizer) (MIT).
 
 **Dosyalar:**
-- `src/config/reachos_rules.js` — 10 kural (regex tabanlı), her birinin `weight`, `severity`, `boostInstruction` alanları
-- `src/engine/reachOS.js` — `scoreTweet(text)` ve `buildBoostPrompt(text, breakdown)` public API'leri
-- `src/components/ReachScoreBadge.jsx` — UI: skor (0-100), kural ihlalleri, "Reach'i Artır" + "Geri Al" butonları
+- `src/engine/reach/config/weights.json` — baseScore 30, kategori maxPoints (hook 30 / structure 20 / engagement 30 / penalty -55 / bonus 15), tier eşikleri
+- `src/engine/reach/rules/*.js` — 9 kural dosyası, 36 kural toplam (hook, advanced-hook, structure, engagement, penalty, link-detection, ai-detection, quality-signal, reply-potential). Türkçe pattern'lar tüm dosyalara eklenmiş (hooks, slop words, sentiment, CTA, combative tone)
+- `src/engine/reach/engine.js` — `ScoreEngine` (evaluate, calculateBreakdown, assignTier, collectSuggestions)
+- `src/engine/reach/all-client-rules.js` — kural agregasyonu + `VOLKAN_PROTECTED_RULES` whitelist
+- `src/engine/reach/forecast.js` — `forecastReach({followers, score, hasMedia, atPeakTime})` + `whatIfScenarios()`
+- `src/engine/reach/claude.js` — opsiyonel BYOK AI: `analyzeWithClaude` (slop / hook 6-dim / 3 rewrite) + `autoOptimize` (N round)
+- `src/engine/reach/index.js` — public API: `scoreTweet`, `buildBoostPrompt`, `forecastReach`, `whatIfScenarios`, `VOLKAN_PROTECTED_RULES`
+- `src/engine/reachOS.js` — DEPRECATED shim (re-export from `./reach`)
+- `functions/api/claude-score.js` — Cloudflare Pages Function, BYOK Claude proxy (`x-api-key` request body'den)
+- `src/components/ReachScoreBadge.jsx` — 5-bar breakdown (Hook/Yapı/Etkileşim/Cezalar/Bonuslar) + reach forecast bloğu + what-if senaryoları + sıralı suggestions
+
+**Skor formülü:** `reachScore = clamp(baseScore + Σ(kategori puanları), 0..100)`. Negatif kategori puanı `penalties`'a düşer.
+
+**Tier sistemi:** `critical (0-20)` · `below_average (21-40)` · `good (41-60)` · `excellent (61-79)` · `perfect (80-100)`. Boost butonu `< 80` (perfect altı) görünür.
 
 **Akış:**
-1. `generateVSE` (mode='tweet') → Gemini'den ilk tweet gelir (zaten `REACHOS_DIRECTIVES` ile prompt'lanmış olduğu için skor genelde 80+)
-2. `EditableMessage` her render'da `scoreTweet(currentText)` çağırır → badge anlık günceldir
-3. **Kullanıcı manuel düzenlerse** her tuş vuruşunda skor + ihlaller yeniden hesaplanır (regex tabanlı, ms cinsinden)
-4. **"Reach'i Artır"** → `buildBoostPrompt` ile düşen kuralların `boostInstruction`'ları toplanır, **aynı persona system prompt'u** ile 2. Gemini çağrısı yapılır → eski sürüm `reachVersions[]` stack'ine push edilir
-5. **"Geri Al"** → `reachVersions` stack'inden son sürüm geri yüklenir
-6. **Save feedback** → `reachScore`, `reachScoreFinal`, `boostUsed` alanları `vkgym_vse_feedback` entry'sine eklenir (geriye dönük uyumlu)
+1. `generateVSE` (mode='tweet') → Gemini'den tweet gelir
+2. `EditableMessage` her render'da `scoreTweet(text)` çağırır → 5 bar + forecast + suggestions canlı güncellenir
+3. Forecast bloğu yalnızca **Settings → 𝕏 Takipçi Sayısı** girilmişse görünür (`getXFollowers() > 0`)
+4. **"Reach'i Artır"** → `buildBoostPrompt(text, analysis)` failingRules + missingPositives toplar; `VOLKAN_PROTECTED_RULES` (hedging-opener, combative-tone, cta-presence vb.) **boost prompt'undan dışlanır** (display'de görünür ama "düzelt" denmez) → orijinal persona system prompt'u ile 2. Gemini çağrısı
+5. **"Geri Al"** → `reachVersions` stack'inden geri yüklenir
+6. **Feedback** → `reachScore`, `reachScoreFinal`, `boostUsed` alanları `vkgym_vse_feedback`'e
 
-**Persona koruma garantisi:** Boost çağrısında `system_instruction` orijinal `buildTweetPrompt` çıktısıyla aynı; user prompt sadece "şu kuralları düzelt" der. Volkan'ın sesi/keywords/forbidden listesi değişmez.
+**Opsiyonel Claude AI:** `Settings → Anthropic API Key (BYOK)` girilirse `analyzeWithClaude` ile slop verification + 6-dim hook scoring + 3 alternatif rewrite önerisi alınabilir. Key yoksa client-side regex skoru fallback olarak çalışır. (Şu an UI hook'u eklenmedi — sadece motor hazır.)
 
-**Skor renk kodu:** `<65 kırmızı`, `65-84 sarı`, `≥85 yeşil`. "Reach'i Artır" butonu sadece skor `<85` olduğunda görünür.
+**Self-learning loop atlandı:** Orijinal extension X.com DOM'unu scrape ediyor; PWA bunu yapamaz.
+
+**Persona koruma:** `VOLKAN_PROTECTED_RULES` whitelist'i + system prompt değiştirilmez. "bana göre", "arkadaşlar", "haliyle" gibi imza ifadeler boost sonrası korunur.
 
 ---
 
@@ -454,3 +467,4 @@ Projeyi ilk kez açıyorsan şu dosyaları sırayla oku:
 | 2026-04 | CC key localStorage'a taşındı | Kullanıcı kendi key'ini Ayarlar'dan girebilir, env var fallback kalır |
 | 2026-04 | API key şifre koruması | Shoulder surfing ve yetkisiz görüntülemeye karşı |
 | 2026-04 | ReachOS katmanı eklendi | VSE çıktısının X algoritmasına göre puanlanması + tek tık iyileştirme; persona prompt'u dokunulmadı, sadece reach kuralları post-processing |
+| 2026-04 | ReachOS v3.0 deep migration | AytuncYildizli/reach-optimizer (MIT) port: 36 kural, 5 kategori, tier sistemi, reach forecast (followers+score+media+peak), opsiyonel BYOK Claude AI augmentation. Eski 10-kural sistemi kaldırıldı. |

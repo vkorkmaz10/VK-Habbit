@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { RefreshCw, ExternalLink, Copy, Check, Loader, Send, X, Cpu, Bitcoin, ChevronDown, ChevronUp, Pencil, Save } from 'lucide-react';
+import { RefreshCw, ExternalLink, Copy, Check, Loader, Send, X, Cpu, Bitcoin, ChevronDown, ChevronUp, Pencil, Save, Image as ImageIcon } from 'lucide-react';
 import { fetchAllNews, fetchCPNews, scrapeArticle } from '../utils/news';
 import { saveFeedback } from '../utils/storage';
 import { buildTweetPrompt, buildThreadPrompt, STYLE_CONFIG } from '../engine/vse';
@@ -126,7 +126,17 @@ async function callGemini(apiKey, userPrompt, systemPrompt) {
     if (i < GEMINI_MODELS.length - 1) await new Promise(r => setTimeout(r, 1000));
   }
 
-  throw new Error('Gemini API kotasi doldu. Lutfen birkac dakika bekleyip tekrar deneyin.');
+  // Try to detect daily vs per-minute quota from lastError
+  const errStr = String(lastError || '').toLowerCase();
+  const isPerMin = errStr.includes('per minute') || errStr.includes('per_minute') || errStr.includes('rpm');
+  const isDaily = errStr.includes('per day') || errStr.includes('generaterequestsperdaypermodel');
+  const isBilling = errStr.includes('exceeded your current quota') || errStr.includes('plan and billing');
+  let hint;
+  if (isPerMin) hint = 'Dakikalık kota doldu. 60 sn bekle ve tekrar dene.';
+  else if (isDaily) hint = 'GÜNLÜK RPD doldu. 24 saat reset bekle veya yeni key oluştur.';
+  else if (isBilling) hint = 'Free tier günlük RPD doldu (3 modelin de). Çözüm: (a) 24 saat bekle, (b) https://aistudio.google.com/apikey adresinden YENİ KEY oluştur, (c) Google Cloud Console\'dan billing aktif et → Pay-as-you-go\'ya geç (limit kalkar, çok ucuz).';
+  else hint = 'Detay: ' + String(lastError).slice(0, 200);
+  throw new Error(`Gemini kota: ${hint}`);
 }
 
 // ======= Markdown Renderer =======
@@ -267,6 +277,34 @@ function EditableMessage({ msg, msgIndex, onCopy, copied, onSaveFeedback, onBoos
   const [displayContent, setDisplayContent] = useState(msg.content);
   const textareaRef = useRef(null);
 
+  // Image attachments — session-only, max 4 (X limit)
+  const [images, setImages] = useState([]); // [{ id, url(blob), name }]
+  const fileInputRef = useRef(null);
+
+  const handleImageSelect = (e) => {
+    const files = Array.from(e.target.files || []).filter(f => f.type.startsWith('image/'));
+    if (!files.length) return;
+    const remaining = 4 - images.length;
+    const toAdd = files.slice(0, remaining).map(f => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      url: URL.createObjectURL(f),
+      name: f.name,
+    }));
+    setImages(prev => [...prev, ...toAdd]);
+    e.target.value = '';
+  };
+
+  const removeImage = (id) => {
+    setImages(prev => {
+      const found = prev.find(im => im.id === id);
+      if (found) URL.revokeObjectURL(found.url);
+      return prev.filter(im => im.id !== id);
+    });
+  };
+
+  // Cleanup blob URLs on unmount
+  useEffect(() => () => images.forEach(im => URL.revokeObjectURL(im.url)), []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // msg.content değişirse (boost veya revert sonrası) display'i senkronize et
   useEffect(() => {
     setDisplayContent(msg.content);
@@ -302,7 +340,8 @@ function EditableMessage({ msg, msgIndex, onCopy, copied, onSaveFeedback, onBoos
 
   // Tweet için canlı skorlama: edit modundayken textarea içeriği, değilse displayContent
   const liveText = isTweet ? (isEditing ? editContent : displayContent) : null;
-  const liveScore = isTweet ? scoreTweet(liveText || '') : null;
+  const hasMedia = images.length > 0;
+  const liveScore = isTweet ? scoreTweet(liveText || '', { hasMedia }) : null;
   const hasPreviousVersions = isTweet && Array.isArray(msg.reachVersions) && msg.reachVersions.length > 0;
 
   return (
@@ -339,13 +378,53 @@ function EditableMessage({ msg, msgIndex, onCopy, copied, onSaveFeedback, onBoos
         <ReachScoreBadge
           analysis={liveScore}
           followers={getXFollowers()}
+          hasMedia={hasMedia}
           onBoost={() => onBoost(msgIndex, isEditing ? editContent : displayContent)}
           onRevert={hasPreviousVersions ? () => onRevert(msgIndex) : undefined}
           boosting={boosting === msgIndex}
         />
       )}
 
+      {isTweet && images.length > 0 && (
+        <div className="content-image-thumbs">
+          {images.map(im => (
+            <div key={im.id} className="content-image-thumb">
+              <img src={im.url} alt={im.name} />
+              <button
+                type="button"
+                className="content-image-remove"
+                onClick={() => removeImage(im.id)}
+                title="Görseli kaldır"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="content-msg-actions">
+        {isTweet && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: 'none' }}
+              onChange={handleImageSelect}
+            />
+            <button
+              type="button"
+              className="content-msg-image-btn"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={images.length >= 4}
+              title={images.length >= 4 ? 'Max 4 görsel' : 'Görsel ekle (max 4)'}
+            >
+              <ImageIcon size={12} /> {images.length > 0 ? `Görsel (${images.length}/4)` : 'Görsel'}
+            </button>
+          </>
+        )}
         <button className="content-msg-copy" onClick={() => onCopy(displayContent, msgIndex)}>
           {copied === msgIndex ? <><Check size={12} /> Kopyalandı</> : <><Copy size={12} /> Kopyala</>}
         </button>

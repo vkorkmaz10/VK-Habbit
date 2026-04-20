@@ -1672,6 +1672,71 @@ body {
 .content-msg-save { color: #34A853 !important; border-color: rgba(52, 168, 83, 0.3) !important; }
 .content-msg-save:hover { color: #34A853; border-color: rgba(52, 168, 83, 0.5) !important; }
 
+/* Image attach button (sola yaslı) */
+.content-msg-image-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-right: auto; /* push to far left */
+}
+.content-msg-image-btn:hover:not(:disabled) {
+  color: #00d4ff;
+  border-color: rgba(0, 212, 255, 0.25);
+}
+.content-msg-image-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Image thumbnails preview */
+.content-image-thumbs {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 6px;
+}
+.content-image-thumb {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+.content-image-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.content-image-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.content-image-remove:hover {
+  background: #dc2626;
+}
+
 /* Edit textarea */
 .content-edit-textarea {
   width: 100%;

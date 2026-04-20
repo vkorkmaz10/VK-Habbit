@@ -55,7 +55,7 @@ function BreakdownBar({ label, score, max, neg }) {
 
 const SEV_ORDER = { high: 0, med: 1, low: 2 };
 
-export default function ReachScoreBadge({ analysis, followers = 0, onBoost, onRevert, boosting }) {
+export default function ReachScoreBadge({ analysis, followers = 0, hasMedia = false, onBoost, onRevert, boosting }) {
   if (!analysis) return null;
   const { reachScore = 0, tier = 'critical', breakdown = {}, suggestions = [] } = analysis;
   const tierClass = TIER_CLASS[tier] || 'mid';
@@ -64,8 +64,8 @@ export default function ReachScoreBadge({ analysis, followers = 0, onBoost, onRe
     (a, b) => (SEV_ORDER[a.severity] ?? 3) - (SEV_ORDER[b.severity] ?? 3)
   );
 
-  const forecast = followers > 0 ? forecastReach({ followers, score: reachScore }) : null;
-  const scenarios = followers > 0 ? whatIfScenarios({ followers, score: reachScore }) : [];
+  const forecast = followers > 0 ? forecastReach({ followers, score: reachScore, hasMedia }) : null;
+  const scenarios = followers > 0 ? whatIfScenarios({ followers, score: reachScore, hasMedia }) : [];
 
   return (
     <div className={`reach-badge reach-${tierClass}`}>

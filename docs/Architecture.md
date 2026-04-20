@@ -24,7 +24,7 @@ VK-Habbit, iki ana iş birimini tek PWA çatısı altında birleştiren kişisel
 | Tarih | date-fns |
 | AI | Google Gemini API (gemini-2.5-flash, fallback: 2.0-flash, 2.5-flash-lite) |
 | Depolama | localStorage (backend yok) |
-| Deploy | Render.com (Web Service: Express + Static dist/) |
+| Deploy | Cloudflare Pages (Static dist/ + Pages Functions) |
 | PWA | Service Worker, manifest, auto-update |
 
 ---
@@ -33,8 +33,12 @@ VK-Habbit, iki ana iş birimini tek PWA çatısı altında birleştiren kişisel
 
 ```
 vkgym/
-├── server.js                     # Express sunucu — /api/* endpoint'ler + dist/ static + SPA fallback
-├── render.yaml                   # Render.com Web Service config (Node 20, free plan)
+├── functions/api/                # Cloudflare Pages Functions (serverless, edge)
+│   ├── cp-news.js                # CryptoCompare News (env.CRYPTOCOMPARE_API_KEY fallback)
+│   ├── news.js                   # Multi-source RSS feed parser
+│   ├── fetch-url.js              # URL scraper (Jina AI fallback)
+│   └── chat.js                   # Claude API proxy (legacy)
+├── public/_redirects             # SPA fallback (/* → /index.html 200)
 │
 ├── src/
 │   ├── main.jsx                  # React entry point
@@ -213,8 +217,8 @@ CalendarView bileşeni `calendarDateSelect` custom window event'i ile ay görün
 CryptoCompare API                  RSS Feeds (CoinDesk, CoinTelegraph...)
        ↓                                          ↓
   /api/cp-news?key=...                      /api/news
-  (key: localStorage → query param)    (Vite middleware / Express route)
-  (fallback: Render env var)                    ↓
+  (key: localStorage → query param)    (Vite middleware / Pages Function)
+  (fallback: Cloudflare env binding)            ↓
        ↓                                  AI/Tech sınıflandırma
   fetchCPNews(apiKey)                     (isAiTech keyword check)
        ↓                                          ↓
@@ -238,10 +242,10 @@ CryptoCompare API                  RSS Feeds (CoinDesk, CoinTelegraph...)
 1. Kullanıcı Ayarlar → CryptoCompare API Key alanına key girer
 2. `localStorage['vkgym_cc_key']` olarak saklanır
 3. `ContentView.loadCPNews()` → `fetchCPNews(key)` → `/api/cp-news?key=<key>`
-4. `server.js` `/api/cp-news` handler: `req.query.key || process.env.CRYPTOCOMPARE_API_KEY`
+4. `functions/api/cp-news.js` `onRequestGet`: `searchParams.get('key') || env.CRYPTOCOMPARE_API_KEY`
 5. Dev ortamında `vite.config.js` middleware de aynı önceliği uygular
 
-### 7.2 URL Scraper Katmanları (`server.js` → `/api/fetch-url`)
+### 7.2 URL Scraper Katmanları (`functions/api/fetch-url.js`)
 1. Doğrudan fetch (browser headers)
 2. Cloudflare tespit → **Jina AI fallback** (`https://r.jina.ai/{url}`)
 3. `blocked: true` flag döner → ContentView sarı uyarı + URL kopyala
@@ -280,19 +284,19 @@ const handleTouchEnd = (e) => {
 
 ---
 
-## 9. API Katmanı (Express / Render Web Service)
+## 9. API Katmanı (Cloudflare Pages Functions)
 
-`server.js` tek bir Express sunucusu — hem `/api/*` route'larını handle eder hem `dist/` static dosyalarını serve eder. Frontend'in `fetch('/api/...')` çağrıları aynen çalışır (path değişmedi). Render.com free tier; 15 dakika inaktivite sonrası uyur (cold start ~30-60 sn).
+`functions/api/*.js` dosyaları otomatik olarak `/api/*` route'larına bağlanır. Web Fetch API formatında handler'lar (`onRequestGet` / `onRequestPost`) → standart `Response` döner. Cloudflare edge'de çalıştığı için **cold start yok** (V8 isolate, ms cinsinden başlar). Free tier: 100k istek/gün.
 
 | Endpoint | Dosya | Yöntem | Açıklama |
 |---|---|---|---|
-| `/api/cp-news` | `server.js` (Express route) | GET | CryptoCompare News, `?key=` query param önce, env var fallback |
-| `/api/news` | `server.js` (Express route) | GET | Multi-source RSS (CoinDesk, CoinTelegraph, Decrypt, TheBlock) |
-| `/api/fetch-url` | `server.js` (Express route) | POST `{url}` | URL içerik kazıyıcı, Jina AI fallback |
-| `/api/chat` | `server.js` (Express route) | POST | Claude API proxy (legacy) |
+| `/api/cp-news` | `functions/api/cp-news.js` | GET | CryptoCompare News, `?key=` query param önce, env binding fallback |
+| `/api/news` | `functions/api/news.js` | GET | Multi-source RSS (CoinDesk, CoinTelegraph, Decrypt, TheBlock) — edge cache 5 dk |
+| `/api/fetch-url` | `functions/api/fetch-url.js` | POST `{url}` | URL içerik kazıyıcı, Jina AI fallback |
+| `/api/chat` | `functions/api/chat.js` | POST | Claude API proxy (legacy) |
 
 **Dev ortamında** bu endpoint'ler `vite.config.js` içindeki middleware olarak çalışır.  
-**Production'da** Render.com Web Service olarak deploy edilir; `npm start` (`node server.js`) çalışır, `dist/` Vite build'i Express ile serve edilir. Göç tarihçesi: Vercel → (kısa Netlify denemesi) → Render. Env var'lar Render Dashboard'da tutulur, hack sonrası rotate edildi.
+**Production'da** Cloudflare Pages olarak deploy edilir; static `dist/` CDN'den serve edilir, `functions/api/*` edge'de Pages Functions olarak çalışır. Göç tarihçesi: Vercel (hack) → Netlify (denendi, ücretli) → Render (cold start sorunu) → **Cloudflare Pages**. Env binding'leri Cloudflare Dashboard'da tutulur, hack sonrası tüm key'ler rotate edildi.
 
 ---
 
@@ -303,8 +307,8 @@ const handleTouchEnd = (e) => {
 
 | Değişken | Nerede kullanılır | Nerede saklanır |
 |---|---|---|
-| `CRYPTOCOMPARE_API_KEY` | `server.js` `/api/cp-news` (fallback) | Render Dashboard + `.env` |
-| `ANTHROPIC_API_KEY` | `server.js` `/api/chat` | Render Dashboard + `.env` |
+| `CRYPTOCOMPARE_API_KEY` | `functions/api/cp-news.js` (fallback) | Cloudflare Dashboard env binding + `.env` |
+| `ANTHROPIC_API_KEY` | `functions/api/chat.js` | Cloudflare Dashboard env binding + `.env` |
 | `GEMINI_API_KEY` | Frontend localStorage (`vkgym_gemini_key`) | Kullanıcı Ayarlar'dan girer |
 | `CC_API_KEY` | Frontend localStorage (`vkgym_cc_key`) | Kullanıcı Ayarlar'dan girer |
 

@@ -1,16 +1,22 @@
-// Vercel Serverless Function — Claude API Proxy
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
+// Netlify Function — Claude API Proxy
+const json = (statusCode, body) => ({
+  statusCode,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+});
+
+export const handler = async (event) => {
+  if (event.httpMethod !== 'POST') {
+    return json(405, { error: 'Method Not Allowed' });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
+    return json(500, { error: 'ANTHROPIC_API_KEY not configured' });
   }
 
   try {
-    const { system, messages } = req.body;
+    const { system, messages } = JSON.parse(event.body || '{}');
 
     const upstream = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -28,13 +34,8 @@ export default async function handler(req, res) {
     });
 
     const data = await upstream.json();
-
-    if (!upstream.ok) {
-      return res.status(upstream.status).json(data);
-    }
-
-    return res.status(200).json(data);
+    return json(upstream.ok ? 200 : upstream.status, data);
   } catch (e) {
-    return res.status(500).json({ error: e.message });
+    return json(500, { error: e.message });
   }
-}
+};

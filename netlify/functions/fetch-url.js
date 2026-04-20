@@ -1,4 +1,4 @@
-// Vercel Serverless Function — URL Content Scraper
+// Netlify Function — URL Content Scraper
 // Strategy: direct fetch → Jina AI reader fallback → error
 
 const BROWSER_HEADERS = {
@@ -14,7 +14,6 @@ const BROWSER_HEADERS = {
   'Upgrade-Insecure-Requests': '1',
 };
 
-// Detects if response is a Cloudflare/bot challenge page, not real content
 function isBlockedResponse(html, status) {
   if (status === 403 || status === 429) return true;
   if (!html || html.length < 500) return true;
@@ -96,46 +95,44 @@ async function fetchDirect(url) {
 }
 
 async function fetchViaJina(url) {
-  // Jina AI Reader — free, no API key, handles JS-heavy and CF-protected pages
   const jinaUrl = `https://r.jina.ai/${url}`;
   const response = await fetch(jinaUrl, {
-    headers: {
-      'Accept': 'text/plain',
-      'X-Return-Format': 'text',
-    },
+    headers: { 'Accept': 'text/plain', 'X-Return-Format': 'text' },
   });
   if (!response.ok) return null;
   const text = await response.text();
   return text && text.length > 200 ? text.slice(0, 4000) : null;
 }
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
+const json = (statusCode, body) => ({
+  statusCode,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+});
+
+export const handler = async (event) => {
+  if (event.httpMethod !== 'POST') {
+    return json(405, { error: 'Method Not Allowed' });
   }
 
-  const { url } = req.body;
-  if (!url) {
-    return res.status(400).json({ error: 'URL required' });
+  let url;
+  try {
+    ({ url } = JSON.parse(event.body || '{}'));
+  } catch {
+    return json(400, { error: 'Invalid JSON body' });
   }
+
+  if (!url) return json(400, { error: 'URL required' });
 
   try {
-    // 1) Try direct fetch with browser-like headers
     const direct = await fetchDirect(url);
-    if (direct) {
-      return res.status(200).json({ text: direct, method: 'direct', blocked: false });
-    }
+    if (direct) return json(200, { text: direct, method: 'direct', blocked: false });
 
-    // 2) Fallback: Jina AI Reader (bypasses CF and JS challenges)
     const jina = await fetchViaJina(url);
-    if (jina) {
-      return res.status(200).json({ text: jina, method: 'jina', blocked: false });
-    }
+    if (jina) return json(200, { text: jina, method: 'jina', blocked: false });
 
-    // 3) All methods failed — signal blocked
-    return res.status(200).json({ text: null, method: null, blocked: true });
-
+    return json(200, { text: null, method: null, blocked: true });
   } catch (e) {
-    return res.status(500).json({ error: e.message });
+    return json(500, { error: e.message });
   }
-}
+};

@@ -24,7 +24,7 @@ VK-Habbit, iki ana iş birimini tek PWA çatısı altında birleştiren kişisel
 | Tarih | date-fns |
 | AI | Google Gemini API (gemini-2.5-flash, fallback: 2.0-flash, 2.5-flash-lite) |
 | Depolama | localStorage (backend yok) |
-| Deploy | Vercel (Serverless Functions + Static) |
+| Deploy | Netlify (Functions + Static) |
 | PWA | Service Worker, manifest, auto-update |
 
 ---
@@ -33,11 +33,12 @@ VK-Habbit, iki ana iş birimini tek PWA çatısı altında birleştiren kişisel
 
 ```
 vkgym/
-├── api/                          # Vercel Serverless Functions
-│   ├── cp-news.js                # CryptoCompare News API proxy (req.query.key || env var)
+├── netlify/functions/            # Netlify Functions (serverless)
+│   ├── cp-news.js                # CryptoCompare News API proxy (event.queryStringParameters.key || env var)
 │   ├── news.js                   # Multi-source RSS feed parser
 │   ├── fetch-url.js              # URL scraper (Jina AI fallback)
 │   └── chat.js                   # Claude API proxy (legacy)
+├── netlify.toml                  # Netlify build + redirect config (/api/* → /.netlify/functions/*)
 │
 ├── src/
 │   ├── main.jsx                  # React entry point
@@ -216,8 +217,8 @@ CalendarView bileşeni `calendarDateSelect` custom window event'i ile ay görün
 CryptoCompare API                  RSS Feeds (CoinDesk, CoinTelegraph...)
        ↓                                          ↓
   /api/cp-news?key=...                      /api/news
-  (key: localStorage → query param)    (Vite middleware / Vercel)
-  (fallback: Vercel env var)                    ↓
+  (key: localStorage → query param)    (Vite middleware / Netlify Function)
+  (fallback: Netlify env var)                   ↓
        ↓                                  AI/Tech sınıflandırma
   fetchCPNews(apiKey)                     (isAiTech keyword check)
        ↓                                          ↓
@@ -241,10 +242,10 @@ CryptoCompare API                  RSS Feeds (CoinDesk, CoinTelegraph...)
 1. Kullanıcı Ayarlar → CryptoCompare API Key alanına key girer
 2. `localStorage['vkgym_cc_key']` olarak saklanır
 3. `ContentView.loadCPNews()` → `fetchCPNews(key)` → `/api/cp-news?key=<key>`
-4. `api/cp-news.js`: `req.query.key || process.env.CRYPTOCOMPARE_API_KEY`
+4. `netlify/functions/cp-news.js`: `event.queryStringParameters?.key || process.env.CRYPTOCOMPARE_API_KEY`
 5. Dev ortamında `vite.config.js` middleware de aynı önceliği uygular
 
-### 7.2 URL Scraper Katmanları (`api/fetch-url.js`)
+### 7.2 URL Scraper Katmanları (`netlify/functions/fetch-url.js`)
 1. Doğrudan fetch (browser headers)
 2. Cloudflare tespit → **Jina AI fallback** (`https://r.jina.ai/{url}`)
 3. `blocked: true` flag döner → ContentView sarı uyarı + URL kopyala
@@ -283,17 +284,19 @@ const handleTouchEnd = (e) => {
 
 ---
 
-## 9. API Katmanı (Vercel Serverless)
+## 9. API Katmanı (Netlify Functions)
+
+`netlify.toml` içindeki redirect kuralı `/api/*` → `/.netlify/functions/:splat` ile frontend'in `fetch('/api/...')` çağrıları aynen çalışır. Function imzası Netlify formatındadır (`event` argümanı, `{ statusCode, headers, body }` dönüşü).
 
 | Endpoint | Dosya | Yöntem | Açıklama |
 |---|---|---|---|
-| `/api/cp-news` | `api/cp-news.js` | GET | CryptoCompare News, `?key=` query param önce, env var fallback |
-| `/api/news` | `api/news.js` | GET | Multi-source RSS (CoinDesk, CoinTelegraph, Decrypt, TheBlock) |
-| `/api/fetch-url` | `api/fetch-url.js` | POST `{url}` | URL içerik kazıyıcı, Jina AI fallback |
-| `/api/chat` | `api/chat.js` | POST | Claude API proxy (legacy) |
+| `/api/cp-news` | `netlify/functions/cp-news.js` | GET | CryptoCompare News, `?key=` query param önce, env var fallback |
+| `/api/news` | `netlify/functions/news.js` | GET | Multi-source RSS (CoinDesk, CoinTelegraph, Decrypt, TheBlock) |
+| `/api/fetch-url` | `netlify/functions/fetch-url.js` | POST `{url}` | URL içerik kazıyıcı, Jina AI fallback |
+| `/api/chat` | `netlify/functions/chat.js` | POST | Claude API proxy (legacy) |
 
 **Dev ortamında** bu endpoint'ler `vite.config.js` içindeki middleware olarak çalışır.  
-**Production'da** aynı dosyalar Vercel Serverless Function olarak deploy edilir.
+**Production'da** aynı endpoint'ler Netlify Functions olarak deploy edilir (`netlify/functions/` klasöründen). Vercel'den göç edildi (güvenlik incident'ı sonrası); eski `api/` klasörü silindi, env var'lar rotate edildi.
 
 ---
 
@@ -304,8 +307,8 @@ const handleTouchEnd = (e) => {
 
 | Değişken | Nerede kullanılır | Nerede saklanır |
 |---|---|---|
-| `CRYPTOCOMPARE_API_KEY` | `api/cp-news.js` (fallback) | Vercel Dashboard + `.env` |
-| `ANTHROPIC_API_KEY` | `api/chat.js` | Vercel Dashboard + `.env` |
+| `CRYPTOCOMPARE_API_KEY` | `netlify/functions/cp-news.js` (fallback) | Netlify Dashboard + `.env` |
+| `ANTHROPIC_API_KEY` | `netlify/functions/chat.js` | Netlify Dashboard + `.env` |
 | `GEMINI_API_KEY` | Frontend localStorage (`vkgym_gemini_key`) | Kullanıcı Ayarlar'dan girer |
 | `CC_API_KEY` | Frontend localStorage (`vkgym_cc_key`) | Kullanıcı Ayarlar'dan girer |
 

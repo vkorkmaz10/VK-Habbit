@@ -1,7 +1,5 @@
-// Vercel Serverless Function — CryptoCompare News API
-// Docs: https://min-api.cryptocompare.com/documentation?key=News&cat=latestNewsArticles
-//
-// Required env var (Vercel Dashboard → Settings → Environment Variables):
+// Netlify Function — CryptoCompare News API
+// Required env var (Netlify Dashboard → Site settings → Environment variables):
 //   CRYPTOCOMPARE_API_KEY
 
 const AI_KEYWORDS = [
@@ -16,7 +14,6 @@ function isAiTech(title) {
   return AI_KEYWORDS.some(kw => t.includes(kw));
 }
 
-// Normalize CryptoCompare sentiment values to lowercase
 function normalizeSentiment(val) {
   if (!val) return 'neutral';
   const v = val.toLowerCase();
@@ -25,12 +22,18 @@ function normalizeSentiment(val) {
   return 'neutral';
 }
 
-export default async function handler(req, res) {
-  const apiKey = req.query?.key || process.env.CRYPTOCOMPARE_API_KEY;
+const json = (statusCode, body) => ({
+  statusCode,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+});
+
+export const handler = async (event) => {
+  const apiKey = event.queryStringParameters?.key || process.env.CRYPTOCOMPARE_API_KEY;
 
   if (!apiKey) {
-    return res.status(503).json({
-      error: 'CRYPTOCOMPARE_API_KEY not configured. Set it in Vercel environment variables.',
+    return json(503, {
+      error: 'CRYPTOCOMPARE_API_KEY not configured. Set it in Netlify environment variables.',
     });
   }
 
@@ -45,8 +48,8 @@ export default async function handler(req, res) {
       throw new Error(`CryptoCompare API ${response.status}: ${body}`);
     }
 
-    const json = await response.json();
-    const articles = json.Data || [];
+    const data = await response.json();
+    const articles = data.Data || [];
 
     const items = articles.slice(0, 20).map((news) => ({
       id: `cc_${news.id}`,
@@ -59,8 +62,8 @@ export default async function handler(req, res) {
       sentiment: normalizeSentiment(news.sentiment),
     }));
 
-    return res.status(200).json({ items });
+    return json(200, { items });
   } catch (e) {
-    return res.status(500).json({ error: e.message });
+    return json(500, { error: e.message });
   }
-}
+};

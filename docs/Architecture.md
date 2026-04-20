@@ -24,7 +24,7 @@ VK-Habbit, iki ana iş birimini tek PWA çatısı altında birleştiren kişisel
 | Tarih | date-fns |
 | AI | Google Gemini API (gemini-2.5-flash, fallback: 2.0-flash, 2.5-flash-lite) |
 | Depolama | localStorage (backend yok) |
-| Deploy | Netlify (Functions + Static) |
+| Deploy | Render.com (Web Service: Express + Static dist/) |
 | PWA | Service Worker, manifest, auto-update |
 
 ---
@@ -33,12 +33,8 @@ VK-Habbit, iki ana iş birimini tek PWA çatısı altında birleştiren kişisel
 
 ```
 vkgym/
-├── netlify/functions/            # Netlify Functions (serverless)
-│   ├── cp-news.js                # CryptoCompare News API proxy (event.queryStringParameters.key || env var)
-│   ├── news.js                   # Multi-source RSS feed parser
-│   ├── fetch-url.js              # URL scraper (Jina AI fallback)
-│   └── chat.js                   # Claude API proxy (legacy)
-├── netlify.toml                  # Netlify build + redirect config (/api/* → /.netlify/functions/*)
+├── server.js                     # Express sunucu — /api/* endpoint'ler + dist/ static + SPA fallback
+├── render.yaml                   # Render.com Web Service config (Node 20, free plan)
 │
 ├── src/
 │   ├── main.jsx                  # React entry point
@@ -217,8 +213,8 @@ CalendarView bileşeni `calendarDateSelect` custom window event'i ile ay görün
 CryptoCompare API                  RSS Feeds (CoinDesk, CoinTelegraph...)
        ↓                                          ↓
   /api/cp-news?key=...                      /api/news
-  (key: localStorage → query param)    (Vite middleware / Netlify Function)
-  (fallback: Netlify env var)                   ↓
+  (key: localStorage → query param)    (Vite middleware / Express route)
+  (fallback: Render env var)                    ↓
        ↓                                  AI/Tech sınıflandırma
   fetchCPNews(apiKey)                     (isAiTech keyword check)
        ↓                                          ↓
@@ -242,10 +238,10 @@ CryptoCompare API                  RSS Feeds (CoinDesk, CoinTelegraph...)
 1. Kullanıcı Ayarlar → CryptoCompare API Key alanına key girer
 2. `localStorage['vkgym_cc_key']` olarak saklanır
 3. `ContentView.loadCPNews()` → `fetchCPNews(key)` → `/api/cp-news?key=<key>`
-4. `netlify/functions/cp-news.js`: `event.queryStringParameters?.key || process.env.CRYPTOCOMPARE_API_KEY`
+4. `server.js` `/api/cp-news` handler: `req.query.key || process.env.CRYPTOCOMPARE_API_KEY`
 5. Dev ortamında `vite.config.js` middleware de aynı önceliği uygular
 
-### 7.2 URL Scraper Katmanları (`netlify/functions/fetch-url.js`)
+### 7.2 URL Scraper Katmanları (`server.js` → `/api/fetch-url`)
 1. Doğrudan fetch (browser headers)
 2. Cloudflare tespit → **Jina AI fallback** (`https://r.jina.ai/{url}`)
 3. `blocked: true` flag döner → ContentView sarı uyarı + URL kopyala
@@ -284,19 +280,19 @@ const handleTouchEnd = (e) => {
 
 ---
 
-## 9. API Katmanı (Netlify Functions)
+## 9. API Katmanı (Express / Render Web Service)
 
-`netlify.toml` içindeki redirect kuralı `/api/*` → `/.netlify/functions/:splat` ile frontend'in `fetch('/api/...')` çağrıları aynen çalışır. Function imzası Netlify formatındadır (`event` argümanı, `{ statusCode, headers, body }` dönüşü).
+`server.js` tek bir Express sunucusu — hem `/api/*` route'larını handle eder hem `dist/` static dosyalarını serve eder. Frontend'in `fetch('/api/...')` çağrıları aynen çalışır (path değişmedi). Render.com free tier; 15 dakika inaktivite sonrası uyur (cold start ~30-60 sn).
 
 | Endpoint | Dosya | Yöntem | Açıklama |
 |---|---|---|---|
-| `/api/cp-news` | `netlify/functions/cp-news.js` | GET | CryptoCompare News, `?key=` query param önce, env var fallback |
-| `/api/news` | `netlify/functions/news.js` | GET | Multi-source RSS (CoinDesk, CoinTelegraph, Decrypt, TheBlock) |
-| `/api/fetch-url` | `netlify/functions/fetch-url.js` | POST `{url}` | URL içerik kazıyıcı, Jina AI fallback |
-| `/api/chat` | `netlify/functions/chat.js` | POST | Claude API proxy (legacy) |
+| `/api/cp-news` | `server.js` (Express route) | GET | CryptoCompare News, `?key=` query param önce, env var fallback |
+| `/api/news` | `server.js` (Express route) | GET | Multi-source RSS (CoinDesk, CoinTelegraph, Decrypt, TheBlock) |
+| `/api/fetch-url` | `server.js` (Express route) | POST `{url}` | URL içerik kazıyıcı, Jina AI fallback |
+| `/api/chat` | `server.js` (Express route) | POST | Claude API proxy (legacy) |
 
 **Dev ortamında** bu endpoint'ler `vite.config.js` içindeki middleware olarak çalışır.  
-**Production'da** aynı endpoint'ler Netlify Functions olarak deploy edilir (`netlify/functions/` klasöründen). Vercel'den göç edildi (güvenlik incident'ı sonrası); eski `api/` klasörü silindi, env var'lar rotate edildi.
+**Production'da** Render.com Web Service olarak deploy edilir; `npm start` (`node server.js`) çalışır, `dist/` Vite build'i Express ile serve edilir. Göç tarihçesi: Vercel → (kısa Netlify denemesi) → Render. Env var'lar Render Dashboard'da tutulur, hack sonrası rotate edildi.
 
 ---
 
@@ -307,8 +303,8 @@ const handleTouchEnd = (e) => {
 
 | Değişken | Nerede kullanılır | Nerede saklanır |
 |---|---|---|
-| `CRYPTOCOMPARE_API_KEY` | `netlify/functions/cp-news.js` (fallback) | Netlify Dashboard + `.env` |
-| `ANTHROPIC_API_KEY` | `netlify/functions/chat.js` | Netlify Dashboard + `.env` |
+| `CRYPTOCOMPARE_API_KEY` | `server.js` `/api/cp-news` (fallback) | Render Dashboard + `.env` |
+| `ANTHROPIC_API_KEY` | `server.js` `/api/chat` | Render Dashboard + `.env` |
 | `GEMINI_API_KEY` | Frontend localStorage (`vkgym_gemini_key`) | Kullanıcı Ayarlar'dan girer |
 | `CC_API_KEY` | Frontend localStorage (`vkgym_cc_key`) | Kullanıcı Ayarlar'dan girer |
 

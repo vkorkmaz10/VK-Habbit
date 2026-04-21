@@ -84,7 +84,9 @@ const REACHOS_DIRECTIVES = `
 - Link varsa SADECE en sona koy. Metnin ortasındaki link erişimi düşürür.
 - Hashtag kullanma; zorunluysa maksimum 1 tane.
 - Yapay/AI tarzı ifadeler yasak: "delve into", "leverage", "navigate the landscape", "in conclusion", "bilindiği üzere", "en nihayetinde", "söylenebilir ki", "değerlendirildiğinde".
-- Karakter aralığı 140-275 arası tercih edilir. Çok kısa = düşük etkileşim, çok uzun = scroll edilir.
+- Karakter aralığı: SWEET SPOT 71-110 (en yüksek etkileşim), İYİ 111-280 (bağlamlı içerik). Hesap Premium olduğu için 280 sınırı YOK ama uzatma diye padding/giriş cümlesi/tekrar yasak.
+- 280'i AŞARSAN: ilk 280 karakter "Daha fazla göster" kesim noktasıdır → o kısım stand-alone okutmalı (hook + ana fikir). Devamı sadece DEĞER eklerse yaz (somut veri, açıklayıcı örnek). Boş yere uzatma.
+- 700+ karakter gerekiyorsa thread'e böl, tek tweet olarak gönderme.
 - Doğal CTA: "Sence?", "Ne düşünüyorsun?", "Kaydet" — forced değil, organik.
 - Uzun tweet'lerde okunabilirlik için satır boşluğu bırak.
 - ALL CAPS spam yok (sadece coin tickerları büyük kalabilir: BTC, ETH).
@@ -127,10 +129,11 @@ ${cfg.toneDesc}
 
 FORMAT KURALLARI:
 - Türkçe yaz, her zaman
-- Maksimum 280 karakter
+- Hedef uzunluk: 71-280 karakter (ideal). Hesap Premium → sert 280 sınırı yok, ama UZUNLUK İÇİN UZATMA YASAK. Sadece içerik gerçekten daha uzun açıklamayı hak ediyorsa 280-560 arası yazabilirsin.
+- 560+ yazma; o noktada thread daha doğru.
 - Yapı: güçlü açılış → ana insight → çatışma/nüans → yumuşak sonuç
 - Maksimum 1 emoji
-- Gereksiz giriş cümlesi yok
+- Gereksiz giriş cümlesi yok ("Bugün size...", "Şunu söyleyeyim ki..." gibi padding yasak)
 - Hashtag spam yok
 ${REACHOS_DIRECTIVES}${goldenExamples}`;
 }

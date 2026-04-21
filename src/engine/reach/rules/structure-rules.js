@@ -6,6 +6,8 @@ export const characterLengthRule = {
   category: 'structure',
   evaluate: (input) => {
     const len = input.text.length;
+    // Premium-aware: 280 hard limit yok ama "Daha fazla göster" kesim noktası hala 280.
+    // 71-110 gerçek sweet spot (kanıtlanmış %17 boost). 280-560 arası içerik haklıysa OK.
     if (len < 30) {
       return { ruleId: 'structure-char-length', triggered: true, points: -5, severity: 'warning', suggestion: 'Çok kısa — bağlam veya detay ekle.' };
     }
@@ -16,19 +18,38 @@ export const characterLengthRule = {
       return { ruleId: 'structure-char-length', triggered: true, points: 7, severity: 'positive', suggestion: 'Optimal tweet uzunluğu — 71-110 karakter %17 daha fazla etkileşim alır.' };
     }
     if (len <= 200) {
-      return { ruleId: 'structure-char-length', triggered: true, points: 4, severity: 'positive', suggestion: 'Bağlamlı içerik için iyi uzunluk.' };
+      return { ruleId: 'structure-char-length', triggered: true, points: 5, severity: 'positive', suggestion: 'Bağlamlı içerik için iyi uzunluk.' };
     }
     if (len <= 280) {
-      return { ruleId: 'structure-char-length', triggered: true, points: 1, severity: 'info' };
+      return { ruleId: 'structure-char-length', triggered: true, points: 4, severity: 'info', suggestion: '"Daha fazla göster" sınırına yakın — ilk 280 karakter stand-alone okutmalı.' };
     }
+    if (len <= 560) {
+      // Premium long-form: hafif pozitif (içerik haklıysa) ama "see more" cezası var
+      return {
+        ruleId: 'structure-char-length', triggered: true,
+        points: input.hasMedia ? 2 : 0,
+        severity: 'info',
+        suggestion: 'Premium long-form. İlk 280 karakterin (hook + ana fikir) stand-alone okutması şart — devamı sadece somut veri/örnek eklediği için var olmalı.',
+      };
+    }
+    if (len <= 900) {
+      if (input.isThread) {
+        return { ruleId: 'structure-char-length', triggered: false, points: 0, severity: 'info' };
+      }
+      return {
+        ruleId: 'structure-char-length', triggered: true,
+        points: input.hasMedia ? -2 : -4,
+        severity: 'warning',
+        suggestion: 'Çok uzun — bu noktada thread daha güçlü erişim alır. Tek tweet 560 karakteri geçmesin.',
+      };
+    }
+    // 900+
     if (!input.isThread) {
       return {
         ruleId: 'structure-char-length', triggered: true,
-        points: input.hasMedia ? -2 : -6,
-        severity: input.hasMedia ? 'info' : 'warning',
-        suggestion: input.hasMedia
-          ? 'Görselli uzun metin — genelde sorun değil.'
-          : '"Daha fazla göster" %40-60 etkileşim öldürür — thread\'e böl.',
+        points: -6,
+        severity: 'warning',
+        suggestion: 'Tweet için fazla uzun — mutlaka thread\'e böl.',
       };
     }
     return { ruleId: 'structure-char-length', triggered: false, points: 0, severity: 'info' };

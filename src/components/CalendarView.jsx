@@ -1,7 +1,14 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { Plus, X, Calendar, Clock, Video, Link2, Trash2, ExternalLink, ChevronLeft, ChevronRight, RefreshCw, LogOut } from 'lucide-react';
+import { Plus, X, Calendar, Clock, Video, Link2, Trash2, ExternalLink, ChevronLeft, ChevronRight, RefreshCw, UserPlus } from 'lucide-react';
 import { getCalendarEvents, addCalendarEvent, removeCalendarEvent } from '../utils/storage';
-import { initiateGoogleLogin, getStoredToken, clearGoogleToken, fetchGoogleEvents } from '../utils/googleCalendar';
+import {
+  getAccounts,
+  addAccount as addGoogleAccount,
+  removeAccount as removeGoogleAccount,
+  fetchGoogleEvents,
+  startTokenRefresher,
+  stopTokenRefresher,
+} from '../utils/googleCalendar';
 import { getActiveDateString } from '../utils/date';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, addDays, isSameMonth, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -25,10 +32,12 @@ export default function CalendarView({ selectedDateStr, onDataChange }) {
   const [snackbar, setSnackbar] = useState(null);
   const snackbarTimer = useRef(null);
 
-  // Google Calendar state
-  const [googleConnected, setGoogleConnected] = useState(!!getStoredToken());
+  // Google Calendar state — multi-account
+  const [accounts, setAccounts] = useState(() => getAccounts());
   const [googleEvents, setGoogleEvents] = useState([]);
   const [syncing, setSyncing] = useState(false);
+  const [accountMenuFor, setAccountMenuFor] = useState(null); // email → show remove menu
+  const googleConnected = accounts.length > 0;
 
   // Form state
   const [formTitle, setFormTitle] = useState('');
@@ -64,10 +73,9 @@ export default function CalendarView({ selectedDateStr, onDataChange }) {
     }
   }, [showAddModal]);
 
-  // Fetch Google events when date changes or after login
+  // Fetch Google events (multi-account merge)
   const syncGoogleEvents = useCallback(async () => {
-    const token = getStoredToken();
-    if (!token) {
+    if (accounts.length === 0) {
       setGoogleEvents([]);
       return;
     }
@@ -80,28 +88,39 @@ export default function CalendarView({ selectedDateStr, onDataChange }) {
       setGoogleEvents([]);
     }
     setSyncing(false);
-  }, [selectedDateStr]);
+  }, [selectedDateStr, accounts.length]);
 
   useEffect(() => {
-    if (googleConnected) {
-      syncGoogleEvents();
-    }
-  }, [googleConnected, syncGoogleEvents]);
+    syncGoogleEvents();
+  }, [syncGoogleEvents]);
+
+  // Listen to account changes (add/remove from this or other tabs)
+  useEffect(() => {
+    const onChange = () => setAccounts(getAccounts());
+    window.addEventListener('vkgym_google_accounts_changed', onChange);
+    return () => window.removeEventListener('vkgym_google_accounts_changed', onChange);
+  }, []);
+
+  // Start proactive token refresher
+  useEffect(() => {
+    startTokenRefresher();
+    return () => stopTokenRefresher();
+  }, []);
 
   // ======= Google Auth Handlers =======
-  const handleGoogleConnect = async () => {
+  const handleAddAccount = async () => {
     try {
-      await initiateGoogleLogin();
-      setGoogleConnected(true);
+      await addGoogleAccount();
+      setAccounts(getAccounts());
     } catch (e) {
-      console.error('Google login error:', e);
+      console.error('Google add account error:', e);
     }
   };
 
-  const handleGoogleDisconnect = () => {
-    clearGoogleToken();
-    setGoogleConnected(false);
-    setGoogleEvents([]);
+  const handleRemoveAccount = (email) => {
+    removeGoogleAccount(email);
+    setAccounts(getAccounts());
+    setAccountMenuFor(null);
   };
 
   // ======= Month Calendar Grid =======
@@ -177,10 +196,10 @@ export default function CalendarView({ selectedDateStr, onDataChange }) {
   return (
     <div className="fade-in" style={{ position: 'relative', minHeight: '60vh' }}>
 
-      {/* ========== Google Connect Section ========== */}
+      {/* ========== Google Accounts (multi) ========== */}
       <div className="glass-card cal-google-section" style={{ marginBottom: '12px' }}>
         {!googleConnected ? (
-          <button className="cal-google-btn" onClick={handleGoogleConnect}>
+          <button className="cal-google-btn" onClick={handleAddAccount}>
             <svg viewBox="0 0 24 24" width="18" height="18" style={{ marginRight: '8px' }}>
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -190,28 +209,56 @@ export default function CalendarView({ selectedDateStr, onDataChange }) {
             Google Takvim'e Bağlan
           </button>
         ) : (
-          <div className="cal-google-connected">
-            <div className="cal-google-info">
-              <div className="cal-google-dot" />
-              <span>Google Takvim Bağlı</span>
-            </div>
-            <div style={{ display: 'flex', gap: '6px' }}>
+          <div className="cal-google-accounts-row">
+            <div className="cal-google-avatars">
+              {accounts.map(acc => (
+                <div key={acc.email} className="cal-google-avatar-wrap">
+                  <button
+                    type="button"
+                    className="cal-google-avatar"
+                    style={{ borderColor: acc.color }}
+                    onClick={() => setAccountMenuFor(accountMenuFor === acc.email ? null : acc.email)}
+                    title={acc.email}
+                  >
+                    {acc.picture
+                      ? <img src={acc.picture} alt={acc.name} />
+                      : <span>{(acc.name || acc.email)[0].toUpperCase()}</span>}
+                    <span className="cal-google-avatar-dot" style={{ background: acc.color }} />
+                  </button>
+                  {accountMenuFor === acc.email && (
+                    <div className="cal-google-account-menu" onMouseLeave={() => setAccountMenuFor(null)}>
+                      <div className="cal-google-account-meta">
+                        <strong>{acc.name}</strong>
+                        <span>{acc.email}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="cal-google-account-remove"
+                        onClick={() => handleRemoveAccount(acc.email)}
+                      >
+                        <Trash2 size={12} /> Hesabı Kaldır
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
               <button
-                className="cal-sync-btn"
-                onClick={syncGoogleEvents}
-                disabled={syncing}
-                title="Senkronize Et"
+                type="button"
+                className="cal-google-add-btn"
+                onClick={handleAddAccount}
+                title="Hesap Ekle"
               >
-                <RefreshCw size={14} className={syncing ? 'cal-spin' : ''} />
-              </button>
-              <button
-                className="cal-disconnect-btn"
-                onClick={handleGoogleDisconnect}
-                title="Bağlantıyı Kes"
-              >
-                <LogOut size={14} />
+                <UserPlus size={14} />
               </button>
             </div>
+            <button
+              className="cal-sync-btn"
+              onClick={syncGoogleEvents}
+              disabled={syncing}
+              title="Senkronize Et"
+            >
+              <RefreshCw size={14} className={syncing ? 'cal-spin' : ''} />
+            </button>
           </div>
         )}
       </div>
@@ -267,13 +314,20 @@ export default function CalendarView({ selectedDateStr, onDataChange }) {
                 {/* Event card */}
                 <div
                   className={`cal-event-card glass-card ${isGoogleEvent ? 'cal-google-event' : ''}`}
-                  style={{ borderLeft: `3px solid ${typeConfig.color}` }}
+                  style={{ borderLeft: `3px solid ${isGoogleEvent && event.accountColor ? event.accountColor : typeConfig.color}` }}
                 >
                   <div className="cal-event-header">
                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                       <span className="cal-event-type-badge" style={{ background: `${typeConfig.color}20`, color: typeConfig.color }}>
                         {typeConfig.emoji} {typeConfig.label}
                       </span>
+                      {isGoogleEvent && event.accountColor && (
+                        <span
+                          className="cal-event-account-dot"
+                          style={{ background: event.accountColor }}
+                          title={event.accountEmail}
+                        />
+                      )}
                       {isGoogleEvent && (
                         <span className="cal-google-badge">
                           <svg viewBox="0 0 24 24" width="10" height="10">

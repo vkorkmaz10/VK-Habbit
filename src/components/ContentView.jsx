@@ -728,7 +728,7 @@ export default function ContentView() {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const handleSaveFeedback = (msg, original, edited) => {
+  const handleSaveFeedback = (msg, msgIdx, original, edited) => {
     if (!msg.vse) return;
     const entry = {
       newsTitle: msg.vse.newsTitle,
@@ -745,6 +745,17 @@ export default function ContentView() {
       entry.boostUsed = Array.isArray(msg.reachVersions) && msg.reachVersions.length > 0;
     }
     saveFeedback(entry);
+
+    // KRİTİK: messages array'i de güncelle — yoksa sayfa yenilemede eski içerik geri gelir
+    // ve sonraki düzenlemelerde "original" hep ilk versiyon olur (golden examples loop kırılır).
+    // Tweet için: original === full content → tam değişim
+    // Thread için: original === sadece bir blok → o bloğu değiştir
+    setMessages(prev => prev.map((m, i) => {
+      if (i !== msgIdx) return m;
+      if (m.content === original) return { ...m, content: edited };       // tweet
+      if (m.content.includes(original)) return { ...m, content: m.content.replace(original, edited) }; // thread block
+      return m;
+    }));
   };
 
   // ReachOS: Düşük skorlu tweet'i ikinci Gemini çağrısıyla iyileştir
@@ -892,7 +903,7 @@ export default function ContentView() {
                 msgIndex={i}
                 onCopy={handleCopy}
                 copied={copied}
-                onSaveFeedback={(original, edited) => handleSaveFeedback(msg, original, edited)}
+                onSaveFeedback={(original, edited) => handleSaveFeedback(msg, i, original, edited)}
                 onBoost={handleBoost}
                 onRevert={handleRevert}
                 boosting={boostingIdx}

@@ -127,6 +127,8 @@ ${CLASSIFICATION_BLOCK}
 [STIL: ${cfg.label.toUpperCase()}]:
 ${cfg.toneDesc}
 
+[KAYNAK ZORUNLULUĞU]: Sadece başlığa bakarak yazma. Haber içeriğindeki spesifik bilgiyi (sayı, tarih, isim, oran, alıntı) tweet'e taşı — en az bir somut veri olmalı. Genel/havada yorum yasak. Veri uydurmak kesinlikle yasak; içerikte yoksa kullanma.
+
 FORMAT KURALLARI:
 - Türkçe yaz, her zaman
 - Hedef uzunluk: 71-280 karakter (ideal). Hesap Premium → sert 280 sınırı yok, ama UZUNLUK İÇİN UZATMA YASAK. Sadece içerik gerçekten daha uzun açıklamayı hak ediyorsa 280-560 arası yazabilirsin.

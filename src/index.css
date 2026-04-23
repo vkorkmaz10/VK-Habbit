@@ -55,6 +55,7 @@
   .mobile-header { display: flex !important; }
   .main-scroll { padding-right: 0 !important; }
   .content-page-grid { grid-template-columns: 1fr !important; }
+  .page-title { display: none !important; }
 }
 
 * {

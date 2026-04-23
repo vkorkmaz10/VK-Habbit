@@ -214,7 +214,7 @@ export default function CalendarPage({ darkMode, selectedDateStr, setSelectedDat
     <div style={{ position: 'relative', minHeight: '60vh' }}>
 
       {/* Page header */}
-      <div style={{ marginBottom: 14 }}>
+      <div className="page-title" style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 22, fontWeight: 700, color: t.text, letterSpacing: '-0.5px' }}>Takvim</div>
         <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>Toplantılar ve etkinlikler</div>
       </div>

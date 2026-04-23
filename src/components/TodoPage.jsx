@@ -1,7 +1,7 @@
 // TodoPage — PersonaVK reskin of TodoView. Preserves all storage logic,
 // Pomodoro persistence, long-press edit, snackbar undo, FAB and modals.
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { Plus, X, Brain, Zap, Users, LayoutList, LayoutGrid, Trash2, RotateCcw, Play, Pause, Timer } from 'lucide-react';
+import { Plus, X, Brain, Zap, Users, Trash2, RotateCcw, Play, Pause, Timer } from 'lucide-react';
 import {
   getTodoTasks, addTodoTask, insertTodoTaskAt, updateTodoTask, removeTodoTask,
   getActivePomodoro, setActivePomodoro, clearActivePomodoro,
@@ -14,9 +14,9 @@ const ACCENT = '#00d4ff';
 const POMODORO_DURATION = 25 * 60;
 
 const MODE_CONFIG = {
-  quick:    { label: 'Hemen Hallet', icon: Zap,   emoji: '⚡' },
-  focus:    { label: 'Odaklan',      icon: Brain, emoji: '🧠' },
-  delegate: { label: 'Takip Et',     icon: Users, emoji: '👥' },
+  quick:    { label: 'Hemen',   shortLabel: 'Hemen',   icon: Zap,   emoji: '⚡' },
+  focus:    { label: 'Odaklan', shortLabel: 'Odaklan', icon: Brain, emoji: '🧠' },
+  delegate: { label: 'Takip Et', shortLabel: 'Takip Et', icon: Users, emoji: '👥' },
 };
 
 function playAlarmSound() {
@@ -50,7 +50,6 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
   const t = mkTheme(darkMode);
 
   const [activeMode, setActiveMode] = useState(null);
-  const [viewType, setViewType] = useState('list');
   const [fabOpen, setFabOpen] = useState(false);
   const [fabMode, setFabMode] = useState(null);
   const [newTaskText, setNewTaskText] = useState('');
@@ -106,7 +105,10 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
   const tasks = useMemo(() => getTodoTasks(selectedDateStr), [selectedDateStr, refreshTrigger]);
   const filteredTasks = useMemo(() => {
     const filtered = activeMode === null ? [...tasks] : tasks.filter(x => x.size === activeMode);
-    return [...filtered.filter(x => !x.done), ...filtered.filter(x => x.done)];
+    // Newest-first within each section: reverse insertion order; keep done at bottom.
+    const undone = filtered.filter(x => !x.done).reverse();
+    const done = filtered.filter(x => x.done).reverse();
+    return [...undone, ...done];
   }, [tasks, activeMode]);
 
   const startPomodoro = useCallback((taskId) => {
@@ -236,7 +238,7 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
     <div style={{ position: 'relative', minHeight: '60vh' }}>
 
       {/* Page header */}
-      <div style={{ marginBottom: 14 }}>
+      <div className="page-title" style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 22, fontWeight: 700, color: t.text, letterSpacing: '-0.5px' }}>To-Do</div>
         <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>Görevlerini organize et</div>
       </div>
@@ -248,44 +250,64 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
           onSelectDate={setSelectedDateStr}
           refreshTrigger={refreshTrigger}
           mode="todo"
+          showTitle={false}
+          darkMode={darkMode}
         />
       </div>
 
-      {/* Mode pills + view toggle + progress */}
+      {/* Category card: vertical list, label + progress bar per category */}
       <div style={{ ...cardBase, marginBottom: 14 }}>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-          {Object.entries(MODE_CONFIG).map(([key, cfg]) => (
-            <button
-              key={key}
-              onClick={() => setActiveMode(prev => prev === key ? null : key)}
-              style={modeBtn(activeMode === key)}
-            >
-              <span>{cfg.emoji}</span>
-              <span>{cfg.label}</span>
-            </button>
-          ))}
-          <button
-            onClick={() => setViewType(v => v === 'list' ? 'card' : 'list')}
-            style={iconBtn}
-            title={viewType === 'list' ? 'Kart Görünümü' : 'Liste Görünümü'}
-          >
-            {viewType === 'list' ? <LayoutGrid size={18} /> : <LayoutList size={18} />}
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span style={{ fontSize: 12, color: t.muted, letterSpacing: '0.5px' }}>
-            GÜN İLERLEME ({doneCount}/3 görev)
-          </span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: ACCENT }}>
-            {Math.round(progressPct)}%
-          </span>
-        </div>
-        <div style={{ height: 8, borderRadius: 8, background: t.progressTrack, overflow: 'hidden' }}>
-          <div style={{
-            height: '100%', width: `${progressPct}%`, background: ACCENT,
-            borderRadius: 8, transition: 'width 0.3s ease',
-          }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {Object.entries(MODE_CONFIG).map(([key, cfg]) => {
+            const inMode = tasks.filter(x => x.size === key);
+            const total = inMode.length;
+            const done = inMode.filter(x => x.done).length;
+            const pct = total === 0 ? 0 : (done / total) * 100;
+            const active = activeMode === key;
+            const fillColor = darkMode ? '#ffffff' : '#000000';
+            return (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button
+                  onClick={() => setActiveMode(prev => prev === key ? null : key)}
+                  style={{
+                    flexShrink: 0,
+                    minWidth: 96,
+                    padding: '8px 14px',
+                    borderRadius: 999,
+                    border: `1px solid ${active ? (darkMode ? '#fff' : '#000') : t.inputBorder}`,
+                    background: active ? (darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') : 'transparent',
+                    color: t.text,
+                    fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'background 0.15s, border-color 0.15s',
+                  }}
+                >
+                  {cfg.shortLabel}
+                </button>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                  <div style={{
+                    flex: 1, height: 6, borderRadius: 6,
+                    background: t.progressTrack, overflow: 'hidden',
+                  }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${pct}%`,
+                      background: fillColor,
+                      borderRadius: 6,
+                      transition: 'width 0.3s ease',
+                    }} />
+                  </div>
+                  <span style={{
+                    fontSize: 12, fontWeight: 600, color: t.muted,
+                    fontVariantNumeric: 'tabular-nums', minWidth: 28, textAlign: 'right',
+                  }}>
+                    {done}/{total}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -297,11 +319,7 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
           {!isPastDay && <p style={{ fontSize: 13, marginTop: 6 }}>Sağ alttaki + butonuna tıklayarak ekle.</p>}
         </div>
       ) : (
-        <div style={
-          viewType === 'card'
-            ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }
-            : { display: 'flex', flexDirection: 'column', gap: 10 }
-        }>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filteredTasks.map(task => {
             const emoji = MODE_CONFIG[task.size]?.emoji || '';
             const isPomoActive = pomodoro && pomodoro.taskId === task.id;

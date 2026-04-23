@@ -3,7 +3,7 @@ import { addWeeks, isAfter } from 'date-fns';
 import { getWeekDays, formatWeekTitle, getActiveDateObj } from '../utils/date';
 import { calculateDayScore, calculateTodoScore } from '../utils/storage';
 
-export default function Header({ selectedDateStr, onSelectDate, refreshTrigger, mode = 'habit' }) {
+export default function Header({ selectedDateStr, onSelectDate, refreshTrigger, mode = 'habit', showTitle = true, darkMode = true }) {
   const [weekBaseDate, setWeekBaseDate] = useState(getActiveDateObj());
   const touchStartX = useRef(null);
 
@@ -44,8 +44,19 @@ export default function Header({ selectedDateStr, onSelectDate, refreshTrigger, 
 
   const isTodo = mode === 'todo';
   const isCalendar = mode === 'calendar';
-  const accentColor = (isTodo || isCalendar) ? '#00d4ff' : '#39FF14';
-  const accentGlow = (isTodo || isCalendar) ? 'rgba(0, 212, 255, 0.4)' : 'rgba(57, 255, 20, 0.4)';
+  // Todo: dark theme = white, light theme = black (with neon glow)
+  // Calendar: cyan. Habit: green.
+  let accentColor, accentGlow;
+  if (isTodo) {
+    accentColor = darkMode ? '#ffffff' : '#000000';
+    accentGlow = darkMode ? 'rgba(255, 255, 255, 0.55)' : 'rgba(0, 0, 0, 0.45)';
+  } else if (isCalendar) {
+    accentColor = '#00d4ff';
+    accentGlow = 'rgba(0, 212, 255, 0.4)';
+  } else {
+    accentColor = '#39FF14';
+    accentGlow = 'rgba(57, 255, 20, 0.4)';
+  }
 
   const circleRadius = 20;
   const circleCircumference = 2 * Math.PI * circleRadius;
@@ -58,11 +69,13 @@ export default function Header({ selectedDateStr, onSelectDate, refreshTrigger, 
       onTouchEnd={handleTouchEnd}
     >
 
-      <div className="summary-header">
-        <div className="week-title" style={{ marginBottom: 0 }}>{weekTitle}</div>
-      </div>
+      {showTitle && (
+        <div className="summary-header">
+          <div className="week-title" style={{ marginBottom: 0 }}>{weekTitle}</div>
+        </div>
+      )}
 
-      <div className="days-row" style={{ marginTop: '16px' }}>
+      <div className="days-row" style={{ marginTop: showTitle ? '16px' : '4px' }}>
         {days.map((d, index) => {
           const score = isTodo ? calculateTodoScore(d.dateStr) : calculateDayScore(d.dateStr);
           const offset = circleCircumference - (score / 100) * circleCircumference;

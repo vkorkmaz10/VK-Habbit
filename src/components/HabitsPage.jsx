@@ -229,7 +229,7 @@ export default function HabitsPage({ darkMode, selectedDateStr, setSelectedDateS
   return (
     <div style={{ paddingBottom: 24 }}>
       {/* Page header */}
-      <div style={{ marginBottom: 14 }}>
+      <div className="page-title" style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 22, fontWeight: 700, color: t.text, letterSpacing: '-0.5px' }}>Alışkanlıklarım</div>
         <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>Günlük rutinini takip et</div>
       </div>
@@ -241,6 +241,8 @@ export default function HabitsPage({ darkMode, selectedDateStr, setSelectedDateS
           onSelectDate={setSelectedDateStr}
           refreshTrigger={refreshTrigger}
           mode="habit"
+          showTitle={false}
+          darkMode={darkMode}
         />
       </div>
 

@@ -122,7 +122,7 @@ export default function HomePage({ darkMode, setActiveTab }) {
     <div style={{ position: 'relative' }}>
 
       {/* Greeting header */}
-      <div style={{ marginBottom: 16 }}>
+      <div className="page-title" style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 13, color: t.muted, marginBottom: 2 }}>
           {format(parseISO(todayStr), 'dd MMMM yyyy, EEEE', { locale: tr })}
         </div>

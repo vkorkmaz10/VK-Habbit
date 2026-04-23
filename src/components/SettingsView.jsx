@@ -510,7 +510,7 @@ export default function SettingsView({ darkMode = true }) {
   return (
     <div style={{ position: 'relative' }}>
       {/* Page header */}
-      <div style={{ marginBottom: 18 }}>
+      <div className="page-title" style={{ marginBottom: 18 }}>
         <div style={{ fontSize: 22, fontWeight: 700, color: t.text, letterSpacing: '-0.5px' }}>Ayarlar</div>
         <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>
           API anahtarları, yedekleme ve uygulama yönetimi

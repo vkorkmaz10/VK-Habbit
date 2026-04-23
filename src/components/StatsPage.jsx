@@ -115,7 +115,7 @@ export default function StatsPage({ darkMode }) {
     <div>
       {/* Page header + range selector */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-        <div>
+        <div className="page-title">
           <div style={{ fontSize: 22, fontWeight: 700, color: t.text, letterSpacing: '-0.5px' }}>İstatistikler</div>
           <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>İlerlemeni ölç, eğilimini gör</div>
         </div>

@@ -161,6 +161,52 @@ function apiMiddleware(env = {}) {
         }
       });
 
+      // /api/x-followers → Livecounts.io proxy (X follower count)
+      // Mirrors functions/api/x-followers.js for parity in dev
+      let xfCache = { data: null, timestamp: 0 };
+      const XF_TTL = 15 * 1000;
+      server.middlewares.use('/api/x-followers', async (req, res) => {
+        try {
+          const u = new URL(req.url, 'http://localhost');
+          const user = (u.searchParams.get('user') || 'vkorkmaz10').replace(/[^a-zA-Z0-9_]/g, '');
+          const now = Date.now();
+          if (xfCache.data && xfCache.data.user === user && (now - xfCache.timestamp < XF_TTL)) {
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(xfCache.data));
+            return;
+          }
+          const r = await fetch(`https://api.livecounts.io/twitter-live-follower-counter/stats/${user}`, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Origin': 'https://livecounts.io',
+              'Referer': 'https://livecounts.io/',
+              'Accept': 'application/json, text/plain, */*',
+            },
+          });
+          if (!r.ok) {
+            res.statusCode = r.status;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: `upstream ${r.status}`, user }));
+            return;
+          }
+          const data = await r.json();
+          if (typeof data.followerCount !== 'number') {
+            res.statusCode = 502;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'unexpected upstream shape', user }));
+            return;
+          }
+          const payload = { user, followerCount: data.followerCount, cached: !!data.cache, ts: now };
+          xfCache = { data: payload, timestamp: now };
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(payload));
+        } catch (e) {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+
       // /api/fetch-url → URL content scraper
       server.middlewares.use('/api/fetch-url', async (req, res) => {
         if (req.method !== 'POST') { res.statusCode = 405; res.end('Method Not Allowed'); return; }

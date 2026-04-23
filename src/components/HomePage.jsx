@@ -5,6 +5,7 @@ import {
   Activity, Flame, Dumbbell, ArrowRight,
 } from 'lucide-react';
 import { mkTheme } from '../theme';
+import FollowerCounter from './FollowerCounter';
 import {
   getDayData, getLatestWeight, calculateDayScore,
   getTodoTasks, getCalendarEvents,
@@ -184,6 +185,16 @@ export default function HomePage({ darkMode, setActiveTab }) {
             )}
           </div>
         </div>
+
+        {/* 𝕏 Takipçi — top row 4. metrik (custom widget, livecounts.io proxy) */}
+        <FollowerCounter
+          darkMode={darkMode}
+          user="vkorkmaz10"
+          intervalMs={30000}
+          cardBase={cardBase}
+          labelStyle={labelStyle}
+        />
+
       </div>
 
       {/* 7-day trend chart */}

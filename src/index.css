@@ -49,6 +49,33 @@
 .main-scroll { scrollbar-width: thin; scrollbar-color: var(--pvk-border-line) transparent; }
 .desktop-sidebar { display: block; }
 
+/* Content page — mobile tab bar */
+.content-mobile-tabs { display: none; }
+
+.content-tab-btn {
+  flex: 1;
+  padding: 10px 0;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+.content-tab-btn.active { border-bottom-color: #00d4ff; }
+
+.content-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00d4ff;
+  display: inline-block;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
 @media (max-width: 768px) {
   .app-layout { padding: 8px !important; gap: 0 !important; }
   .desktop-sidebar { display: none !important; }
@@ -56,6 +83,10 @@
   .main-scroll { padding-right: 0 !important; }
   .content-page-grid { grid-template-columns: 1fr !important; }
   .page-title { display: none !important; }
+  /* Content page panel visibility */
+  .content-mobile-tabs { display: flex; margin-bottom: 8px; }
+  .content-page-grid[data-mobile-tab="generate"] .content-panel-left { display: none !important; }
+  .content-page-grid[data-mobile-tab="source"]   .content-panel-right { display: none !important; }
 }
 
 * {

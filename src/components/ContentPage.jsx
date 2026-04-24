@@ -1,10 +1,9 @@
-// ContentPage — yeni PersonaVK iki-sütunlu içerik üretici.
-// Sol: CryptoCompare haber akışı. Sağ: Reach Score + İçerik Stili + İçerik Alanı.
-// Tek textarea workflow: haber seç → mode/stil seç → "AI ile Üret" → textarea dolar.
-// Reach Score textarea içeriğinden canlı hesaplanır.
+// ContentPage — PersonaVK içerik üretici.
+// Sol: Adaptif kaynak paneli (RSS / URL / 𝕏 / Manuel). Sağ: Reach Score + Stil + İçerik Alanı.
+// Mobilde: tab bar ile iki panel arası geçiş.
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { RefreshCw, ExternalLink, Loader, Sparkles, Cpu, Bitcoin, Copy, Check } from 'lucide-react';
+import { RefreshCw, ExternalLink, Loader, Sparkles, Cpu, Bitcoin, Copy, Check, Link, PenLine, ImagePlus, X as XIcon } from 'lucide-react';
 import { fetchCPNews, scrapeArticle } from '../utils/news';
 import { saveFeedback, getXFollowers } from '../utils/storage';
 import { buildTweetPrompt, buildThreadPrompt, STYLE_CONFIG } from '../engine/vse';
@@ -25,17 +24,25 @@ const MODES = [
   { key: 'youtube', label: 'YouTube' },
 ];
 
+const SOURCE_TYPES = [
+  { key: 'rss',    label: '📰 Haber',    hint: 'CryptoCompare & RSS akışı' },
+  { key: 'url',    label: '🔗 URL',      hint: 'Herhangi bir web sayfası' },
+  { key: 'x_link', label: '𝕏 Tweet',    hint: 'x.com tweet linki' },
+  { key: 'manual', label: '✏️ Elle Yaz', hint: 'Metin yapıştır veya yaz' },
+];
+
 // ─── Gemini ──────────────────────────────────────────────────────
 const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite'];
 
-async function callGemini(apiKey, userPrompt, systemPrompt) {
+async function callGemini(apiKey, userPrompt, systemPrompt, imageParts = []) {
   let lastError = null;
   for (let i = 0; i < GEMINI_MODELS.length; i++) {
     const model = GEMINI_MODELS[i];
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const contentParts = [{ text: userPrompt }, ...imageParts];
     const body = JSON.stringify({
       system_instruction: { parts: [{ text: systemPrompt }] },
-      contents: [{ parts: [{ text: userPrompt }] }],
+      contents: [{ parts: contentParts }],
       generationConfig: { temperature: 0.8, maxOutputTokens: 4096 },
     });
     for (let retry = 0; retry < 2; retry++) {
@@ -49,7 +56,7 @@ async function callGemini(apiKey, userPrompt, systemPrompt) {
       let detail = '';
       try { detail = JSON.parse(errBody)?.error?.message || errBody; } catch { detail = errBody; }
       lastError = detail;
-      if (res.status !== 503 && res.status !== 429) throw new Error(`Gemini hatasi (${res.status}): ${detail}`);
+      if (res.status !== 503 && res.status !== 429) throw new Error(`Gemini hatası (${res.status}): ${detail}`);
       if (res.status === 429 && retry === 0) continue;
       break;
     }
@@ -58,7 +65,7 @@ async function callGemini(apiKey, userPrompt, systemPrompt) {
   throw new Error(`Gemini kota hatası: ${String(lastError).slice(0, 200)}`);
 }
 
-// ─── Translation cache (start titles in TR) ───────────────────────
+// ─── Translation cache ────────────────────────────────────────────
 function getTrCache() {
   try {
     const raw = localStorage.getItem(TR_CACHE_KEY);
@@ -106,7 +113,7 @@ function timeAgo(ts) {
   return `${Math.floor(hrs / 24)}g`;
 }
 
-// ─── Style Picker (3 stacked options) ─────────────────────────────
+// ─── Style Picker ─────────────────────────────────────────────────
 function StylePicker({ value, onChange, t }) {
   return (
     <div style={{
@@ -143,11 +150,24 @@ function StylePicker({ value, onChange, t }) {
 export default function ContentPage({ darkMode = true }) {
   const t = mkTheme(darkMode);
 
+  // ── News feed state ────────────────────────────────────────────
   const [cpNews, setCpNews] = useState([]);
   const [cpLoading, setCpLoading] = useState(true);
   const cpCacheRef = useRef({ data: null, timestamp: 0 });
 
-  const [selectedNews, setSelectedNews] = useState(null);
+  // ── Source state ───────────────────────────────────────────────
+  const [sourceType, setSourceType] = useState('rss');          // 'rss'|'url'|'x_link'|'manual'
+  const [selectedNews, setSelectedNews] = useState(null);       // RSS
+  const [customUrl, setCustomUrl] = useState('');               // URL / 𝕏
+  const [customSource, setCustomSource] = useState(null);       // { title, content, source }
+  const [fetchingUrl, setFetchingUrl] = useState(false);
+  const [manualText, setManualText] = useState('');             // Elle giriş
+
+  // ── Image upload ───────────────────────────────────────────────
+  const [imageData, setImageData] = useState(null);             // { base64, mimeType, name }
+  const imageInputRef = useRef(null);
+
+  // ── Generation state ───────────────────────────────────────────
   const [mode, setMode] = useState('tweet');
   const [style, setStyle] = useState('prime');
   const [content, setContent] = useState('');
@@ -156,8 +176,12 @@ export default function ContentPage({ darkMode = true }) {
   const [copied, setCopied] = useState(false);
   const [boosting, setBoosting] = useState(false);
   const [previousContent, setPreviousContent] = useState(null);
-  const [lastContext, setLastContext] = useState(null); // VSE meta for save/boost
+  const [lastContext, setLastContext] = useState(null);
 
+  // ── Mobile tab ─────────────────────────────────────────────────
+  const [mobileTab, setMobileTab] = useState('source');         // 'source' | 'generate'
+
+  // ── API keys ───────────────────────────────────────────────────
   const [geminiKey, setGeminiKey] = useState(() => localStorage.getItem(GEMINI_KEY_STORAGE) || '');
   const [ccKey, setCcKey] = useState(() => localStorage.getItem(CC_KEY_STORAGE) || '');
 
@@ -170,6 +194,7 @@ export default function ContentPage({ darkMode = true }) {
     return () => window.removeEventListener('vkgym_key_updated', handler);
   }, []);
 
+  // ── News load ──────────────────────────────────────────────────
   const loadCPNews = useCallback(async (forceRefresh = false) => {
     const now = Date.now();
     if (!forceRefresh && cpCacheRef.current.data && (now - cpCacheRef.current.timestamp < CACHE_TTL)) {
@@ -200,8 +225,98 @@ export default function ContentPage({ darkMode = true }) {
     return text.replace(/\s{3,}/g, ' ').trim();
   };
 
+  // ── Source type switch → clear derived state ───────────────────
+  const handleSourceTypeChange = (type) => {
+    setSourceType(type);
+    setError('');
+    setCustomSource(null);
+    setCustomUrl('');
+  };
+
+  // ── URL / 𝕏 fetch ─────────────────────────────────────────────
+  const handleFetchCustomUrl = async () => {
+    const url = customUrl.trim();
+    if (!url) return;
+    setFetchingUrl(true);
+    setError('');
+    try {
+      const r = await fetch('/api/fetch-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const { text, blocked } = await r.json();
+      if (blocked || !text) throw new Error('İçerik çekilemedi. Site erişimi engelliyor olabilir.');
+      const isX = url.includes('x.com') || url.includes('twitter.com');
+      const title = isX ? '𝕏 Tweet İçeriği' : url.replace(/^https?:\/\//, '').split('/')[0];
+      setCustomSource({
+        title,
+        content: cleanScrapedContent(text).slice(0, 1200),
+        source: url,
+      });
+      if (window.innerWidth <= 768) setMobileTab('generate');
+    } catch (e) {
+      setError(e.message || 'URL içeriği alınamadı.');
+    } finally {
+      setFetchingUrl(false);
+    }
+  };
+
+  // ── Unified newsInput resolver ─────────────────────────────────
+  const getActiveNewsInput = async () => {
+    if (sourceType === 'rss') {
+      if (!selectedNews) { setError('Önce soldan bir haber seç.'); return null; }
+      let scraped = selectedNews.scrapedContent;
+      if (scraped === undefined && selectedNews.url) {
+        const r = await scrapeArticle(selectedNews.url);
+        scraped = r.text || '';
+      }
+      const cleaned = cleanScrapedContent(scraped);
+      return {
+        title: selectedNews.title,
+        content: cleaned ? cleaned.slice(0, 1200) : '',
+        source: selectedNews.url || selectedNews.sourceName,
+      };
+    }
+    if (sourceType === 'url' || sourceType === 'x_link') {
+      if (!customSource) { setError('Önce URL\'yi çek (İçeriği Getir butonuna bas).'); return null; }
+      return customSource;
+    }
+    if (sourceType === 'manual') {
+      if (!manualText.trim()) { setError('İçerik alanına metin gir.'); return null; }
+      return {
+        title: 'Elle Girilen İçerik',
+        content: manualText.trim().slice(0, 1200),
+        source: '',
+      };
+    }
+    return null;
+  };
+
+  // ── hasActiveSource — controls button enable state ─────────────
+  const hasActiveSource = () => {
+    if (sourceType === 'rss') return !!selectedNews;
+    if (sourceType === 'url' || sourceType === 'x_link') return !!customSource;
+    if (sourceType === 'manual') return manualText.trim().length > 0;
+    return false;
+  };
+
+  // ── Image upload handler ───────────────────────────────────────
+  const handleImageFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setImageData({
+        base64: ev.target.result.split(',')[1],
+        mimeType: file.type,
+        name: file.name,
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // ── Generate ───────────────────────────────────────────────────
   const handleGenerate = async () => {
-    if (!selectedNews) { setError('Önce soldan bir haber seç.'); return; }
     const key = resolveKey();
     if (!key) { setError('Gemini API key eksik. Ayarlar sekmesinden ekleyebilirsin.'); return; }
     setError('');
@@ -209,42 +324,41 @@ export default function ContentPage({ darkMode = true }) {
     setPreviousContent(content || null);
 
     try {
-      // Scrape if not already
-      let scraped = selectedNews.scrapedContent;
-      if (scraped === undefined && selectedNews.url) {
-        const r = await scrapeArticle(selectedNews.url);
-        scraped = r.text || '';
-      }
-      const cleaned = cleanScrapedContent(scraped);
-      const newsInput = {
-        title: selectedNews.title,
-        content: cleaned ? cleaned.slice(0, 1200) : '',
-        source: selectedNews.url || selectedNews.sourceName,
-      };
+      const newsInput = await getActiveNewsInput();
+      if (!newsInput) { setGenerating(false); return; }
+
+      const imageParts = imageData
+        ? [{ inlineData: { mimeType: imageData.mimeType, data: imageData.base64 } }]
+        : [];
 
       let systemPrompt, userPrompt;
       if (mode === 'youtube') {
         systemPrompt = `Sen @vkorkmaz10 için YouTube içerik üretici asistanısın. Türkçe yaz. Volkan tarzında: direkt, analitik, eğitici, minimal emoji.`;
-        userPrompt = `Bu haber hakkında YouTube video script'i hazırla. Başlık (max 60 kar), thumbnail fikri, SEO açıklama ve HOOK/BAĞLAM/ANA İÇERİK/SONUÇ yapısında script:\n\n"${newsInput.title}"\nKaynak: ${selectedNews.sourceName}${cleaned ? `\n\nİçerik (EN):\n${cleaned.slice(0, 800)}` : ''}`;
+        const extra = imageParts.length ? '\n\nEk görsel bağlam da sağlanmıştır — içerikte gerekirse kullan.' : '';
+        userPrompt = `Bu içerik hakkında YouTube video script'i hazırla. Başlık (max 60 kar), thumbnail fikri, SEO açıklama ve HOOK/BAĞLAM/ANA İÇERİK/SONUÇ yapısında script:\n\n"${newsInput.title}"${newsInput.source ? `\nKaynak: ${newsInput.source}` : ''}${newsInput.content ? `\n\nİçerik:\n${newsInput.content}` : ''}${extra}`;
       } else {
         const built = mode === 'tweet'
           ? buildTweetPrompt(newsInput, style)
           : buildThreadPrompt(newsInput, style);
         systemPrompt = built.systemPrompt;
-        userPrompt = built.userPrompt;
+        userPrompt = imageParts.length
+          ? built.userPrompt + '\n\nEk: Bir görsel de sağlandı, içerikle ilişkiliyse prompt\'a dahil et.'
+          : built.userPrompt;
       }
 
-      const result = await callGemini(key, userPrompt, systemPrompt);
+      const result = await callGemini(key, userPrompt, systemPrompt, imageParts);
       if (!result) throw new Error('Boş yanıt geldi.');
-      const cleanResult = result.trim().replace(/^["“]|["”]$/g, '');
+      const cleanResult = result.trim().replace(/^[""]|[""]$/g, '');
       setContent(cleanResult);
       setLastContext({
         mode, style,
         newsTitle: newsInput.title,
-        newsSource: selectedNews.url || selectedNews.sourceName,
-        systemPrompt, // ReachOS boost için aynı persona
+        newsSource: newsInput.source,
+        systemPrompt,
         original: cleanResult,
       });
+      // Mobilde içerik üretilince generate sekmesine geç
+      if (window.innerWidth <= 768) setMobileTab('generate');
     } catch (e) {
       setError(e.message);
     } finally {
@@ -252,6 +366,7 @@ export default function ContentPage({ darkMode = true }) {
     }
   };
 
+  // ── Boost ──────────────────────────────────────────────────────
   const handleBoost = async () => {
     if (!content || !lastContext?.systemPrompt) return;
     const key = resolveKey();
@@ -263,7 +378,7 @@ export default function ContentPage({ darkMode = true }) {
     try {
       const result = await callGemini(key, boostPrompt, lastContext.systemPrompt);
       if (!result) throw new Error('Boş yanıt geldi.');
-      const cleaned = result.trim().replace(/^["“]|["”]$/g, '');
+      const cleaned = result.trim().replace(/^[""]|[""]$/g, '');
       setPreviousContent(content);
       setContent(cleaned);
     } catch (e) {
@@ -282,7 +397,6 @@ export default function ContentPage({ darkMode = true }) {
 
   const handleClear = () => {
     if (lastContext && content && lastContext.original !== content) {
-      // Edit telemetrisi
       const entry = {
         newsTitle: lastContext.newsTitle,
         newsSource: lastContext.newsSource,
@@ -312,28 +426,33 @@ export default function ContentPage({ darkMode = true }) {
 
   const liveAnalysis = mode === 'tweet' ? scoreTweet(content || '') : null;
 
-  // ── Layout ──────────────────────────────────────────────────────
+  // ── Style helpers ──────────────────────────────────────────────
   const cardBase = {
     background: t.card, border: t.cardBorder, borderRadius: 18,
     boxShadow: t.cardShadow, padding: 18,
   };
+  const inputStyle = {
+    width: '100%', padding: '10px 12px', borderRadius: 10,
+    background: t.input, border: `1px solid ${t.inputBorder}`,
+    color: t.text, fontSize: 13, fontFamily: 'inherit', outline: 'none',
+    boxSizing: 'border-box',
+  };
+  const sourceActive = (key) => sourceType === key;
+  const sourceBtn = (key) => ({
+    padding: '6px 12px', borderRadius: 999, cursor: 'pointer',
+    fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
+    border: sourceActive(key) ? `1.5px solid ${ACCENT}` : `1px solid ${t.inputBorder}`,
+    background: sourceActive(key) ? `${ACCENT}15` : t.hover,
+    color: sourceActive(key) ? ACCENT : t.text,
+    transition: 'all 0.15s',
+    whiteSpace: 'nowrap',
+  });
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Page header */}
-      <div>
-        <div style={{ fontSize: 28, fontWeight: 700, color: t.text, letterSpacing: '-0.5px' }}>İçerik</div>
-        <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>Haber akışı &amp; içerik üretimi</div>
-      </div>
-
-      {/* Two-column layout */}
-      <div className="content-page-grid" style={{
-        display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16,
-        alignItems: 'flex-start',
-      }}>
-
-        {/* ===== LEFT: News Feed ===== */}
-        <div>
+  // ── Left panel content per sourceType ─────────────────────────
+  const renderLeftPanel = () => {
+    if (sourceType === 'rss') {
+      return (
+        <>
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             marginBottom: 10, padding: '0 4px',
@@ -370,7 +489,10 @@ export default function ContentPage({ darkMode = true }) {
                 return (
                   <div
                     key={item.id}
-                    onClick={() => setSelectedNews(item)}
+                    onClick={() => {
+                      setSelectedNews(item);
+                      if (window.innerWidth <= 768) setMobileTab('generate');
+                    }}
                     style={{
                       ...cardBase,
                       padding: 14, cursor: 'pointer',
@@ -379,7 +501,6 @@ export default function ContentPage({ darkMode = true }) {
                       transition: 'border 0.15s, box-shadow 0.15s',
                     }}
                   >
-                    {/* Top row: source + category + time */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: t.text }}>
                         {item.sourceName || 'CryptoCompare'}
@@ -397,27 +518,17 @@ export default function ContentPage({ darkMode = true }) {
                         {timeAgo(item.publishedAt)} önce
                       </span>
                     </div>
-
-                    {/* Title */}
-                    <div style={{
-                      fontSize: 15, fontWeight: 700, color: t.text,
-                      lineHeight: 1.35, marginBottom: 6,
-                    }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: t.text, lineHeight: 1.35, marginBottom: 6 }}>
                       {item.titleTr || item.title}
                     </div>
-
-                    {/* Summary (if available) */}
                     {item.body && (
                       <div style={{
                         fontSize: 12, color: t.muted, lineHeight: 1.5,
-                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
+                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
                       }}>
                         {item.body.slice(0, 200)}
                       </div>
                     )}
-
-                    {/* Source link */}
                     {item.sourceUrl && (
                       <a
                         href={item.sourceUrl} target="_blank" rel="noopener noreferrer"
@@ -435,34 +546,194 @@ export default function ContentPage({ darkMode = true }) {
               })
             )}
           </div>
+        </>
+      );
+    }
+
+    // URL / 𝕏 linki
+    if (sourceType === 'url' || sourceType === 'x_link') {
+      const isX = sourceType === 'x_link';
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: t.muted, letterSpacing: '1.5px', padding: '0 4px' }}>
+            {isX ? '𝕏 TWEET LİNKİ' : 'WEB SAYFASİ URL\'Sİ'}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="url"
+              value={customUrl}
+              onChange={e => { setCustomUrl(e.target.value); setCustomSource(null); }}
+              onKeyDown={e => e.key === 'Enter' && handleFetchCustomUrl()}
+              placeholder={isX ? 'https://x.com/username/status/...' : 'https://...'}
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <button
+              onClick={handleFetchCustomUrl}
+              disabled={!customUrl.trim() || fetchingUrl}
+              style={{
+                padding: '10px 14px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                background: ACCENT, color: '#0a0a0a', fontWeight: 700, fontFamily: 'inherit', fontSize: 13,
+                display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
+                opacity: (!customUrl.trim() || fetchingUrl) ? 0.5 : 1,
+              }}
+            >
+              {fetchingUrl ? <Loader size={14} className="cal-spin" /> : <Link size={14} />}
+              {fetchingUrl ? 'Çekiyor...' : 'Getir'}
+            </button>
+          </div>
+
+          {/* Önizleme */}
+          {customSource && (
+            <div style={{
+              ...cardBase, padding: 14,
+              border: `1px solid ${ACCENT}`, boxShadow: `0 0 0 1px ${ACCENT}33`,
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: ACCENT, marginBottom: 6, letterSpacing: '0.8px' }}>
+                ✓ İÇERİK ÇEKİLDİ
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 6, lineHeight: 1.4 }}>
+                {customSource.title}
+              </div>
+              <div style={{
+                fontSize: 12, color: t.muted, lineHeight: 1.5,
+                display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+              }}>
+                {customSource.content}
+              </div>
+            </div>
+          )}
+
+          {!customSource && !fetchingUrl && (
+            <div style={{ ...cardBase, textAlign: 'center', padding: 40, color: t.muted, fontSize: 13 }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>{isX ? '𝕏' : '🔗'}</div>
+              {isX ? 'Tweet linkini yapıştır ve içeriği getir.' : 'Herhangi bir haber veya web sayfası URL\'si gir.'}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Manuel
+    if (sourceType === 'manual') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: t.muted, letterSpacing: '1.5px', padding: '0 4px' }}>
+            ELLE GİRİŞ
+          </div>
+          <textarea
+            value={manualText}
+            onChange={e => setManualText(e.target.value)}
+            placeholder="İçeriği buraya yaz veya yapıştır. Bu metni kaynak alarak tweet/thread üretilecek."
+            rows={12}
+            style={{
+              ...inputStyle,
+              resize: 'vertical', lineHeight: 1.6, fontSize: 13,
+            }}
+          />
+          <div style={{ fontSize: 12, color: t.muted, textAlign: 'right' }}>
+            {manualText.length}/1200 karakter
+          </div>
+          {manualText.trim().length > 0 && (
+            <div style={{
+              ...cardBase, padding: 12,
+              border: `1px solid ${ACCENT}`, fontSize: 12, color: ACCENT, fontWeight: 600,
+            }}>
+              ✓ İçerik hazır — sağda "AI ile Üret" butonuna bas
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  // ── Active source label for mobile dot ────────────────────────
+  const hasSource = sourceType === 'rss' ? !!selectedNews
+    : (sourceType === 'manual') ? manualText.trim().length > 0
+    : !!customSource;
+
+  // ── Render ─────────────────────────────────────────────────────
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Page header — desktop only */}
+      <div className="page-title">
+        <div style={{ fontSize: 28, fontWeight: 700, color: t.text, letterSpacing: '-0.5px' }}>İçerik</div>
+        <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>Haber akışı &amp; içerik üretimi</div>
+      </div>
+
+      {/* ── Mobile tab bar ── */}
+      <div className="content-mobile-tabs" style={{ borderBottom: `1px solid ${t.border}` }}>
+        <button
+          className={`content-tab-btn ${mobileTab === 'source' ? 'active' : ''}`}
+          onClick={() => setMobileTab('source')}
+          style={{ color: mobileTab === 'source' ? ACCENT : t.muted }}
+        >
+          {sourceType === 'manual' ? '✏️' : sourceType === 'rss' ? '📰' : '🔗'} Kaynak
+          {hasSource && <span className="content-tab-dot" />}
+        </button>
+        <button
+          className={`content-tab-btn ${mobileTab === 'generate' ? 'active' : ''}`}
+          onClick={() => setMobileTab('generate')}
+          style={{ color: mobileTab === 'generate' ? ACCENT : t.muted }}
+        >
+          ✍️ İçerik Üret
+          {content && <span className="content-tab-dot" />}
+        </button>
+      </div>
+
+      {/* ── Two-column grid ── */}
+      <div
+        className="content-page-grid"
+        data-mobile-tab={mobileTab}
+        style={{
+          display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16,
+          alignItems: 'flex-start',
+        }}
+      >
+
+        {/* ===== LEFT: Source Panel ===== */}
+        <div className="content-panel-left">
+          {/* Source type selector */}
+          <div style={{
+            display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14,
+          }}>
+            {SOURCE_TYPES.map(s => (
+              <button key={s.key} onClick={() => handleSourceTypeChange(s.key)} style={sourceBtn(s.key)}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          {renderLeftPanel()}
         </div>
 
-        {/* ===== RIGHT: Reach + Style + İçerik Alanı ===== */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* ===== RIGHT: Reach + Style + İçerik ===== */}
+        <div className="content-panel-right" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {/* ReachScore badge */}
           {mode === 'tweet' && liveAnalysis ? (
             <ReachScoreBadge
               analysis={liveAnalysis}
               followers={getXFollowers()}
-              hasMedia={false}
+              hasMedia={!!imageData}
               onBoost={handleBoost}
               onRevert={previousContent !== null ? handleRevert : undefined}
               boosting={boosting}
             />
           ) : (
-            <div style={{
-              background: t.card, border: t.cardBorder, borderRadius: 18,
-              boxShadow: t.cardShadow, padding: 18,
-            }}>
+            <div style={cardBase}>
               <div style={{ fontSize: 11, fontWeight: 700, color: t.muted, letterSpacing: '1.5px', marginBottom: 8 }}>
                 REACH SCORE
               </div>
               <div style={{ fontSize: 13, color: t.muted, lineHeight: 1.5 }}>
                 {mode === 'tweet'
                   ? 'Tek Tweet seçildiğinde algoritma skoru burada gözükür.'
-                  : `${MODES.find(m => m.key === mode)?.label} modunda Reach skoru hesaplanmaz (sadece Tek Tweet için).`}
+                  : `${MODES.find(m => m.key === mode)?.label} modunda Reach skoru hesaplanmaz.`}
               </div>
             </div>
           )}
+
           <StylePicker value={style} onChange={setStyle} t={t} />
 
           {/* İçerik Alanı */}
@@ -491,16 +762,49 @@ export default function ContentPage({ darkMode = true }) {
             <textarea
               value={content}
               onChange={e => setContent(e.target.value)}
-              placeholder={selectedNews ? 'AI ile üret veya buraya kendi içeriğini yaz...' : 'Önce soldan bir haber seç...'}
+              placeholder={hasActiveSource() ? 'AI ile üret veya buraya kendi içeriğini yaz...' : 'Önce soldan bir kaynak seç...'}
               rows={8}
               style={{
                 width: '100%', padding: 14, borderRadius: 12,
                 background: t.input, border: `1px solid ${t.inputBorder}`,
                 color: t.text, fontSize: 14, fontFamily: 'inherit', lineHeight: 1.5,
                 outline: 'none', resize: 'vertical', boxSizing: 'border-box',
-                marginBottom: 12,
+                marginBottom: 10,
               }}
             />
+
+            {/* Image upload */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <label style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '6px 12px', borderRadius: 8, cursor: 'pointer',
+                background: t.hover, border: `1px solid ${t.inputBorder}`,
+                color: imageData ? ACCENT : t.muted, fontSize: 12, fontWeight: 600,
+                fontFamily: 'inherit',
+              }}>
+                <ImagePlus size={14} />
+                {imageData ? imageData.name.slice(0, 20) + (imageData.name.length > 20 ? '…' : '') : 'Görsel Ekle'}
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={e => handleImageFile(e.target.files[0])}
+                />
+              </label>
+              {imageData && (
+                <button
+                  onClick={() => { setImageData(null); if (imageInputRef.current) imageInputRef.current.value = ''; }}
+                  style={{
+                    width: 26, height: 26, borderRadius: 8, border: 'none', cursor: 'pointer',
+                    background: 'rgba(239,68,68,0.1)', color: '#ef4444',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <XIcon size={12} />
+                </button>
+              )}
+            </div>
 
             {error && (
               <div style={{
@@ -512,7 +816,7 @@ export default function ContentPage({ darkMode = true }) {
               </div>
             )}
 
-            {/* Action buttons row */}
+            {/* Action buttons */}
             <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={handleClear}
@@ -527,12 +831,12 @@ export default function ContentPage({ darkMode = true }) {
               </button>
               <button
                 onClick={handleGenerate}
-                disabled={!selectedNews || generating}
+                disabled={!hasActiveSource() || generating}
                 style={{
                   flex: 2, padding: '12px 16px', borderRadius: 12, border: 'none',
-                  background: (!selectedNews || generating) ? t.hover : ACCENT,
-                  color: (!selectedNews || generating) ? t.muted : '#0a0a0a',
-                  cursor: (!selectedNews || generating) ? 'not-allowed' : 'pointer',
+                  background: (!hasActiveSource() || generating) ? t.hover : ACCENT,
+                  color: (!hasActiveSource() || generating) ? t.muted : '#0a0a0a',
+                  cursor: (!hasActiveSource() || generating) ? 'not-allowed' : 'pointer',
                   fontFamily: 'inherit', fontSize: 14, fontWeight: 700,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 }}
@@ -543,7 +847,6 @@ export default function ContentPage({ darkMode = true }) {
               </button>
             </div>
 
-            {/* Secondary action: kopyala (boost/revert ReachScoreBadge içinde) */}
             {content && (
               <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                 <button

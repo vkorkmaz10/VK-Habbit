@@ -1,11 +1,11 @@
 import { Zap, Undo2, Loader, TrendingUp, TrendingDown } from 'lucide-react';
-import { forecastReach, whatIfScenarios } from '../engine/reach';
+import { forecastReach, whatIfScenarios } from '../engine/xscore';
 
 /**
- * ReachScoreBadge — ReachOS v3.0 UI.
+ * ReachScoreBadge — 𝕏 Score v1.0 UI.
  *
  * Props:
- *  - analysis: { reachScore, tier, breakdown:{hook,structure,engagement,penalties,bonuses},
+ *  - analysis: { score, tier, breakdown:{conversation,spread,dwell,penalties},
  *                suggestions:[{ruleId,severity,title,description}], highlights, rawResults }
  *  - followers: number  (X follower count for forecast; 0 hides forecast block)
  *  - onBoost: () => void
@@ -14,27 +14,26 @@ import { forecastReach, whatIfScenarios } from '../engine/reach';
  */
 
 const TIER_CLASS = {
-  perfect: 'high',
-  excellent: 'midhigh',
-  good: 'mid',
-  below_average: 'low',
-  critical: 'critical',
+  viral:   'high',
+  strong:  'midhigh',
+  average: 'mid',
+  weak:    'low',
+  dead:    'critical',
 };
 
 const TIER_LABEL = {
-  perfect: 'Mükemmel',
-  excellent: 'Güçlü',
-  good: 'Ortalama',
-  below_average: 'Ortalama Altı',
-  critical: 'Kritik',
+  viral:   'Viral',
+  strong:  'Güçlü',
+  average: 'Ortalama',
+  weak:    'Zayıf',
+  dead:    'Ölü',
 };
 
 const BAR_DEFS = [
-  { key: 'hook',       label: 'Hook',       max: 30 },
-  { key: 'structure',  label: 'Yapı',       max: 20 },
-  { key: 'engagement', label: 'Etkileşim',  max: 30 },
-  { key: 'penalties',  label: 'Cezalar',    max: 55, neg: true },
-  { key: 'bonuses',    label: 'Bonuslar',   max: 15 },
+  { key: 'conversation', label: 'Konuşma',      max: 35 },
+  { key: 'spread',       label: 'Yayılım',      max: 25 },
+  { key: 'dwell',        label: 'Kalma Süresi', max: 20 },
+  { key: 'penalties',    label: 'Cezalar',      max: 50, neg: true },
 ];
 
 function BreakdownBar({ label, score, max, neg }) {
@@ -57,7 +56,7 @@ const SEV_ORDER = { high: 0, med: 1, low: 2 };
 
 export default function ReachScoreBadge({ analysis, followers = 0, hasMedia = false, onBoost, onRevert, boosting }) {
   if (!analysis) return null;
-  const { reachScore = 0, tier = 'critical', breakdown = {}, suggestions = [] } = analysis;
+  const { score: reachScore = 0, tier = 'dead', breakdown = {}, suggestions = [] } = analysis;
   const tierClass = TIER_CLASS[tier] || 'mid';
 
   const sortedSuggestions = [...suggestions].sort(
@@ -71,7 +70,7 @@ export default function ReachScoreBadge({ analysis, followers = 0, hasMedia = fa
     <div className={`reach-badge reach-${tierClass}`}>
       <div className="reach-badge-head">
         <div className="reach-score-block">
-          <span className="reach-score-label">Reach</span>
+          <span className="reach-score-label">𝕏 Skor</span>
           <span className="reach-score-value">{reachScore}<span className="reach-score-max">/100</span></span>
           <span className="reach-tier-label">{TIER_LABEL[tier] || tier}</span>
         </div>
@@ -94,7 +93,7 @@ export default function ReachScoreBadge({ analysis, followers = 0, hasMedia = fa
               onClick={onBoost}
               disabled={boosting}
             >
-              {boosting ? <><Loader size={12} className="cal-spin" /> Geliştiriliyor</> : <><Zap size={12} /> Reach'i Artır</>}
+              {boosting ? <><Loader size={12} className="cal-spin" /> Geliştiriliyor</> : <><Zap size={12} /> 𝕏 Skor'u Artır</>}
             </button>
           )}
         </div>
@@ -152,7 +151,7 @@ export default function ReachScoreBadge({ analysis, followers = 0, hasMedia = fa
           ))}
         </ul>
       ) : (
-        <div className="reach-all-good">Tüm kurallar geçti ✓</div>
+        <div className="reach-all-good">Her şey yolunda ✓</div>
       )}
     </div>
   );

@@ -7,7 +7,7 @@ import { RefreshCw, ExternalLink, Loader, Sparkles, Cpu, Bitcoin, Copy, Check, L
 import { fetchCPNews, scrapeArticle } from '../utils/news';
 import { saveFeedback, getXFollowers } from '../utils/storage';
 import { buildTweetPrompt, buildThreadPrompt, STYLE_CONFIG } from '../engine/vse';
-import { scoreTweet, buildBoostPrompt } from '../engine/reach';
+import { scorePost as scoreTweet, buildBoostPrompt } from '../engine/xscore';
 import { mkTheme } from '../theme';
 import ReachScoreBadge from './ReachScoreBadge';
 
@@ -448,8 +448,8 @@ export default function ContentPage({ darkMode = true }) {
       edited: content,
     };
     if (lastContext.mode === 'tweet') {
-      entry.reachScore = scoreTweet(lastContext.original, { hasMedia: images.length > 0 }).reachScore;
-      entry.reachScoreFinal = scoreTweet(content, { hasMedia: images.length > 0 }).reachScore;
+      entry.reachScore = scoreTweet(lastContext.original, { hasMedia: images.length > 0 }).score;
+      entry.reachScoreFinal = scoreTweet(content, { hasMedia: images.length > 0 }).score;
     }
     saveFeedback(entry);
     // Snapshot original olarak güncelle (tekrar kaydedilmesini önle)

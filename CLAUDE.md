@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Workflow Rules
+- **Important:** Always output the design/plan in "plan mode" before implementing any changes. Plan first, write code second.
+
 ## Commands
 
 ```bash

@@ -396,7 +396,7 @@ export default function ContentPage({ darkMode = true }) {
     if (!content || !lastContext?.systemPrompt) return;
     const key = resolveKey();
     if (!key) { setError('Gemini API key eksik.'); return; }
-    const analysis = scoreTweet(content);
+    const analysis = scoreTweet(content, { hasMedia: images.length > 0 });
     const boostPrompt = buildBoostPrompt(content, analysis);
     setBoosting(true);
     setError('');
@@ -449,7 +449,7 @@ export default function ContentPage({ darkMode = true }) {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const liveAnalysis = mode === 'tweet' ? scoreTweet(content || '') : null;
+  const liveAnalysis = mode === 'tweet' ? scoreTweet(content || '', { hasMedia: images.length > 0 }) : null;
 
   // ── Style helpers ──────────────────────────────────────────────
   const cardBase = {

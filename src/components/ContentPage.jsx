@@ -113,31 +113,30 @@ function timeAgo(ts) {
   return `${Math.floor(hrs / 24)}g`;
 }
 
-// ─── Style Picker ─────────────────────────────────────────────────
+// ─── Style Picker (minimal horizontal pills) ──────────────────────
 function StylePicker({ value, onChange, t }) {
   return (
     <div style={{
-      background: t.card, border: t.cardBorder, borderRadius: 18,
-      boxShadow: t.cardShadow, padding: 18,
+      background: t.card, border: t.cardBorder, borderRadius: 14,
+      boxShadow: t.cardShadow, padding: '10px 14px',
+      display: 'flex', alignItems: 'center', gap: 8,
     }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 12 }}>
-        İçerik Stili
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <span style={{ fontSize: 11, fontWeight: 700, color: t.muted, letterSpacing: '0.8px', whiteSpace: 'nowrap' }}>
+        STİL
+      </span>
+      <div style={{ display: 'flex', gap: 6, flex: 1, flexWrap: 'wrap' }}>
         {Object.entries(STYLE_CONFIG).map(([key, cfg]) => {
           const active = value === key;
           return (
             <button key={key} onClick={() => onChange(key)} style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-              padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
+              padding: '5px 14px', borderRadius: 999, cursor: 'pointer',
               border: active ? 'none' : `1px solid ${t.inputBorder}`,
-              background: active ? '#e8e8ec' : t.hover,
+              background: active ? ACCENT : t.hover,
               color: active ? '#0a0a0a' : t.text,
-              textAlign: 'left', fontFamily: 'inherit',
-              transition: 'background 0.15s',
+              fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
+              transition: 'background 0.15s, color 0.15s',
             }}>
-              <span style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>{cfg.label}</span>
-              <span style={{ fontSize: 12, opacity: active ? 0.65 : 0.6 }}>{cfg.description}</span>
+              {cfg.label}
             </button>
           );
         })}
@@ -163,8 +162,8 @@ export default function ContentPage({ darkMode = true }) {
   const [fetchingUrl, setFetchingUrl] = useState(false);
   const [manualText, setManualText] = useState('');             // Elle giriş
 
-  // ── Image upload ───────────────────────────────────────────────
-  const [imageData, setImageData] = useState(null);             // { base64, mimeType, name }
+  // ── Image upload (max 4) ───────────────────────────────────────
+  const [images, setImages] = useState([]);                     // [{ base64, mimeType, name }]
   const imageInputRef = useRef(null);
 
   // ── Generation state ───────────────────────────────────────────
@@ -233,6 +232,27 @@ export default function ContentPage({ darkMode = true }) {
     setCustomUrl('');
   };
 
+  // ── 𝕏 oEmbed tweet reader ─────────────────────────────────────
+  const fetchXTweet = async (url) => {
+    const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(url)}&omit_script=true`;
+    const r = await fetch(oembedUrl);
+    if (!r.ok) throw new Error(`Tweet okunamadı (${r.status}). Linkin genel/herkese açık olduğunu kontrol et.`);
+    const data = await r.json();
+    // Parse HTML → extract tweet text from <p> inside <blockquote>
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(data.html, 'text/html');
+    const p = doc.querySelector('blockquote p');
+    // Remove trailing link text (last <a> in <p> is the permalink)
+    if (p) p.querySelectorAll('a').forEach(a => { if (a.href?.includes('twitter.com') || a.href?.includes('x.com')) a.remove(); });
+    const tweetText = p ? p.textContent.trim() : '';
+    if (!tweetText) throw new Error('Tweet metni okunamadı — tweet silinmiş ya da gizli olabilir.');
+    return {
+      title: `@${data.author_name || 'tweet'}`,
+      content: tweetText.slice(0, 1200),
+      source: url,
+    };
+  };
+
   // ── URL / 𝕏 fetch ─────────────────────────────────────────────
   const handleFetchCustomUrl = async () => {
     const url = customUrl.trim();
@@ -240,23 +260,27 @@ export default function ContentPage({ darkMode = true }) {
     setFetchingUrl(true);
     setError('');
     try {
-      const r = await fetch('/api/fetch-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
-      });
-      const { text, blocked } = await r.json();
-      if (blocked || !text) throw new Error('İçerik çekilemedi. Site erişimi engelliyor olabilir.');
-      const isX = url.includes('x.com') || url.includes('twitter.com');
-      const title = isX ? '𝕏 Tweet İçeriği' : url.replace(/^https?:\/\//, '').split('/')[0];
-      setCustomSource({
-        title,
-        content: cleanScrapedContent(text).slice(0, 1200),
-        source: url,
-      });
+      let source;
+      if (sourceType === 'x_link') {
+        source = await fetchXTweet(url);
+      } else {
+        const r = await fetch('/api/fetch-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+        const { text, blocked } = await r.json();
+        if (blocked || !text) throw new Error('İçerik çekilemedi. Site erişimi engelliyor olabilir.');
+        source = {
+          title: url.replace(/^https?:\/\//, '').split('/')[0],
+          content: cleanScrapedContent(text).slice(0, 1200),
+          source: url,
+        };
+      }
+      setCustomSource(source);
       if (window.innerWidth <= 768) setMobileTab('generate');
     } catch (e) {
-      setError(e.message || 'URL içeriği alınamadı.');
+      setError(e.message || 'İçerik alınamadı.');
     } finally {
       setFetchingUrl(false);
     }
@@ -301,19 +325,22 @@ export default function ContentPage({ darkMode = true }) {
     return false;
   };
 
-  // ── Image upload handler ───────────────────────────────────────
-  const handleImageFile = (file) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setImageData({
-        base64: ev.target.result.split(',')[1],
-        mimeType: file.type,
-        name: file.name,
-      });
-    };
-    reader.readAsDataURL(file);
+  // ── Image upload handler (max 4) ──────────────────────────────
+  const handleImageFiles = (fileList) => {
+    const files = Array.from(fileList).slice(0, 4 - images.length);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setImages(prev => prev.length < 4
+          ? [...prev, { base64: ev.target.result.split(',')[1], mimeType: file.type, name: file.name }]
+          : prev
+        );
+      };
+      reader.readAsDataURL(file);
+    });
+    if (imageInputRef.current) imageInputRef.current.value = '';
   };
+  const removeImage = (idx) => setImages(prev => prev.filter((_, i) => i !== idx));
 
   // ── Generate ───────────────────────────────────────────────────
   const handleGenerate = async () => {
@@ -327,9 +354,7 @@ export default function ContentPage({ darkMode = true }) {
       const newsInput = await getActiveNewsInput();
       if (!newsInput) { setGenerating(false); return; }
 
-      const imageParts = imageData
-        ? [{ inlineData: { mimeType: imageData.mimeType, data: imageData.base64 } }]
-        : [];
+      const imageParts = images.map(img => ({ inlineData: { mimeType: img.mimeType, data: img.base64 } }));
 
       let systemPrompt, userPrompt;
       if (mode === 'youtube') {
@@ -494,53 +519,42 @@ export default function ContentPage({ darkMode = true }) {
                       if (window.innerWidth <= 768) setMobileTab('generate');
                     }}
                     style={{
-                      ...cardBase,
-                      padding: 14, cursor: 'pointer',
+                      background: t.card, borderRadius: 12,
+                      padding: '10px 12px', cursor: 'pointer',
                       border: isSelected ? `1px solid ${ACCENT}` : t.cardBorder,
-                      boxShadow: isSelected ? `0 0 0 1px ${ACCENT}55, ${t.cardShadow}` : t.cardShadow,
+                      boxShadow: isSelected ? `0 0 0 1px ${ACCENT}33` : 'none',
                       transition: 'border 0.15s, box-shadow 0.15s',
+                      display: 'flex', flexDirection: 'column', gap: 4,
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: t.text }}>
-                        {item.sourceName || 'CryptoCompare'}
-                      </span>
+                    {/* Meta row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                        padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 600,
-                        background: item.category === 'ai_tech' ? 'rgba(168,85,247,0.15)' : 'rgba(247,147,26,0.15)',
+                        display: 'inline-flex', alignItems: 'center', gap: 3,
+                        fontSize: 10, fontWeight: 600,
                         color: item.category === 'ai_tech' ? '#A855F7' : '#F7931A',
                       }}>
-                        {item.category === 'ai_tech' ? <Cpu size={10} /> : <Bitcoin size={10} />}
-                        {item.category === 'ai_tech' ? 'AI/Tech' : 'Kripto'}
+                        {item.category === 'ai_tech' ? <Cpu size={9} /> : <Bitcoin size={9} />}
+                        {item.sourceName || 'CC'}
                       </span>
-                      <span style={{ marginLeft: 'auto', fontSize: 11, color: t.muted }}>
-                        {timeAgo(item.publishedAt)} önce
-                      </span>
+                      <span style={{ fontSize: 10, color: t.muted }}>·</span>
+                      <span style={{ fontSize: 10, color: t.muted }}>{timeAgo(item.publishedAt)}</span>
+                      {item.sourceUrl && (
+                        <a
+                          href={item.sourceUrl} target="_blank" rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          style={{ marginLeft: 'auto', color: t.muted, display: 'flex' }}
+                        >
+                          <ExternalLink size={10} />
+                        </a>
+                      )}
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: t.text, lineHeight: 1.35, marginBottom: 6 }}>
+                    {/* Title */}
+                    <div style={{
+                      fontSize: 13, fontWeight: 600, color: t.text, lineHeight: 1.4,
+                    }}>
                       {item.titleTr || item.title}
                     </div>
-                    {item.body && (
-                      <div style={{
-                        fontSize: 12, color: t.muted, lineHeight: 1.5,
-                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                      }}>
-                        {item.body.slice(0, 200)}
-                      </div>
-                    )}
-                    {item.sourceUrl && (
-                      <a
-                        href={item.sourceUrl} target="_blank" rel="noopener noreferrer"
-                        onClick={e => e.stopPropagation()}
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 4,
-                          marginTop: 8, fontSize: 11, color: t.muted, textDecoration: 'none',
-                        }}
-                      >
-                        Kaynağa git <ExternalLink size={10} />
-                      </a>
-                    )}
                   </div>
                 );
               })
@@ -634,12 +648,18 @@ export default function ContentPage({ darkMode = true }) {
             {manualText.length}/1200 karakter
           </div>
           {manualText.trim().length > 0 && (
-            <div style={{
-              ...cardBase, padding: 12,
-              border: `1px solid ${ACCENT}`, fontSize: 12, color: ACCENT, fontWeight: 600,
-            }}>
-              ✓ İçerik hazır — sağda "AI ile Üret" butonuna bas
-            </div>
+            <button
+              onClick={() => setMobileTab('generate')}
+              className="content-mobile-generate-btn"
+              style={{
+                padding: '11px 18px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                background: ACCENT, color: '#0a0a0a',
+                fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+            >
+              <Sparkles size={14} /> İçerik Üret →
+            </button>
           )}
         </div>
       );
@@ -708,15 +728,19 @@ export default function ContentPage({ darkMode = true }) {
           {renderLeftPanel()}
         </div>
 
-        {/* ===== RIGHT: Reach + Style + İçerik ===== */}
-        <div className="content-panel-right" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* ===== RIGHT: Reach + Style + İçerik (sticky on desktop) ===== */}
+        <div className="content-panel-right" style={{
+          display: 'flex', flexDirection: 'column', gap: 14,
+          position: 'sticky', top: 0, alignSelf: 'flex-start',
+          maxHeight: '100vh', overflowY: 'auto', paddingBottom: 8,
+        }}>
 
           {/* ReachScore badge */}
           {mode === 'tweet' && liveAnalysis ? (
             <ReachScoreBadge
               analysis={liveAnalysis}
               followers={getXFollowers()}
-              hasMedia={!!imageData}
+              hasMedia={images.length > 0}
               onBoost={handleBoost}
               onRevert={previousContent !== null ? handleRevert : undefined}
               boosting={boosting}
@@ -773,36 +797,50 @@ export default function ContentPage({ darkMode = true }) {
               }}
             />
 
-            {/* Image upload */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <label style={{
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                padding: '6px 12px', borderRadius: 8, cursor: 'pointer',
-                background: t.hover, border: `1px solid ${t.inputBorder}`,
-                color: imageData ? ACCENT : t.muted, fontSize: 12, fontWeight: 600,
-                fontFamily: 'inherit',
-              }}>
-                <ImagePlus size={14} />
-                {imageData ? imageData.name.slice(0, 20) + (imageData.name.length > 20 ? '…' : '') : 'Görsel Ekle'}
-                <input
-                  ref={imageInputRef}
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={e => handleImageFile(e.target.files[0])}
-                />
-              </label>
-              {imageData && (
-                <button
-                  onClick={() => { setImageData(null); if (imageInputRef.current) imageInputRef.current.value = ''; }}
-                  style={{
-                    width: 26, height: 26, borderRadius: 8, border: 'none', cursor: 'pointer',
-                    background: 'rgba(239,68,68,0.1)', color: '#ef4444',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
-                >
-                  <XIcon size={12} />
-                </button>
+            {/* Image upload (max 4) */}
+            <div style={{ marginBottom: 12 }}>
+              {/* Thumbnails */}
+              {images.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                  {images.map((img, idx) => (
+                    <div key={idx} style={{ position: 'relative' }}>
+                      <img
+                        src={`data:${img.mimeType};base64,${img.base64}`}
+                        alt={img.name}
+                        style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, display: 'block' }}
+                      />
+                      <button
+                        onClick={() => removeImage(idx)}
+                        style={{
+                          position: 'absolute', top: -4, right: -4,
+                          width: 16, height: 16, borderRadius: '50%', border: 'none',
+                          background: '#ef4444', color: '#fff', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 10, lineHeight: 1,
+                        }}
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {images.length < 4 && (
+                <label style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '5px 11px', borderRadius: 8, cursor: 'pointer',
+                  background: t.hover, border: `1px solid ${t.inputBorder}`,
+                  color: t.muted, fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+                }}>
+                  <ImagePlus size={13} />
+                  Görsel Ekle {images.length > 0 ? `(${images.length}/4)` : ''}
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={e => handleImageFiles(e.target.files)}
+                  />
+                </label>
               )}
             </div>
 

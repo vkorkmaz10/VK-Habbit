@@ -76,6 +76,9 @@
   vertical-align: middle;
 }
 
+/* Manuel mod "İçerik Üret →" butonu: sadece mobilde göster */
+.content-mobile-generate-btn { display: none; }
+
 @media (max-width: 768px) {
   .app-layout { padding: 8px !important; gap: 0 !important; }
   .desktop-sidebar { display: none !important; }
@@ -87,6 +90,10 @@
   .content-mobile-tabs { display: flex; margin-bottom: 8px; }
   .content-page-grid[data-mobile-tab="generate"] .content-panel-left { display: none !important; }
   .content-page-grid[data-mobile-tab="source"]   .content-panel-right { display: none !important; }
+  /* Manuel mode → show generate button */
+  .content-mobile-generate-btn { display: flex !important; }
+  /* Right panel: no sticky on mobile */
+  .content-panel-right { position: static !important; max-height: none !important; overflow-y: visible !important; }
 }
 
 * {

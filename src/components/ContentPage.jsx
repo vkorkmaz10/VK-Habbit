@@ -3,7 +3,7 @@
 // Mobilde: tab bar ile iki panel arası geçiş.
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { RefreshCw, ExternalLink, Loader, Sparkles, Cpu, Bitcoin, Copy, Check, Link, PenLine, ImagePlus, X as XIcon } from 'lucide-react';
+import { RefreshCw, ExternalLink, Loader, Sparkles, Cpu, Bitcoin, Copy, Check, Link, ImagePlus, X as XIcon, BookmarkCheck } from 'lucide-react';
 import { fetchCPNews, scrapeArticle } from '../utils/news';
 import { saveFeedback, getXFollowers } from '../utils/storage';
 import { buildTweetPrompt, buildThreadPrompt, STYLE_CONFIG } from '../engine/vse';
@@ -173,6 +173,7 @@ export default function ContentPage({ darkMode = true }) {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [boosting, setBoosting] = useState(false);
   const [previousContent, setPreviousContent] = useState(null);
   const [lastContext, setLastContext] = useState(null);
@@ -421,25 +422,11 @@ export default function ContentPage({ darkMode = true }) {
   };
 
   const handleClear = () => {
-    if (lastContext && content && lastContext.original !== content) {
-      const entry = {
-        newsTitle: lastContext.newsTitle,
-        newsSource: lastContext.newsSource,
-        mode: lastContext.mode,
-        style: lastContext.style,
-        original: lastContext.original,
-        edited: content,
-      };
-      if (lastContext.mode === 'tweet') {
-        entry.reachScore = scoreTweet(lastContext.original).reachScore;
-        entry.reachScoreFinal = scoreTweet(content).reachScore;
-      }
-      saveFeedback(entry);
-    }
     setContent('');
     setPreviousContent(null);
     setLastContext(null);
     setError('');
+    setSaved(false);
   };
 
   const handleCopy = () => {
@@ -448,6 +435,30 @@ export default function ContentPage({ darkMode = true }) {
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
+
+  // ── Save to learning model ────────────────────────────────────
+  const handleSave = () => {
+    if (!lastContext || !content) return;
+    const entry = {
+      newsTitle: lastContext.newsTitle,
+      newsSource: lastContext.newsSource,
+      mode: lastContext.mode,
+      style: lastContext.style,
+      original: lastContext.original,
+      edited: content,
+    };
+    if (lastContext.mode === 'tweet') {
+      entry.reachScore = scoreTweet(lastContext.original, { hasMedia: images.length > 0 }).reachScore;
+      entry.reachScoreFinal = scoreTweet(content, { hasMedia: images.length > 0 }).reachScore;
+    }
+    saveFeedback(entry);
+    // Snapshot original olarak güncelle (tekrar kaydedilmesini önle)
+    setLastContext(prev => ({ ...prev, original: content }));
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const isEdited = !!(lastContext && content && content !== lastContext.original);
 
   const liveAnalysis = mode === 'tweet' ? scoreTweet(content || '', { hasMedia: images.length > 0 }) : null;
 
@@ -728,35 +739,12 @@ export default function ContentPage({ darkMode = true }) {
           {renderLeftPanel()}
         </div>
 
-        {/* ===== RIGHT: Reach + Style + İçerik (sticky on desktop) ===== */}
+        {/* ===== RIGHT: Stil → İçerik → ReachOS (sticky on desktop) ===== */}
         <div className="content-panel-right" style={{
           display: 'flex', flexDirection: 'column', gap: 14,
           position: 'sticky', top: 0, alignSelf: 'flex-start',
           maxHeight: '100vh', overflowY: 'auto', paddingBottom: 8,
         }}>
-
-          {/* ReachScore badge */}
-          {mode === 'tweet' && liveAnalysis ? (
-            <ReachScoreBadge
-              analysis={liveAnalysis}
-              followers={getXFollowers()}
-              hasMedia={images.length > 0}
-              onBoost={handleBoost}
-              onRevert={previousContent !== null ? handleRevert : undefined}
-              boosting={boosting}
-            />
-          ) : (
-            <div style={cardBase}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: t.muted, letterSpacing: '1.5px', marginBottom: 8 }}>
-                REACH SCORE
-              </div>
-              <div style={{ fontSize: 13, color: t.muted, lineHeight: 1.5 }}>
-                {mode === 'tweet'
-                  ? 'Tek Tweet seçildiğinde algoritma skoru burada gözükür.'
-                  : `${MODES.find(m => m.key === mode)?.label} modunda Reach skoru hesaplanmaz.`}
-              </div>
-            </div>
-          )}
 
           <StylePicker value={style} onChange={setStyle} t={t} />
 
@@ -886,7 +874,7 @@ export default function ContentPage({ darkMode = true }) {
             </div>
 
             {content && (
-              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                 <button
                   onClick={handleCopy}
                   style={{
@@ -899,9 +887,49 @@ export default function ContentPage({ darkMode = true }) {
                 >
                   {copied ? <><Check size={12} /> Kopyalandı</> : <><Copy size={12} /> Kopyala</>}
                 </button>
+                {/* Kaydet → öğrenen model: yalnızca editlenmiş içerik varsa göster */}
+                {isEdited && (
+                  <button
+                    onClick={handleSave}
+                    style={{
+                      padding: '7px 12px', borderRadius: 8, cursor: 'pointer',
+                      background: saved ? 'rgba(16,185,129,0.12)' : `${ACCENT}15`,
+                      color: saved ? '#10b981' : ACCENT,
+                      border: `1px solid ${saved ? '#10b981' : ACCENT}`,
+                      fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
+                      display: 'inline-flex', alignItems: 'center', gap: 5,
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {saved
+                      ? <><Check size={12} /> Kaydedildi</>
+                      : <><BookmarkCheck size={12} /> Kaydet</>}
+                  </button>
+                )}
               </div>
             )}
           </div>
+
+          {/* ReachOS paneli — en altta */}
+          {mode === 'tweet' && liveAnalysis ? (
+            <ReachScoreBadge
+              analysis={liveAnalysis}
+              followers={getXFollowers()}
+              hasMedia={images.length > 0}
+              onBoost={handleBoost}
+              onRevert={previousContent !== null ? handleRevert : undefined}
+              boosting={boosting}
+            />
+          ) : mode === 'tweet' ? (
+            <div style={{ ...cardBase, opacity: 0.6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: t.muted, letterSpacing: '1.5px' }}>
+                REACH SCORE
+              </div>
+              <div style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>
+                İçerik üretilince skor burada görünür.
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

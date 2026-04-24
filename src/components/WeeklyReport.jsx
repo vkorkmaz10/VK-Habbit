@@ -3,24 +3,21 @@ import { getWeekDays, START_DATE_STR, getActiveDateObj } from '../utils/date';
 import { getStoreSummary, getDayData, calculateDayScore } from '../utils/storage';
 import { addWeeks, isAfter } from 'date-fns';
 import BodyHighlighter from './BodyHighlighter';
+import { mkTheme } from '../theme';
 
-export default function WeeklyReport({ selectedDateStr, refreshTrigger }) {
-  
+export default function WeeklyReport({ selectedDateStr, refreshTrigger, darkMode = true }) {
+  const t = mkTheme(darkMode);
+
   // Raporları hesapla
   const reportData = useMemo(() => {
-    const raw = getStoreSummary();
     const currentDateObj = new Date(selectedDateStr);
-    
-    // Geçerli haftanın günlerini al
+
     const { start: currentWeekStart, days: currentWeekDays } = getWeekDays(currentDateObj);
-    
-    // Geçen haftanın başlangıcı
     const prevWeekStart = addWeeks(currentWeekStart, -1);
     const { days: prevWeekDays } = getWeekDays(prevWeekStart);
 
-    // Antrenman index: 8 (0-indexed, Checkbox items içinde 8. sırada)
     const workoutIdx = 8;
-    
+
     const calculateStats = (daysArray) => {
       let weightSum = 0;
       let weightCount = 0;
@@ -33,20 +30,20 @@ export default function WeeklyReport({ selectedDateStr, refreshTrigger }) {
         if (isAfter(new Date(d.dateStr), getActiveDateObj())) return;
 
         const data = getDayData(d.dateStr);
-        
+
         if (data.w !== null) {
           weightSum += data.w;
           weightCount++;
         }
-        
+
         if (data.c[workoutIdx] === 1) {
           workoutCount++;
         }
-        
+
         if (data.m) {
           data.m.forEach(muscle => workedSet.add(muscle));
         }
-        
+
         const dayScore = calculateDayScore(d.dateStr);
         scoreSum += dayScore;
         scoreCount++;
@@ -64,28 +61,27 @@ export default function WeeklyReport({ selectedDateStr, refreshTrigger }) {
     const prevStats = calculateStats(prevWeekDays);
 
     let weightDiff = 0;
-    let feedback = "";
-    let feedbackColor = "var(--text-muted)";
+    let feedback = '';
+    let feedbackColor = 'rgba(255,255,255,0.4)';
 
     if (curStats.avgWeight > 0 && prevStats.avgWeight > 0) {
       weightDiff = curStats.avgWeight - prevStats.avgWeight;
-      
-      // Feedback thresholds
+
       if (weightDiff < 0) {
-        feedback = "Kilo Kaybı";
-        feedbackColor = "var(--error-color)";
+        feedback = 'Kilo Kaybı';
+        feedbackColor = '#f87171';
       } else if (weightDiff >= 0 && weightDiff <= 0.3) {
-        feedback = "Düşük";
-        feedbackColor = "var(--warning-color)";
+        feedback = 'Düşük';
+        feedbackColor = '#fbbf24';
       } else if (weightDiff > 0.3 && weightDiff <= 0.6) {
-        feedback = "İyi";
-        feedbackColor = "var(--accent-color)";
+        feedback = 'İyi';
+        feedbackColor = '#4ade80';
       } else if (weightDiff > 0.6 && weightDiff <= 1.0) {
-        feedback = "Çok İyi";
-        feedbackColor = "var(--accent-color)";
+        feedback = 'Çok İyi';
+        feedbackColor = '#4ade80';
       } else if (weightDiff > 1.0) {
-        feedback = "Fazla Hızlı";
-        feedbackColor = "var(--error-color)";
+        feedback = 'Fazla Hızlı';
+        feedbackColor = '#f87171';
       }
     }
 
@@ -93,41 +89,69 @@ export default function WeeklyReport({ selectedDateStr, refreshTrigger }) {
 
   }, [selectedDateStr, refreshTrigger]);
 
+  // Card is always dark regardless of theme
+  const cardBg = t.cardDark;           // dark: #242428 / light: #111111
+  const cardText = t.cardDarkText;     // dark: #e8e8ec / light: #ffffff
+  const cardMuted = 'rgba(255,255,255,0.4)';
+  const innerBg = 'rgba(0,0,0,0.25)';
+  const statBg = 'rgba(255,255,255,0.07)';
+
   return (
-    <div className="glass-card fade-in">
-      <h3 style={{ marginBottom: '16px', fontSize: '1.2rem', color: 'var(--accent-color)' }}>Seçili Hafta Özeti</h3>
-      
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', textAlign: 'center', marginBottom: '20px' }}>
-        <div className="score-display">
-          <span className="score-title">Başarı</span>
-          <span className="score-percent">{Math.round(reportData.curStats.avgScore)}%</span>
-        </div>
-        <div className="score-display">
-          <span className="score-title">Ort. Kilo</span>
-          <span className="score-percent" style={{ color: 'white' }}>
-            {reportData.curStats.avgWeight > 0 ? reportData.curStats.avgWeight.toFixed(2) : '-'}
-          </span>
-        </div>
-        <div className="score-display">
-          <span className="score-title">Antrenman</span>
-          <span className="score-percent" style={{ color: 'white' }}>{reportData.curStats.workoutCount}</span>
-        </div>
+    <div style={{
+      background: cardBg,
+      borderRadius: 20,
+      padding: '22px 24px',
+      color: cardText,
+    }}>
+      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 18, color: cardText }}>
+        Seçili Hafta Özeti
       </div>
 
-      {reportData.feedback && (
-        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>DEĞİŞİM (Geçen Haftaya Göre)</div>
-             <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
-               {reportData.weightDiff > 0 ? '+' : ''}{reportData.weightDiff.toFixed(2)} kg
-             </div>
+      {/* 3 stat grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 18 }}>
+        {[
+          { label: 'Başarı', value: `${Math.round(reportData.curStats.avgScore)}%` },
+          { label: 'Ort. Kilo', value: reportData.curStats.avgWeight > 0 ? reportData.curStats.avgWeight.toFixed(2) : '–' },
+          { label: 'Antrenman', value: reportData.curStats.workoutCount },
+        ].map(({ label, value }) => (
+          <div key={label} style={{
+            background: statBg,
+            borderRadius: 12,
+            padding: '12px 8px',
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 11, color: cardMuted, marginBottom: 6, fontWeight: 600 }}>{label}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: cardText }}>{value}</div>
           </div>
-          <div style={{ 
-            padding: '6px 12px', 
-            borderRadius: '20px', 
-            backgroundColor: `${reportData.feedbackColor}20`, 
+        ))}
+      </div>
+
+      {/* Weight change row */}
+      {reportData.feedback && (
+        <div style={{
+          background: innerBg,
+          padding: '12px 14px',
+          borderRadius: 12,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 18,
+        }}>
+          <div>
+            <div style={{ fontSize: 10, color: cardMuted, fontWeight: 700, letterSpacing: '0.5px', marginBottom: 4 }}>
+              DEĞİŞİM (GEÇEN HAFTAYA GÖRE)
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: cardText }}>
+              {reportData.weightDiff > 0 ? '+' : ''}{reportData.weightDiff.toFixed(2)} kg
+            </div>
+          </div>
+          <div style={{
+            padding: '6px 14px',
+            borderRadius: 20,
+            background: `${reportData.feedbackColor}20`,
             color: reportData.feedbackColor,
-            fontWeight: 'bold'
+            fontWeight: 700,
+            fontSize: 13,
           }}>
             {reportData.feedback}
           </div>
@@ -135,22 +159,32 @@ export default function WeeklyReport({ selectedDateStr, refreshTrigger }) {
       )}
 
       {/* Muscle Heatmap */}
-      <div style={{marginTop: '20px', background: 'rgba(0,0,0,0.2)', padding:'16px', borderRadius:'12px'}}>
-        <h4 style={{marginBottom:'12px', textAlign:'center', color:'var(--text-muted)'}}>Bu Hafta Çalışılan Bölgeler</h4>
-        
-        <BodyHighlighter workedSet={reportData.curStats.workedSet} style={{ maxHeight: '350px' }} />
+      <div style={{ background: innerBg, padding: '16px', borderRadius: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: cardMuted, textAlign: 'center', marginBottom: 12, letterSpacing: '0.5px' }}>
+          BU HAFTA ÇALIŞILAN BÖLGELER
+        </div>
 
-        <div style={{display:'flex', flexWrap:'wrap', gap:'8px', justifyContent:'center', marginTop: '16px'}}>
+        {/* Constrained BodyHighlighter */}
+        <div className="body-highlighter-wrapper">
+          <BodyHighlighter
+            workedSet={reportData.curStats.workedSet}
+            style={{ width: '100%', height: 'auto', display: 'block' }}
+          />
+        </div>
+
+        {/* Muscle badges — keep green color */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 14 }}>
           {['Chest', 'Back', 'Biceps', 'Triceps', 'Core', 'Legs'].map(m => {
             const isWorked = reportData.curStats.workedSet.has(m);
             return (
               <span key={m} style={{
-                fontSize:'0.75rem', 
-                padding:'4px 10px', 
-                borderRadius:'12px', 
-                background: isWorked ? 'rgba(57, 255, 20, 0.2)' : 'rgba(255,255,255,0.05)', 
-                color: isWorked ? 'var(--accent-color)' : 'var(--text-muted)',
-                border: isWorked ? '1px solid var(--accent-color)' : '1px solid transparent'
+                fontSize: 12,
+                padding: '4px 12px',
+                borderRadius: 12,
+                background: isWorked ? 'rgba(57, 255, 20, 0.18)' : 'rgba(255,255,255,0.06)',
+                color: isWorked ? '#39ff14' : cardMuted,
+                border: isWorked ? '1px solid rgba(57, 255, 20, 0.5)' : '1px solid transparent',
+                fontWeight: 600,
               }}>
                 {m}
               </span>

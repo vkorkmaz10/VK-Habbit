@@ -9,6 +9,7 @@ import {
 import { getActiveDateString } from '../utils/date';
 import { mkTheme } from '../theme';
 import Header from './Header';
+import WeeklyReport from './WeeklyReport';
 
 const MUSCLES = ['Chest', 'Back', 'Biceps', 'Triceps', 'Core', 'Legs'];
 
@@ -83,12 +84,12 @@ function WeightCard({ value, onChange, onCommit, disabled, bounds, savedFlash, t
   const inc = () => onChange(Math.min(bounds.max, +(value + 0.1).toFixed(2)));
   const btn = {
     width: 36, height: 36, borderRadius: '50%',
-    border: `2px solid ${darkMode ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.25)'}`,
-    background: 'transparent', color: '#fff', fontSize: 18, cursor: disabled ? 'default' : 'pointer',
+    border: `2px solid ${darkMode ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)'}`,
+    background: 'transparent', color: darkMode ? '#fff' : '#111', fontSize: 18, cursor: disabled ? 'default' : 'pointer',
     fontFamily: 'Spline Sans', opacity: disabled ? 0.5 : 1,
   };
   return (
-    <div style={{ background: t.cardDark, borderRadius: 20, padding: '20px 22px', color: t.cardDarkText, position: 'relative' }}>
+    <div style={{ background: darkMode ? t.cardDark : t.card, borderRadius: 20, padding: '20px 22px', color: darkMode ? t.cardDarkText : t.text, position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
         <div style={{ fontSize: 14, fontWeight: 700 }}>Kilo Girişi</div>
         {savedFlash && (
@@ -99,12 +100,12 @@ function WeightCard({ value, onChange, onCommit, disabled, bounds, savedFlash, t
           }}>✓ Kaydedildi</span>
         )}
       </div>
-      <div style={{ fontSize: 11, color: darkMode ? 'rgba(232,232,236,0.4)' : 'rgba(255,255,255,0.5)', marginBottom: 18 }}>Bugünün ağırlığı</div>
+      <div style={{ fontSize: 11, color: darkMode ? 'rgba(232,232,236,0.4)' : 'rgba(0,0,0,0.4)', marginBottom: 18 }}>Bugünün ağırlığı</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
         <button onClick={dec} disabled={disabled} style={btn}>−</button>
         <div style={{ flex: 1, textAlign: 'center' }}>
-          <div style={{ fontSize: 42, fontWeight: 700, lineHeight: 1, color: t.cardDarkText }}>{value.toFixed(2)}</div>
-          <div style={{ fontSize: 12, color: darkMode ? 'rgba(232,232,236,0.4)' : 'rgba(255,255,255,0.5)' }}>kg</div>
+          <div style={{ fontSize: 42, fontWeight: 700, lineHeight: 1, color: darkMode ? t.cardDarkText : t.text }}>{value.toFixed(2)}</div>
+          <div style={{ fontSize: 12, color: darkMode ? 'rgba(232,232,236,0.4)' : 'rgba(0,0,0,0.4)' }}>kg</div>
         </div>
         <button onClick={inc} disabled={disabled} style={btn}>+</button>
       </div>
@@ -114,7 +115,7 @@ function WeightCard({ value, onChange, onCommit, disabled, bounds, savedFlash, t
         onChange={e => onChange(parseFloat(e.target.value))}
         onMouseUp={onCommit} onTouchEnd={onCommit}
         disabled={disabled}
-        style={{ width: '100%', accentColor: t.cardDarkText, opacity: disabled ? 0.5 : 1 }}
+        style={{ width: '100%', accentColor: darkMode ? t.cardDarkText : t.text, opacity: disabled ? 0.5 : 1 }}
       />
     </div>
   );
@@ -295,6 +296,12 @@ export default function HabitsPage({ darkMode, selectedDateStr, setSelectedDateS
               Bugüne Dön
             </button>
           )}
+
+          <WeeklyReport
+            selectedDateStr={selectedDateStr}
+            refreshTrigger={refreshTrigger}
+            darkMode={darkMode}
+          />
         </div>
       </div>
 

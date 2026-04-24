@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
-import WeeklyReport from './components/WeeklyReport';
 import TodoPage from './components/TodoPage';
 import CalendarPage from './components/CalendarPage';
 import ContentPage from './components/ContentPage';
@@ -133,10 +132,6 @@ function App() {
                   refreshTrigger={refreshTrigger}
                   onDataChange={handleDataChange}
                 />
-                {/* Eski WeeklyReport — Faz 6'da Stats sayfasına taşınacak */}
-                <div style={{ marginTop: 16 }}>
-                  <WeeklyReport selectedDateStr={selectedDateStr} refreshTrigger={refreshTrigger} />
-                </div>
               </>
             )}
 

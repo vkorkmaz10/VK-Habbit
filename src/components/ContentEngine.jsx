@@ -18,6 +18,63 @@ const PLATFORMS = [
   { id: 'facebook',   label: 'Facebook',   short: 'fb', accent: '#1877F2' },
 ];
 
+const PLATFORM_TIPS = {
+  x: [
+    { icon: '🔗', text: 'Linkleri reply\'a koy — ana tweet\'te link varsa algoritma cezalandırır.' },
+    { icon: '#️⃣', text: 'Hashtag kullanma. Hiç. Spam görünür, reach düşer.' },
+    { icon: '⏰', text: 'En iyi saatler: 09-11, 12-13, 20-23. Paylaştıktan sonra 30 dk reply\'lara gir.' },
+    { icon: '📏', text: 'Sweet spot: 1.000-2.000 karakter. Çok kısa = değersiz. Çok uzun = kaybeder.' },
+    { icon: '🎣', text: 'İlk satır her şey — contrarian hook veya proof hook en iyi performansı verir.' },
+  ],
+  linkedin: [
+    { icon: '🔗', text: 'Linkleri ilk comment\'e koy — post body\'de link varsa algoritma gösterimi kısar.' },
+    { icon: '✂️', text: 'İlk ~210 karakter kritik — "daha fazla gör" kesmeden önce hook bitmiş olmalı.' },
+    { icon: '#️⃣', text: 'Hashtag varsa body\'ye değil, en sona max 3 tane. Body\'de hiç kullanma.' },
+    { icon: '🕗', text: 'En iyi saatler: 07-08, 12:00, 17-18. Paylaşmadan önce 10 alakalı post\'a comment at.' },
+    { icon: '📝', text: 'Kısa paragraflar — her fikir ayrı paragraf. Beyaz alan senin arkadaşın.' },
+  ],
+  instagram: [
+    { icon: '🖼️', text: 'Carousel king — 7-10 slide. Slide 1 = hook (max 8 kelime, bold, contrarian).' },
+    { icon: '#️⃣', text: '5-10 hashtag caption sonuna. Instagram\'da hashtag gerçekten discovery sağlar.' },
+    { icon: '📢', text: 'Son slide\'a CTA koy: "Kaydet", "Takip et", "Paylaş" — ikisi birden olmasın.' },
+    { icon: '✍️', text: 'Caption slide\'ları tekrar etmesin — farklı bir açı veya ek bağlam ekle.' },
+    { icon: '🎨', text: 'Tüm slide\'larda tutarlı renk şeması. Her slide\'da max 30 kelime.' },
+  ],
+  tiktok: [
+    { icon: '⚡', text: 'İlk 2 saniye hook — kaybedersen geri kazanamazsın. "Hey guys" tarzı intro YOK.' },
+    { icon: '📱', text: 'Altyazı/text overlay zorunlu — izleyicilerin çoğu sesi kapalı izler.' },
+    { icon: '📹', text: 'Screen recording + voiceover AI/tech içerik için en iyi format.' },
+    { icon: '📅', text: '30 gün tutarlı paylaşmadan sonuç bekleme. Algoritma sabır ister.' },
+    { icon: '🎯', text: 'Bir post\'ta bir fikir. Her şeyi sığdırmaya çalışma — odak kes.' },
+  ],
+  youtube: [
+    { icon: '🔍', text: 'Başlık her şey — SEO odaklı, merak uyandıran, spesifik. Max 60 karakter.' },
+    { icon: '⏱️', text: 'Description\'ın ilk 2 satırı "daha fazla gör" kesmeden görünür — hook + link buraya.' },
+    { icon: '📑', text: 'Timestamp\'leri description\'a ekle — YouTube chapter\'ları aktif eder, watch time artar.' },
+    { icon: '🎬', text: 'İlk 30 saniye: problem + çözüm vaadi. Sonra konu. Uzun intro = izleyici kaçar.' },
+    { icon: '🌿', text: 'Evergreen içerik — yıllarca view alır. Trend değil, kalıcı konuları seç.' },
+  ],
+  newsletter: [
+    { icon: '📧', text: 'Subject line = hook. "Haftalık Bülten #47" kimse açmaz. Başlık vaad etmeli.' },
+    { icon: '✉️', text: 'Plain text > süslü template. Fancy görünüm = marketing spam hissi. Gerçek insan gibi yaz.' },
+    { icon: '🎯', text: 'Bir issue, bir konu. Her şeyi sıkıştırma — derinlik tercih et.' },
+    { icon: '📢', text: 'Sonda tek CTA — reply at, linke tıkla, bir şey dene. Birden fazla CTA = hiçbiri.' },
+    { icon: '💡', text: 'Sosyal medyada paylaşmadığın exclusive insight ekle — aboneliği değerli kılan bu.' },
+  ],
+  threads: [
+    { icon: '🔗', text: 'Link kullanma — Threads linki cezalandırır, tamamen kaldır.' },
+    { icon: '#️⃣', text: 'Hashtag yok. Pure text engagement. Algoritma hashtag sevmez.' },
+    { icon: '💬', text: 'Shower thought enerjisi — "hot take:", "unpopular opinion:" açılışları çok iyi çalışır.' },
+    { icon: '📏', text: 'Post başına max 500 karakter. 1-3 kısa post serisi en iyi format.' },
+  ],
+  facebook: [
+    { icon: '❓', text: 'Sona soru ekle — yorum sayısını 3-5x artırır. Algoritma yorumu seviyor.' },
+    { icon: '🎥', text: 'Native video yükle — external link\'ten çok daha fazla reach alır.' },
+    { icon: '👥', text: 'Profil + ilgili gruplara paylaş. Grup paylaşımı organic reach\'i katlar.' },
+    { icon: '🤝', text: 'Taktik playbook değil, kişisel hikaye — Facebook topluluğu bağlantı ister.' },
+  ],
+};
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function loadHistory() {
@@ -466,6 +523,28 @@ export default function ContentEngine({ darkMode }) {
                 }}>
                   {String(results[activePlatform] || 'Bu platform için içerik üretilemedi.')}
                 </div>
+
+                {/* Platform tips */}
+                {PLATFORM_TIPS[activePlatform] && (
+                  <div style={{ marginTop: 16 }}>
+                    <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      {activePlatformObj.label} tüyoları
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {PLATFORM_TIPS[activePlatform].map((tip, i) => (
+                        <div key={i} style={{
+                          display: 'flex', alignItems: 'flex-start', gap: 9,
+                          padding: '8px 11px', borderRadius: 10,
+                          background: `${activePlatformObj.accent}0d`,
+                          border: `1px solid ${activePlatformObj.accent}22`,
+                        }}>
+                          <span style={{ fontSize: 14, flexShrink: 0, lineHeight: 1.5 }}>{tip.icon}</span>
+                          <span style={{ fontSize: 12, color: t.text, lineHeight: 1.55 }}>{tip.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Quick copy row */}
                 <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>

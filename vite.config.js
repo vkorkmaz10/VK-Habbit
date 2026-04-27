@@ -51,7 +51,7 @@ function apiMiddleware(env = {}) {
           const feedResults = await Promise.allSettled(
             RSS_SOURCES.map(async (src) => {
               const rssRes = await fetch(src.url, {
-                headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VKGymBot/1.0)' },
+                headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LifeOSBot/1.0)' },
               });
               if (!rssRes.ok) return [];
               const xml = await rssRes.text();
@@ -134,7 +134,7 @@ function apiMiddleware(env = {}) {
 
           const apiRes = await fetch(
             `https://min-api.cryptocompare.com/data/v2/news/?lang=EN&api_key=${apiKey}`,
-            { headers: { 'User-Agent': 'VKGymBot (vkgym, 1.0)' } }
+            { headers: { 'User-Agent': 'LifeOSBot (lifeos, 1.0)' } }
           );
           if (!apiRes.ok) throw new Error(`CryptoCompare API ${apiRes.status}`);
           const json = await apiRes.json();
@@ -216,7 +216,7 @@ function apiMiddleware(env = {}) {
 
         try {
           const response = await fetch(url, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VKGymBot/1.0)' },
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LifeOSBot/1.0)' },
           });
           const html = await response.text();
           const text = html
@@ -250,9 +250,9 @@ export default defineConfig(({ mode }) => {
       registerType: 'autoUpdate',
       includeAssets: ['icon.png'],
       manifest: {
-        name: 'VK10GYM Fitness Tracker',
-        short_name: 'VK10GYM',
-        description: 'An 8-week fitness tracking PWA',
+        name: 'LifeOS',
+        short_name: 'LifeOS',
+        description: 'Personal productivity & life operating system',
         theme_color: '#121826',
         background_color: '#121826',
         display: "standalone",

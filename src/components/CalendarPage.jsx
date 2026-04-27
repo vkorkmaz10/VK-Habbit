@@ -101,8 +101,8 @@ export default function CalendarPage({ darkMode, selectedDateStr, setSelectedDat
 
   useEffect(() => {
     const onChange = () => setAccounts(getAccounts());
-    window.addEventListener('vkgym_google_accounts_changed', onChange);
-    return () => window.removeEventListener('vkgym_google_accounts_changed', onChange);
+    window.addEventListener('lifeos_google_accounts_changed', onChange);
+    return () => window.removeEventListener('lifeos_google_accounts_changed', onChange);
   }, []);
 
   useEffect(() => {

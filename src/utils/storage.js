@@ -1,7 +1,14 @@
 import { START_DATE_STR, getWeekDays } from './date';
 import { getDefaultChecks } from '../data/constants';
 
-const STORAGE_KEY = 'vkgym_data';
+const STORAGE_KEY = 'lifeos_data';
+
+// Eski vkgym_data verisini bir defaya mahsus taşı
+(function migrateStorage() {
+  if (!localStorage.getItem('lifeos_data') && localStorage.getItem('vkgym_data')) {
+    localStorage.setItem('lifeos_data', localStorage.getItem('vkgym_data'));
+  }
+})();
 
 /**
  * Veri Yapısı:
@@ -225,7 +232,7 @@ export const calculateTodoScore = (dateStr) => {
 // ========================
 // Pomodoro Persistence
 // ========================
-const POMODORO_KEY = 'vkgym_pomodoro';
+const POMODORO_KEY = 'lifeos_pomodoro';
 
 export const getActivePomodoro = () => {
   const data = localStorage.getItem(POMODORO_KEY);
@@ -281,7 +288,7 @@ export const removeCalendarEvent = (eventId) => {
 // VSE Feedback Log
 // ========================
 
-const VSE_FEEDBACK_KEY = 'vkgym_vse_feedback';
+const VSE_FEEDBACK_KEY = 'lifeos_vse_feedback';
 
 /**
  * Saves a VSE feedback entry (original vs user-edited content).
@@ -313,8 +320,8 @@ export const getFeedbackLog = () => {
 // ReachOS Settings (BYOK + X profile)
 // ========================
 
-const ANTHROPIC_KEY_STORAGE = 'vkgym_anthropic_key';
-const X_FOLLOWERS_STORAGE = 'vkgym_x_followers';
+const ANTHROPIC_KEY_STORAGE = 'lifeos_anthropic_key';
+const X_FOLLOWERS_STORAGE = 'lifeos_x_followers';
 
 export const getAnthropicKey = () => {
   try { return localStorage.getItem(ANTHROPIC_KEY_STORAGE) || ''; }

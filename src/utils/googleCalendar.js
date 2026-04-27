@@ -2,10 +2,10 @@
  * Google Calendar API Integration — multi-account + silent refresh.
  *
  * Storage:
- *   vkgym_google_accounts = {
+ *   lifeos_google_accounts = {
  *     "user@gmail.com": { access_token, expiresAt, email, name, picture, color }
  *   }
- *   (Legacy `vkgym_google_token` migrated to first account on first read.)
+ *   (Legacy `lifeos_google_token` migrated to first account on first read.)
  *
  * Auth: Google Identity Services token client.
  *  - First connect: prompt='consent select_account' (user picks account)
@@ -20,8 +20,8 @@ const CLIENT_ID = '199527058579-hedl229jb677cu2ivgnbk485gkgfgedf.apps.googleuser
 const SCOPES = 'openid email profile https://www.googleapis.com/auth/calendar.events.readonly';
 const CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
 const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
-const ACCOUNTS_KEY = 'vkgym_google_accounts';
-const LEGACY_TOKEN_KEY = 'vkgym_google_token';
+const ACCOUNTS_KEY = 'lifeos_google_accounts';
+const LEGACY_TOKEN_KEY = 'lifeos_google_token';
 const REFRESH_BUFFER_MS = 5 * 60 * 1000; // refresh if <5 min remains
 const ACCOUNT_PALETTE = ['#00d4ff', '#ff5252', '#34A853', '#f4c430', '#bd00ff', '#ff8c42'];
 
@@ -60,7 +60,7 @@ function writeAccounts(map) {
 }
 
 function notify() {
-  window.dispatchEvent(new CustomEvent('vkgym_google_accounts_changed'));
+  window.dispatchEvent(new CustomEvent('lifeos_google_accounts_changed'));
 }
 
 function colorFor(email, existing) {

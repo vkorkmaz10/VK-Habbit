@@ -1,17 +1,17 @@
-// ======= VK-GYM Data Backup Utilities =======
+// ======= LifeOS Data Backup Utilities =======
 // Export, import, validate — iOS PWA compatible
 
-const VKGYM_PREFIX = 'vkgym_';
+const LIFEOS_PREFIX = 'lifeos_';
 const BACKUP_VERSION = 1;
 
 /**
- * Get all localStorage keys that belong to VK-GYM
+ * Get all localStorage keys that belong to LifeOS
  */
-export function getAllVkgymKeys() {
+export function getAllLifeOSKeys() {
   const keys = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key && key.startsWith(VKGYM_PREFIX)) {
+    if (key && key.startsWith(LIFEOS_PREFIX)) {
       keys.push(key);
     }
   }
@@ -19,10 +19,10 @@ export function getAllVkgymKeys() {
 }
 
 /**
- * Export all VK-GYM data as a JSON envelope
+ * Export all LifeOS data as a JSON envelope
  */
 export function exportAllData() {
-  const keys = getAllVkgymKeys();
+  const keys = getAllLifeOSKeys();
   const data = {};
   for (const key of keys) {
     const raw = localStorage.getItem(key);
@@ -53,8 +53,8 @@ export function validateBackup(parsed) {
   if (!parsed.keys || typeof parsed.keys !== 'object') {
     return { valid: false, error: 'Yedek dosyasında veri bulunamadı.' };
   }
-  // Check vkgym_data structure if present
-  const mainData = parsed.keys['vkgym_data'];
+  // Check lifeos_data structure if present
+  const mainData = parsed.keys['lifeos_data'];
   if (mainData) {
     if (!mainData.startDate || !mainData.days || typeof mainData.days !== 'object') {
       return { valid: false, error: 'Ana veri yapısı bozuk (startDate veya days eksik).' };
@@ -71,7 +71,7 @@ export function validateBackup(parsed) {
 export function importData(parsed, mode = 'replace') {
   if (mode === 'replace') {
     // Clear all existing vkgym keys
-    const existing = getAllVkgymKeys();
+    const existing = getAllLifeOSKeys();
     for (const key of existing) {
       localStorage.removeItem(key);
     }
@@ -82,9 +82,9 @@ export function importData(parsed, mode = 'replace') {
   } else {
     // Merge mode
     for (const [key, importedValue] of Object.entries(parsed.keys)) {
-      if (key === 'vkgym_data') {
+      if (key === 'lifeos_data') {
         // Special merge for main data
-        const currentRaw = localStorage.getItem('vkgym_data');
+        const currentRaw = localStorage.getItem('lifeos_data');
         const current = currentRaw ? JSON.parse(currentRaw) : { startDate: importedValue.startDate, days: {}, calendarEvents: [] };
 
         // Merge days — imported days overwrite existing for same date
@@ -108,7 +108,7 @@ export function importData(parsed, mode = 'replace') {
           days: mergedDays,
           calendarEvents: mergedEvents,
         };
-        localStorage.setItem('vkgym_data', JSON.stringify(merged));
+        localStorage.setItem('lifeos_data', JSON.stringify(merged));
       } else {
         // Other keys — simply overwrite
         localStorage.setItem(key, typeof importedValue === 'string' ? importedValue : JSON.stringify(importedValue));
@@ -128,7 +128,7 @@ export async function exportForPlatform(jsonString, filename) {
   // 1. Try Web Share API with files (iOS 15+ PWA)
   try {
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: 'VK-GYM Yedek' });
+      await navigator.share({ files: [file], title: 'LifeOS Yedek' });
       return 'shared';
     }
   } catch {
@@ -172,7 +172,7 @@ export async function exportForPlatform(jsonString, filename) {
  * Get storage stats for display
  */
 export function getStorageStats() {
-  const keys = getAllVkgymKeys();
+  const keys = getAllLifeOSKeys();
   let totalBytes = 0;
   for (const key of keys) {
     const val = localStorage.getItem(key);
@@ -181,7 +181,7 @@ export function getStorageStats() {
 
   let dayCount = 0;
   try {
-    const data = JSON.parse(localStorage.getItem('vkgym_data') || '{}');
+    const data = JSON.parse(localStorage.getItem('lifeos_data') || '{}');
     dayCount = data.days ? Object.keys(data.days).length : 0;
   } catch { /* ignore */ }
 

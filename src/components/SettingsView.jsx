@@ -20,8 +20,8 @@ const SUCCESS = '#10b981';
 const PURPLE = '#bd00ff';
 const AMBER = '#f59e0b';
 
-const GEMINI_KEY_STORAGE = 'vkgym_gemini_key';
-const CC_KEY_STORAGE = 'vkgym_cc_key';
+const GEMINI_KEY_STORAGE = 'lifeos_gemini_key';
+const CC_KEY_STORAGE = 'lifeos_cc_key';
 const KEY_REVEAL_PASSWORD = 'vk2017';
 const DELETE_PASSWORD = 'vk2017';
 
@@ -105,7 +105,7 @@ export default function SettingsView({ darkMode = true }) {
       const data = exportAllData();
       const jsonStr = JSON.stringify(data, null, 2);
       const date = new Date().toISOString().slice(0, 10);
-      const filename = `vkgym-yedek-${date}.json`;
+      const filename = `lifeos-yedek-${date}.json`;
       const method = await exportForPlatform(jsonStr, filename);
       if (method === 'shared') showToast('Yedek dosyası paylaşıldı.');
       else if (method === 'downloaded') showToast('Yedek dosyası indirildi.');
@@ -145,26 +145,26 @@ export default function SettingsView({ darkMode = true }) {
     setGeminiKey(val);
     if (val) { localStorage.setItem(GEMINI_KEY_STORAGE, val); showToast('Gemini key kaydedildi.'); }
     else { localStorage.removeItem(GEMINI_KEY_STORAGE); showToast('Gemini key silindi.'); }
-    window.dispatchEvent(new CustomEvent('vkgym_key_updated'));
+    window.dispatchEvent(new CustomEvent('lifeos_key_updated'));
   };
   const deleteKey = () => {
     setGeminiKey(''); localStorage.removeItem(GEMINI_KEY_STORAGE);
     if (keyInputRef.current) keyInputRef.current.value = '';
     showToast('Gemini key silindi.');
-    window.dispatchEvent(new CustomEvent('vkgym_key_updated'));
+    window.dispatchEvent(new CustomEvent('lifeos_key_updated'));
   };
   const saveCcKey = () => {
     const val = ccKeyInputRef.current?.value?.trim() || '';
     setCcKey(val);
     if (val) { localStorage.setItem(CC_KEY_STORAGE, val); showToast('CryptoCompare key kaydedildi.'); }
     else { localStorage.removeItem(CC_KEY_STORAGE); showToast('CryptoCompare key silindi.'); }
-    window.dispatchEvent(new CustomEvent('vkgym_key_updated'));
+    window.dispatchEvent(new CustomEvent('lifeos_key_updated'));
   };
   const deleteCcKey = () => {
     setCcKey(''); localStorage.removeItem(CC_KEY_STORAGE);
     if (ccKeyInputRef.current) ccKeyInputRef.current.value = '';
     showToast('CryptoCompare key silindi.');
-    window.dispatchEvent(new CustomEvent('vkgym_key_updated'));
+    window.dispatchEvent(new CustomEvent('lifeos_key_updated'));
   };
   const saveAnthropic = () => {
     const val = anthropicKeyInputRef.current?.value?.trim() || '';
@@ -190,7 +190,7 @@ export default function SettingsView({ darkMode = true }) {
     const keys = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && k.startsWith('vkgym_')) keys.push(k);
+      if (k && k.startsWith('lifeos_')) keys.push(k);
     }
     keys.forEach(k => localStorage.removeItem(k));
     ['pvk_tab', 'pvk_sidebar', 'pvk_dark'].forEach(k => localStorage.removeItem(k));

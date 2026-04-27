@@ -12,10 +12,10 @@ import { mkTheme } from '../theme';
 import ReachScoreBadge from './ReachScoreBadge';
 
 const ACCENT = '#00d4ff';
-const GEMINI_KEY_STORAGE = 'vkgym_gemini_key';
-const CC_KEY_STORAGE = 'vkgym_cc_key';
+const GEMINI_KEY_STORAGE = 'lifeos_gemini_key';
+const CC_KEY_STORAGE = 'lifeos_cc_key';
 const CACHE_TTL = 5 * 60 * 1000;
-const TR_CACHE_KEY = 'vkgym_tr_cache';
+const TR_CACHE_KEY = 'lifeos_tr_cache';
 const TR_CACHE_TTL = 6 * 60 * 60 * 1000;
 
 const MODES = [
@@ -190,8 +190,8 @@ export default function ContentPage({ darkMode = true }) {
       setGeminiKey(localStorage.getItem(GEMINI_KEY_STORAGE) || '');
       setCcKey(localStorage.getItem(CC_KEY_STORAGE) || '');
     };
-    window.addEventListener('vkgym_key_updated', handler);
-    return () => window.removeEventListener('vkgym_key_updated', handler);
+    window.addEventListener('lifeos_key_updated', handler);
+    return () => window.removeEventListener('lifeos_key_updated', handler);
   }, []);
 
   // ── News load ──────────────────────────────────────────────────

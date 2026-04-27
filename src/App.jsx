@@ -3,6 +3,7 @@ import Header from './components/Header';
 import TodoPage from './components/TodoPage';
 import CalendarPage from './components/CalendarPage';
 import ContentPage from './components/ContentPage';
+import ContentEngine from './components/ContentEngine';
 import SettingsView from './components/SettingsView';
 import Sidebar from './components/Sidebar';
 import HomePage from './components/HomePage';
@@ -159,6 +160,8 @@ function App() {
             <div style={{ display: activeTab === 'content' ? 'block' : 'none' }}>
               <ContentPage darkMode={darkMode} />
             </div>
+
+            {activeTab === 'engine' && <ContentEngine darkMode={darkMode} />}
 
             {activeTab === 'stats' && <StatsPage darkMode={darkMode} />}
 

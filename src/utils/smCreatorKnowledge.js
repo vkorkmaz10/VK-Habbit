@@ -175,12 +175,33 @@ const PLATFORM_RULES = `
 - Output: post text + discussion question
 `;
 
-export function buildSystemPrompt() {
+const PLATFORM_HINTS = {
+  x:          'X/Twitter içeriği (tweet veya thread)',
+  linkedin:   'LinkedIn içeriği (kişisel hikaye + iş dersi)',
+  instagram:  'Instagram carousel slide metinleri (Slide 1:, Slide 2: şeklinde)',
+  tiktok:     'TikTok video scripti ([HOOK 0:00], [CONTEXT], [HOW], [CTA] ile)',
+  youtube:    'YouTube outline (SEO başlık + bölüm başlıkları + içerik)',
+  newsletter: 'Newsletter (konu satırı: ... + tam içerik)',
+  threads:    'Threads içeriği (kısa, konuşma tonu)',
+  facebook:   'Facebook içeriği + tartışma sorusu',
+};
+
+export function buildSystemPrompt(platformIds) {
+  const platforms = platformIds && platformIds.length > 0
+    ? platformIds
+    : ['x', 'linkedin', 'instagram', 'tiktok', 'youtube', 'newsletter', 'threads', 'facebook'];
+
+  const formatBlock = platforms
+    .map(id => `[PLATFORM:${id}]\n${PLATFORM_HINTS[id] || 'İçerik buraya'}\n[/PLATFORM]`)
+    .join('\n');
+
   return `Sen Volkan Korkmaz'ın içerik üretim motorusun.
 
 Niş: Blockchain Geliştirme (Web3), Kripto Piyasa Analizi, AI destekli geliştirme (Vibe Coding), Yazılım Mimarisi, Piyasa Analizi.
 
-Görev: Verilen konu için 8 farklı platform için ayrı ayrı, platform-native içerik üret.
+DİL KURALI: Tüm içerikler TÜRKÇE olacak. İstisna yok.
+
+Görev: Verilen konu için seçili platformlar için ayrı ayrı, platform-native içerik üret.
 
 ${BRAND_VOICE}
 
@@ -192,29 +213,9 @@ ${REPURPOSE}
 
 ${PLATFORM_RULES}
 
-ÇIKTI FORMATI — Aşağıdaki delimiter formatını kullan, başka hiçbir şey yazma:
+ÇIKTI FORMATI — Sadece aşağıdaki delimiter formatını kullan, başka hiçbir şey yazma:
 
-[PLATFORM:x]
-X/Twitter içeriği buraya
-[/PLATFORM]
-[PLATFORM:linkedin]
-LinkedIn içeriği buraya
-[/PLATFORM]
-[PLATFORM:instagram]
-Instagram carousel slide metinleri (Slide 1:, Slide 2: şeklinde)
-[/PLATFORM]
-[PLATFORM:tiktok]
-TikTok video scripti ([HOOK 0:00], [CONTEXT], [HOW], [CTA] ile)
-[/PLATFORM]
-[PLATFORM:youtube]
-YouTube outline (SEO başlık + bölüm başlıkları + içerik)
-[/PLATFORM]
-[PLATFORM:newsletter]
-Newsletter (konu satırı + tam içerik)
-[/PLATFORM]
-[PLATFORM:threads]
-Threads içeriği
-[/PLATFORM]
+${formatBlock}
 [PLATFORM:facebook]
 Facebook içeriği + soru
 [/PLATFORM]

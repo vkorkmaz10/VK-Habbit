@@ -127,11 +127,18 @@ export default function ContentEngine({ darkMode }) {
 
   // Editor state
   const [topic, setTopic] = useState('');
+  const [selectedPlatforms, setSelectedPlatforms] = useState([]); // boş = hepsi
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [activePlatform, setActivePlatform] = useState('x');
   const [copiedPlatform, setCopiedPlatform] = useState(null);
+
+  function togglePlatform(id) {
+    setSelectedPlatforms(prev =>
+      prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+    );
+  }
 
   // History state
   const [history, setHistory] = useState(loadHistory);
@@ -151,6 +158,7 @@ export default function ContentEngine({ darkMode }) {
     setError(null);
     setActivePlatform('x');
     setActiveHistoryId(null);
+    setSelectedPlatforms([]);
   }
 
   function loadFromHistory(item) {
@@ -176,18 +184,27 @@ export default function ContentEngine({ darkMode }) {
     setError(null);
     setResults(null);
     setActiveHistoryId(null);
+
+    const targetPlatforms = selectedPlatforms.length > 0
+      ? selectedPlatforms
+      : PLATFORMS.map(p => p.id);
+
     try {
-      const sys = buildSystemPrompt();
-      const usr = `Konu: ${topic.trim()}\n\nBu konu için 8 platform için ayrı ayrı içerik üret. Sadece JSON döndür.`;
+      const sys = buildSystemPrompt(targetPlatforms);
+      const usr = `Konu: ${topic.trim()}\n\nBu konu için şu platformlar için ayrı ayrı Türkçe içerik üret: ${targetPlatforms.join(', ')}`;
       const raw = await callGemini(apiKey, usr, sys);
       const parsed = parseResults(raw);
 
-      // Normalize — ensure every platform key is a string
+      // Normalize — sadece hedef platformlar, geri kalanlar boş
       const safe = {};
-      PLATFORMS.forEach(p => { safe[p.id] = typeof parsed[p.id] === 'string' ? parsed[p.id] : ''; });
+      PLATFORMS.forEach(p => {
+        safe[p.id] = targetPlatforms.includes(p.id)
+          ? (typeof parsed[p.id] === 'string' ? parsed[p.id] : '')
+          : '';
+      });
 
       setResults(safe);
-      setActivePlatform('x');
+      setActivePlatform(targetPlatforms[0] || 'x');
 
       // Save to history
       const item = { id: Date.now(), topic: topic.trim(), results: safe, createdAt: new Date().toISOString() };
@@ -213,6 +230,10 @@ export default function ContentEngine({ darkMode }) {
 
   const activePlatformObj = PLATFORMS.find(p => p.id === activePlatform) || PLATFORMS[0];
   const hasResults = !!results;
+  // Sadece içeriği olan platformları göster
+  const visiblePlatforms = results
+    ? PLATFORMS.filter(p => results[p.id])
+    : PLATFORMS;
 
   return (
     <div style={{ paddingBottom: 40 }}>
@@ -326,20 +347,45 @@ export default function ContentEngine({ darkMode }) {
             {loading ? <><SpinnerIcon size={16} /> Üretiliyor...</> : <><ZapIcon size={16} color="currentColor" /> İçerik Üret</>}
           </button>
 
-          {/* Platform pills */}
+          {/* Platform seçici */}
           <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 14 }}>
-            <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Platformlar</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {PLATFORMS.map(p => (
-                <span key={p.id} style={{
-                  padding: '3px 9px', borderRadius: 20, fontSize: 12, fontWeight: 500,
-                  background: results?.[p.id] ? `${p.accent}18` : t.hover,
-                  color: results?.[p.id] ? p.accent : t.muted,
-                  border: `1px solid ${results?.[p.id] ? `${p.accent}35` : 'transparent'}`,
-                  transition: 'all 0.3s',
-                }}>{p.label}</span>
-              ))}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: t.text }}>
+                Platformlar
+              </label>
+              <button
+                onClick={() => setSelectedPlatforms(selectedPlatforms.length === PLATFORMS.length ? [] : PLATFORMS.map(p => p.id))}
+                style={{ fontSize: 11, color: t.muted, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}
+              >
+                {selectedPlatforms.length === PLATFORMS.length ? 'Temizle' : selectedPlatforms.length === 0 ? 'Tümünü seç' : `${selectedPlatforms.length} seçili · temizle`}
+              </button>
             </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {PLATFORMS.map(p => {
+                const sel = selectedPlatforms.includes(p.id);
+                const done = results?.[p.id];
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => togglePlatform(p.id)}
+                    style={{
+                      padding: '5px 11px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+                      border: `1.5px solid ${sel ? p.accent : done ? `${p.accent}35` : t.border}`,
+                      background: sel ? `${p.accent}18` : done ? `${p.accent}08` : 'transparent',
+                      color: sel ? p.accent : done ? p.accent : t.muted,
+                      cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+                    }}
+                  >
+                    {done && !sel ? '✓ ' : sel ? '● ' : ''}{p.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p style={{ margin: '7px 0 0', fontSize: 11, color: t.muted }}>
+              {selectedPlatforms.length === 0
+                ? 'Seçim yapılmazsa tüm platformlar üretilir'
+                : `Sadece seçili ${selectedPlatforms.length} platform üretilecek`}
+            </p>
           </div>
         </div>
 
@@ -377,9 +423,9 @@ export default function ContentEngine({ darkMode }) {
           {/* Results */}
           {results && !loading && (
             <>
-              {/* Tab bar */}
+              {/* Tab bar — sadece üretilen platformlar */}
               <div style={{ display: 'flex', overflowX: 'auto', borderBottom: `1px solid ${t.border}`, scrollbarWidth: 'none' }}>
-                {PLATFORMS.map(p => {
+                {visiblePlatforms.map(p => {
                   const active = activePlatform === p.id;
                   return (
                     <button key={p.id} onClick={() => setActivePlatform(p.id)} style={{
@@ -423,7 +469,7 @@ export default function ContentEngine({ darkMode }) {
 
                 {/* Quick copy row */}
                 <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
-                  {PLATFORMS.map(p => (
+                  {visiblePlatforms.map(p => (
                     <button key={p.id} onClick={() => handleCopy(p.id)} title={`${p.label} kopyala`} style={{
                       padding: '3px 9px', borderRadius: 20,
                       border: `1px solid ${copiedPlatform === p.id ? p.accent : t.border}`,

@@ -5,7 +5,6 @@ how that voice ADAPTS per platform.
 
 ## X / Twitter
 - Most casual version of the voice
-- Lowercase everything
 - Short sentences. punchy. no filler
 - "lol", "imo", "btw" used freely
 - Sarcasm and irony welcome

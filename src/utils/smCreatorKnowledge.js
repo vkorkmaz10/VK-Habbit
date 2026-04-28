@@ -220,7 +220,7 @@ export function buildSystemPrompt(platformIds) {
     .map(id => `[PLATFORM:${id}]\n${PLATFORM_HINTS[id] || 'İçerik buraya'}\n[/PLATFORM]`)
     .join('\n');
 
-  return `${HUMANIZER_BLOCK}
+  const prompt = `${HUMANIZER_BLOCK}
 
 Sen Volkan Korkmaz'ın içerik üretim motorusun.
 
@@ -248,4 +248,6 @@ Facebook içeriği + soru
 [/PLATFORM]
 
 KRİTİK KURAL: Her platform için içerik TAMAMEN FARKLI olmalı. Sadece format değil — AÇI, KANCA, TON ve YAPI her platform için yeniden düşünülmeli.`;
+
+  return prompt;
 }

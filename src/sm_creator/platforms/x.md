@@ -3,7 +3,7 @@
 ## Platform DNA
 - Character limit: 280 per tweet, long-form tweets up to 25,000
   (but sweet spot is 1,000-2,000 characters)
-- Vibe: fast, casual, opinion-driven. lowercase is default.
+- Vibe: fast, casual, opinion-driven.
   people scroll fast here, you have maybe 0.5 seconds to stop them
 - Audience here: more technical, more investors-oriented. skews
   toward [[investors]] over [[casual]]

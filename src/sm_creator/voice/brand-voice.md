@@ -52,7 +52,6 @@ Phrases we never use:
 - any corporate buzzword soup
 
 ## Formatting Rules
-- Lowercase by default for body text
 - Title case or ALL CAPS only for hooks/headlines
 - Bullet points with - prefix
 - Line breaks between every thought, never dense paragraphs

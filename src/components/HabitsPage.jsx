@@ -47,7 +47,7 @@ function HabitCard({ item, checked, onToggle, disabled, t, darkMode }) {
     <div
       onClick={() => { if (!disabled) onToggle(); }}
       style={{
-        background: t.card, borderRadius: 16, padding: '14px 16px',
+        background: t.card, borderRadius: 16, padding: '12px 10px',
         boxShadow: t.cardShadow, border: t.cardBorder,
         cursor: disabled ? 'default' : 'pointer',
         opacity: disabled ? 0.55 : 1,
@@ -256,7 +256,7 @@ export default function HabitsPage({ darkMode, selectedDateStr, setSelectedDateS
           }}>
             {selectedDateStr === todayStr ? 'Bugün' : selectedDateStr} · {checkedCount}/{CHECKBOX_ITEMS.length}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 8 }}>
             {CHECKBOX_ITEMS.map((item, idx) => (
               <HabitCard
                 key={item.id} item={item}

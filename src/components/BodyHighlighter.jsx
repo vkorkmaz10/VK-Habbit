@@ -8,6 +8,7 @@ const BodyHighlighter = ({ workedSet, style }) => {
     'Back': ['upper-back-left', 'upper-back-right', 'lower-back-left', 'lower-back-right', 'trapezius-left-back', 'trapezius-right-back', 'neck-left-back', 'neck-right-back'],
     'Biceps': ['biceps-left', 'biceps-right'],
     'Triceps': ['triceps-left-front', 'triceps-right-front', 'triceps-left-back', 'triceps-right-back'],
+    'Shoulders': ['deltoids-left-front', 'deltoids-right-front', 'deltoids-left-back', 'deltoids-right-back'],
     'Core': ['abs-upper', 'abs-lower', 'obliques-left', 'obliques-right'],
     'Legs': ['quadriceps-left', 'quadriceps-right', 'calves-left-front', 'calves-right-front', 'calves-left-back', 'calves-right-back', 'hamstring-left', 'hamstring-right', 'adductors-left-front', 'adductors-right-front', 'adductors-left-back', 'adductors-right-back', 'gluteal-left', 'gluteal-right']
   };

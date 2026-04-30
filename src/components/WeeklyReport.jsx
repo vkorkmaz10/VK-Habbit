@@ -174,10 +174,18 @@ export default function WeeklyReport({ selectedDateStr, refreshTrigger, darkMode
 
         {/* Muscle badges — keep green color */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 14 }}>
-          {['Chest', 'Back', 'Biceps', 'Triceps', 'Core', 'Legs'].map(m => {
-            const isWorked = reportData.curStats.workedSet.has(m);
+          {[
+            { key: 'Chest', label: 'Göğüs' },
+            { key: 'Back', label: 'Sırt' },
+            { key: 'Biceps', label: 'Ön Kol' },
+            { key: 'Triceps', label: 'Arka Kol' },
+            { key: 'Shoulders', label: 'Omuz' },
+            { key: 'Core', label: 'Karın' },
+            { key: 'Legs', label: 'Bacak' },
+          ].map(({ key, label }) => {
+            const isWorked = reportData.curStats.workedSet.has(key);
             return (
-              <span key={m} style={{
+              <span key={key} style={{
                 fontSize: 12,
                 padding: '4px 12px',
                 borderRadius: 12,
@@ -186,7 +194,7 @@ export default function WeeklyReport({ selectedDateStr, refreshTrigger, darkMode
                 border: isWorked ? '1px solid rgba(57, 255, 20, 0.5)' : '1px solid transparent',
                 fontWeight: 600,
               }}>
-                {m}
+                {label}
               </span>
             );
           })}

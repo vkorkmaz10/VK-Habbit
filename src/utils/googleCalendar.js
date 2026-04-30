@@ -89,6 +89,7 @@ export function getAccounts() {
     color: a.color,
     expiresAt: a.expiresAt,
     connected: !!a.access_token && Date.now() < a.expiresAt,
+    needsReauth: !!a.needsReauth || (!!a.access_token && Date.now() >= a.expiresAt),
   }));
 }
 
@@ -154,6 +155,29 @@ export async function addAccount() {
   return map[info.email];
 }
 
+/**
+ * Explicitly re-auth an existing account (user-initiated). Shows Google UI intentionally.
+ */
+export async function refreshAccount(email) {
+  const tok = await requestToken({ hint: email, prompt: 'select_account' });
+  const info = await fetchUserInfo(tok.access_token);
+  const map = readAccounts();
+  const target = email === '__legacy__' ? '__legacy__' : (info.email || email);
+  if (map['__legacy__'] && target !== '__legacy__') delete map['__legacy__'];
+  map[target] = {
+    ...(map[target] || {}),
+    email: info.email || email,
+    name: info.name || info.email || email,
+    picture: info.picture || '',
+    color: map[target]?.color || colorFor(info.email || email, map),
+    access_token: tok.access_token,
+    expiresAt: Date.now() + (tok.expires_in * 1000),
+    needsReauth: false,
+  };
+  writeAccounts(map);
+  return map[target];
+}
+
 export function removeAccount(email) {
   const map = readAccounts();
   const acc = map[email];
@@ -178,47 +202,25 @@ async function silentRefresh(email) {
 }
 
 /**
- * Returns a usable access_token for `email`, refreshing silently if expiring/expired.
- * On failure, the account is left intact (caller may force re-add via UI).
+ * Returns the stored access_token for `email` without triggering any UI.
+ * Expired tokens are returned as-is — the caller handles 401 gracefully.
+ * Silent refresh is only triggered by explicit user action (refreshAccount).
  */
 async function ensureFreshToken(email) {
   const map = readAccounts();
   const acc = map[email];
-  if (!acc) return null;
-  if (Date.now() < acc.expiresAt - REFRESH_BUFFER_MS) return acc.access_token;
-  try {
-    const refreshed = await silentRefresh(email);
-    return refreshed.access_token;
-  } catch (e) {
-    console.warn(`[google] silent refresh failed for ${email}:`, e.message);
-    return acc.access_token; // try stale token; will 401 → caller handles
-  }
+  if (!acc || !acc.access_token) return null;
+  return acc.access_token;
 }
 
 // ======= Background refresher =======
+// No-op: tokens are only refreshed via explicit user action (refreshAccount).
+// Removing proactive silentRefresh prevents uninvited Google UI popups.
 
 let _refresherInterval = null;
-
-export function startTokenRefresher() {
-  if (_refresherInterval) return;
-  // Check every 60s
-  _refresherInterval = setInterval(async () => {
-    const map = readAccounts();
-    for (const email of Object.keys(map)) {
-      const acc = map[email];
-      if (!acc.access_token) continue;
-      if (Date.now() < acc.expiresAt - REFRESH_BUFFER_MS) continue;
-      try { await silentRefresh(email); }
-      catch (e) { console.warn(`[google] proactive refresh failed for ${email}:`, e.message); }
-    }
-  }, 60 * 1000);
-}
-
+export function startTokenRefresher() {}
 export function stopTokenRefresher() {
-  if (_refresherInterval) {
-    clearInterval(_refresherInterval);
-    _refresherInterval = null;
-  }
+  if (_refresherInterval) { clearInterval(_refresherInterval); _refresherInterval = null; }
 }
 
 // ======= API Calls =======
@@ -227,16 +229,13 @@ async function fetchOneAccount(email, params) {
   const token = await ensureFreshToken(email);
   if (!token) return [];
   const url = `${CALENDAR_API}/calendars/primary/events?${params}`;
-  let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
 
   if (res.status === 401) {
-    // Stale → silent refresh once + retry
-    try {
-      const refreshed = await silentRefresh(email);
-      res = await fetch(url, { headers: { Authorization: `Bearer ${refreshed.access_token}` } });
-    } catch {
-      return [];
-    }
+    // Token expired — mark account as needing re-auth, no auto-popup
+    const map = readAccounts();
+    if (map[email]) { map[email].needsReauth = true; writeAccounts(map); }
+    return [];
   }
 
   if (!res.ok) return [];

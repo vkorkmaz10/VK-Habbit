@@ -11,6 +11,7 @@ import {
   getAccounts,
   addAccount as addGoogleAccount,
   removeAccount as removeGoogleAccount,
+  refreshAccount as refreshGoogleAccount,
   fetchGoogleEvents,
   startTokenRefresher,
   stopTokenRefresher,
@@ -58,6 +59,7 @@ export default function CalendarPage({ darkMode, selectedDateStr, setSelectedDat
   const [accounts, setAccounts] = useState(() => getAccounts());
   const [googleEvents, setGoogleEvents] = useState([]);
   const [syncing, setSyncing] = useState(false);
+  const [googleInitialized, setGoogleInitialized] = useState(false);
   const [accountMenuFor, setAccountMenuFor] = useState(null);
   const googleConnected = accounts.length > 0;
 
@@ -85,7 +87,7 @@ export default function CalendarPage({ darkMode, selectedDateStr, setSelectedDat
   }, [showAddModal]);
 
   const syncGoogleEvents = useCallback(async () => {
-    if (accounts.length === 0) { setGoogleEvents([]); return; }
+    if (accounts.length === 0) { setGoogleEvents([]); setGoogleInitialized(true); return; }
     setSyncing(true);
     try {
       const evs = await fetchGoogleEvents(selectedDateStr);
@@ -95,6 +97,7 @@ export default function CalendarPage({ darkMode, selectedDateStr, setSelectedDat
       setGoogleEvents([]);
     }
     setSyncing(false);
+    setGoogleInitialized(true);
   }, [selectedDateStr, accounts.length]);
 
   useEffect(() => { syncGoogleEvents(); }, [syncGoogleEvents]);
@@ -113,6 +116,14 @@ export default function CalendarPage({ darkMode, selectedDateStr, setSelectedDat
   const handleAddAccount = async () => {
     try { await addGoogleAccount(); setAccounts(getAccounts()); }
     catch (e) { console.error('Google add account error:', e); }
+  };
+  const handleRefreshAccount = async (email) => {
+    try {
+      await refreshGoogleAccount(email);
+      setAccounts(getAccounts());
+      setAccountMenuFor(null);
+      syncGoogleEvents();
+    } catch (e) { console.error('Google refresh account error:', e); }
   };
   const handleRemoveAccount = (email) => {
     removeGoogleAccount(email);
@@ -231,7 +242,16 @@ export default function CalendarPage({ darkMode, selectedDateStr, setSelectedDat
 
       {/* Google accounts strip */}
       <div style={{ ...cardBase, marginBottom: 12, padding: 14 }}>
-        {!googleConnected ? (
+        {!googleInitialized ? (
+          /* Loading — prevents flash of connect button while sync is in progress */
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            color: t.muted, fontSize: 13,
+          }}>
+            <RefreshCw size={14} style={{ animation: 'pvk-spin 1s linear infinite', flexShrink: 0 }} />
+            Google Takvim yükleniyor…
+          </div>
+        ) : !googleConnected ? (
           <button
             onClick={handleAddAccount}
             style={{
@@ -252,10 +272,10 @@ export default function CalendarPage({ darkMode, selectedDateStr, setSelectedDat
                   <button
                     type="button"
                     onClick={() => setAccountMenuFor(accountMenuFor === acc.email ? null : acc.email)}
-                    title={acc.email}
+                    title={acc.needsReauth ? `${acc.email} — oturum süresi doldu` : acc.email}
                     style={{
                       width: 36, height: 36, borderRadius: '50%',
-                      border: `2px solid ${acc.color || ACCENT}`,
+                      border: `2px solid ${acc.needsReauth ? '#f59e0b' : (acc.color || ACCENT)}`,
                       padding: 0, cursor: 'pointer', overflow: 'hidden',
                       background: t.hover, color: t.text,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -268,7 +288,8 @@ export default function CalendarPage({ darkMode, selectedDateStr, setSelectedDat
                     <span style={{
                       position: 'absolute', bottom: -2, right: -2,
                       width: 10, height: 10, borderRadius: '50%',
-                      background: acc.color || ACCENT, border: `2px solid ${t.card}`,
+                      background: acc.needsReauth ? '#f59e0b' : (acc.color || ACCENT),
+                      border: `2px solid ${t.card}`,
                     }} />
                   </button>
                   {accountMenuFor === acc.email && (
@@ -283,7 +304,26 @@ export default function CalendarPage({ darkMode, selectedDateStr, setSelectedDat
                       <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 10 }}>
                         <strong style={{ fontSize: 13, color: t.text }}>{acc.name}</strong>
                         <span style={{ fontSize: 11, color: t.muted, wordBreak: 'break-all' }}>{acc.email}</span>
+                        {acc.needsReauth && (
+                          <span style={{ fontSize: 11, color: '#f59e0b', marginTop: 4, fontWeight: 600 }}>
+                            ⚠ Oturum süresi doldu
+                          </span>
+                        )}
                       </div>
+                      {acc.needsReauth && (
+                        <button
+                          type="button"
+                          onClick={() => handleRefreshAccount(acc.email)}
+                          style={{
+                            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                            padding: '8px 10px', borderRadius: 10, cursor: 'pointer', marginBottom: 8,
+                            background: 'rgba(245,158,11,0.12)', color: '#f59e0b',
+                            border: '1px solid rgba(245,158,11,0.3)', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+                          }}
+                        >
+                          <RefreshCw size={12} /> Yeniden Bağlan
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleRemoveAccount(acc.email)}

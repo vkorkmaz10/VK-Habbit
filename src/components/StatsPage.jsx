@@ -192,7 +192,7 @@ export default function StatsPage({ darkMode }) {
               <>
                 <span style={{
                   ...metricBig,
-                  color: stats.wDelta > 0 ? '#ef4444' : stats.wDelta < 0 ? '#10b981' : t.text,
+                  color: stats.wDelta > 0 ? '#10b981' : stats.wDelta < 0 ? '#ef4444' : t.text,
                 }}>
                   {stats.wDelta > 0 ? '+' : ''}{stats.wDelta}
                 </span>

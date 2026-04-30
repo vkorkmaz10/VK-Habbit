@@ -169,12 +169,12 @@ export default function HomePage({ darkMode, setActiveTab }) {
             {summary.weightDelta !== null ? (
               <>
                 {summary.weightDelta > 0
-                  ? <TrendingUp size={13} color="#ef4444" />
+                  ? <TrendingUp size={13} color="#10b981" />
                   : summary.weightDelta < 0
-                    ? <TrendingDown size={13} color="#10b981" />
+                    ? <TrendingDown size={13} color="#ef4444" />
                     : <Activity size={13} color={t.muted} />}
                 <span style={{
-                  color: summary.weightDelta > 0 ? '#ef4444' : summary.weightDelta < 0 ? '#10b981' : t.muted,
+                  color: summary.weightDelta > 0 ? '#10b981' : summary.weightDelta < 0 ? '#ef4444' : t.muted,
                   fontWeight: 600,
                 }}>
                   {summary.weightDelta > 0 ? '+' : ''}{summary.weightDelta} kg son ölçüm

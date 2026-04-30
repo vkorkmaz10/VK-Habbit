@@ -54,6 +54,8 @@ export default function HomePage({ darkMode, setActiveTab }) {
 
     // Events
     const events = getCalendarEvents(todayStr);
+    const meetingCount = events.filter(e => e.type === 'meeting').length;
+    const eventCount = events.filter(e => e.type !== 'meeting').length;
 
     // 7-day score trend
     const trend = [];
@@ -79,7 +81,7 @@ export default function HomePage({ darkMode, setActiveTab }) {
       todayData, todayScore, checksDone, checksTotal,
       currentWeight, weightDelta,
       tasksOpen, tasksDone,
-      eventsCount: events.length,
+      eventsCount: events.length, meetingCount, eventCount,
       trend, avgScore, streak,
     };
   }, [todayStr, tick]);
@@ -307,7 +309,7 @@ export default function HomePage({ darkMode, setActiveTab }) {
           summary.tasksOpen > 0 ? ACCENT : '#10b981',
         )}
         {quickLink(
-          summary.eventsCount > 0 ? `Bugün ${summary.eventsCount} etkinlik` : 'Etkinlik yok',
+          `${summary.meetingCount} Toplantı · ${summary.eventCount} Etkinlik`,
           <CalIcon size={18} />,
           'calendar',
           '#bd00ff',

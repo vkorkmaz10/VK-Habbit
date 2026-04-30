@@ -10,6 +10,7 @@ import {
   getDayData, getLatestWeight, calculateDayScore,
   getTodoTasks, getCalendarEvents,
 } from '../utils/storage';
+import { fetchGoogleEvents, getAccounts } from '../utils/googleCalendar';
 import { getActiveDateString } from '../utils/date';
 import { CHECKBOX_ITEMS } from '../data/constants';
 import { format, parseISO, subDays } from 'date-fns';
@@ -20,6 +21,7 @@ const ACCENT = '#00d4ff';
 export default function HomePage({ darkMode, setActiveTab }) {
   const t = mkTheme(darkMode);
   const [tick, setTick] = useState(0);
+  const [googleEvents, setGoogleEvents] = useState([]);
 
   // Bugünden başlayarak son 7 günü topla
   const todayStr = getActiveDateString();
@@ -30,6 +32,11 @@ export default function HomePage({ darkMode, setActiveTab }) {
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, []);
+
+  useEffect(() => {
+    if (getAccounts().length === 0) return;
+    fetchGoogleEvents(todayStr).then(setGoogleEvents).catch(() => {});
+  }, [todayStr]);
 
   const summary = useMemo(() => {
     const todayData = getDayData(todayStr);
@@ -52,10 +59,8 @@ export default function HomePage({ darkMode, setActiveTab }) {
     const tasksOpen = tasks.filter(x => !x.done).length;
     const tasksDone = tasks.filter(x => x.done).length;
 
-    // Events
+    // Events (local only — Google events merged separately via googleEvents state)
     const events = getCalendarEvents(todayStr);
-    const meetingCount = events.filter(e => e.type === 'meeting').length;
-    const eventCount = events.filter(e => e.type !== 'meeting').length;
 
     // 7-day score trend
     const trend = [];
@@ -81,7 +86,7 @@ export default function HomePage({ darkMode, setActiveTab }) {
       todayData, todayScore, checksDone, checksTotal,
       currentWeight, weightDelta,
       tasksOpen, tasksDone,
-      eventsCount: events.length, meetingCount, eventCount,
+      eventsCount: events.length,
       trend, avgScore, streak,
     };
   }, [todayStr, tick]);
@@ -309,7 +314,12 @@ export default function HomePage({ darkMode, setActiveTab }) {
           summary.tasksOpen > 0 ? ACCENT : '#10b981',
         )}
         {quickLink(
-          `${summary.meetingCount} Toplantı · ${summary.eventCount} Etkinlik`,
+          (() => {
+            const allEvents = [...getCalendarEvents(todayStr), ...googleEvents];
+            const m = allEvents.filter(e => e.type === 'meeting').length;
+            const e = allEvents.filter(e => e.type !== 'meeting').length;
+            return `${m} Toplantı · ${e} Etkinlik`;
+          })(),
           <CalIcon size={18} />,
           'calendar',
           '#bd00ff',

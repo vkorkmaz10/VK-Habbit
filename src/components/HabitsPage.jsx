@@ -11,7 +11,11 @@ import { mkTheme } from '../theme';
 import Header from './Header';
 import WeeklyReport from './WeeklyReport';
 
-const MUSCLES = ['Chest', 'Back', 'Biceps', 'Triceps', 'Core', 'Legs'];
+const MUSCLES = ['Chest', 'Back', 'Biceps', 'Triceps', 'Shoulders', 'Core', 'Legs'];
+const MUSCLE_LABELS = {
+  Chest: 'Göğüs', Back: 'Sırt', Biceps: 'Ön Kol',
+  Triceps: 'Arka Kol', Shoulders: 'Omuz', Core: 'Karın', Legs: 'Bacak',
+};
 
 // ScoreRing — used by Daily Score card only.
 function ScoreRing({ value, size = 64, stroke = 5, color, trackColor, textColor, showValue = true, fillPct }) {
@@ -131,22 +135,21 @@ function MuscleModal({ initial, onSave, onClose }) {
       <div className="modal-content glass-card">
         <h3 style={{ marginBottom: '16px' }}>Çalışılan Bölgeler</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
-          {MUSCLES.map((muscle, idx) => {
+          {MUSCLES.map((muscle) => {
             const isSelected = sel.includes(muscle);
             return (
               <div
                 key={muscle}
                 onClick={() => toggle(muscle)}
                 style={{
-                  padding: '12px', borderRadius: '12px', textAlign: 'center', cursor: 'pointer',
+                  padding: '14px 10px', borderRadius: '12px', textAlign: 'center', cursor: 'pointer',
                   border: isSelected ? '2px solid var(--accent-color)' : '2px solid transparent',
                   background: isSelected ? 'rgba(57, 255, 20, 0.1)' : 'rgba(255,255,255,0.05)',
                   color: isSelected ? 'var(--accent-color)' : 'white',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'all 0.2s ease',
                 }}>
-                <img src={`/muscle_${idx}.png`} alt={muscle} style={{ width: '60px', height: '60px', objectFit: 'contain' }} />
-                <span style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{muscle}</span>
+                <span style={{ fontSize: '0.95rem', fontWeight: 700 }}>{MUSCLE_LABELS[muscle]}</span>
               </div>
             );
           })}
@@ -256,7 +259,7 @@ export default function HabitsPage({ darkMode, selectedDateStr, setSelectedDateS
           }}>
             {selectedDateStr === todayStr ? 'Bugün' : selectedDateStr} · {checkedCount}/{CHECKBOX_ITEMS.length}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {CHECKBOX_ITEMS.map((item, idx) => (
               <HabitCard
                 key={item.id} item={item}

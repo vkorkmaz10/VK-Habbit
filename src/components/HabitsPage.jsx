@@ -84,8 +84,13 @@ function HabitCard({ item, checked, onToggle, disabled, t, darkMode }) {
 
 // ──────────────────────────────────────────────────────────────
 function WeightCard({ value, onChange, onCommit, disabled, bounds, savedFlash, t, darkMode }) {
-  const dec = () => onChange(Math.max(bounds.min, +(value - 0.1).toFixed(2)));
-  const inc = () => onChange(Math.min(bounds.max, +(value + 0.1).toFixed(2)));
+  const commitTimer = React.useRef(null);
+  const scheduleCommit = () => {
+    if (commitTimer.current) clearTimeout(commitTimer.current);
+    commitTimer.current = setTimeout(onCommit, 800);
+  };
+  const dec = () => { onChange(Math.max(bounds.min, +(value - 0.1).toFixed(2))); scheduleCommit(); };
+  const inc = () => { onChange(Math.min(bounds.max, +(value + 0.1).toFixed(2))); scheduleCommit(); };
   const btn = {
     width: 36, height: 36, borderRadius: '50%',
     border: `2px solid ${darkMode ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)'}`,

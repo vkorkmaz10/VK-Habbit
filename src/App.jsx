@@ -161,7 +161,7 @@ function App() {
               <ContentPage darkMode={darkMode} />
             </div>
 
-            {activeTab === 'engine' && <ContentEngine darkMode={darkMode} />}
+            {activeTab === 'engine' && <ContentEngine darkMode={darkMode} setActiveTab={setActiveTab} />}
 
             {activeTab === 'stats' && <StatsPage darkMode={darkMode} />}
 

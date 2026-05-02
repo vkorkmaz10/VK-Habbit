@@ -1,8 +1,8 @@
 // HomePage — PersonaVK dashboard. Bugünün özeti + hızlı erişim + 7 günlük trend.
 import React, { useMemo, useEffect, useState } from 'react';
 import {
-  CheckCircle2, ListTodo, Calendar as CalIcon, TrendingUp, TrendingDown,
-  Activity, Flame, Dumbbell, ArrowRight,
+  TrendingUp, TrendingDown, Activity, Flame, ArrowRight,
+  ListTodo, Calendar as CalIcon, CheckCircle2, Circle,
 } from 'lucide-react';
 import { mkTheme } from '../theme';
 import FollowerCounter from './FollowerCounter';
@@ -57,6 +57,7 @@ export default function HomePage({ darkMode, setActiveTab }) {
     const tasks = getTodoTasks(todayStr);
     const tasksOpen = tasks.filter(x => !x.done).length;
     const tasksDone = tasks.filter(x => x.done).length;
+    const todoTasks = tasks;
 
     // Events (local only — Google events merged separately via googleEvents state)
     const events = getCalendarEvents(todayStr);
@@ -84,7 +85,7 @@ export default function HomePage({ darkMode, setActiveTab }) {
     return {
       todayData, todayScore, checksDone, checksTotal,
       currentWeight, weightDelta,
-      tasksOpen, tasksDone,
+      tasksOpen, tasksDone, todoTasks,
       eventsCount: events.length,
       trend, avgScore, streak,
     };
@@ -98,25 +99,6 @@ export default function HomePage({ darkMode, setActiveTab }) {
   const labelStyle = { fontSize: 11, color: t.muted, letterSpacing: '0.5px', fontWeight: 600, textTransform: 'uppercase' };
   const metricBig = { fontSize: 32, fontWeight: 800, color: t.text, lineHeight: 1, letterSpacing: '-1px' };
   const subMetric = { fontSize: 13, color: t.muted, marginTop: 4 };
-
-  const quickLink = (label, icon, tab) => (
-    <button
-      onClick={() => setActiveTab?.(tab)}
-      style={{
-        ...cardBase, padding: 14, cursor: 'pointer',
-        display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'inherit',
-        textAlign: 'left',
-      }}
-    >
-      <div style={{
-        width: 36, height: 36, borderRadius: 10,
-        background: t.hover, color: t.text,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>{icon}</div>
-      <div style={{ flex: 1, fontSize: 14, fontWeight: 600, color: t.text }}>{label}</div>
-      <ArrowRight size={16} color={t.muted} />
-    </button>
-  );
 
   const scoreColor = t.text;
 
@@ -259,35 +241,142 @@ export default function HomePage({ darkMode, setActiveTab }) {
         </div>
       </div>
 
-      {/* Quick access row */}
-      <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10,
-      }}>
-        {quickLink(
-          summary.tasksOpen > 0 ? `${summary.tasksOpen} açık görev` : 'Tüm görevler tamam',
-          <ListTodo size={18} />,
-          'todo',
-        )}
-        {quickLink(
-          (() => {
-            const allEvents = [...getCalendarEvents(todayStr), ...googleEvents];
-            const m = allEvents.filter(e => e.type === 'meeting').length;
-            const e = allEvents.filter(e => e.type !== 'meeting').length;
-            return `${m} Toplantı · ${e} Etkinlik`;
-          })(),
-          <CalIcon size={18} />,
-          'calendar',
-        )}
-        {quickLink(
-          'İçerik üret',
-          <Dumbbell size={18} />,
-          'content',
-        )}
-        {quickLink(
-          'İstatistikler',
-          <Activity size={18} />,
-          'stats',
-        )}
+      {/* Günün Planı — Todo + Takvim özeti */}
+      <div style={{ ...cardBase, marginBottom: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div>
+            <div style={labelStyle}>GÜNÜN PLANI</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: t.text, marginTop: 3 }}>
+              Görevler & Etkinlikler
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+
+          {/* Görevler */}
+          <div>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <ListTodo size={14} color={t.muted} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Görevler
+                </span>
+              </div>
+              <button
+                onClick={() => setActiveTab?.('todo')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.muted, fontSize: 11, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 3 }}
+              >
+                Tümü <ArrowRight size={10} />
+              </button>
+            </div>
+            {(() => {
+              const tasks = summary.todoTasks || [];
+              const open = tasks.filter(x => !x.done);
+              const done = tasks.filter(x => x.done);
+              if (tasks.length === 0) return (
+                <div style={{ fontSize: 13, color: t.muted, padding: '10px 0' }}>Bugün görev yok</div>
+              );
+              const shown = open.slice(0, 5);
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {shown.map(task => (
+                    <div key={task.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '7px 10px', borderRadius: 10,
+                      background: t.hover, border: `1px solid ${t.inputBorder}`,
+                    }}>
+                      <Circle size={13} color={t.muted} style={{ flexShrink: 0 }} />
+                      <span style={{ fontSize: 13, color: t.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {task.text}
+                      </span>
+                    </div>
+                  ))}
+                  {open.length > 5 && (
+                    <div style={{ fontSize: 12, color: t.muted, padding: '2px 10px' }}>
+                      +{open.length - 5} görev daha
+                    </div>
+                  )}
+                  {open.length === 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 10px', borderRadius: 10, background: t.hover }}>
+                      <CheckCircle2 size={13} color={t.text} />
+                      <span style={{ fontSize: 13, color: t.text, fontWeight: 600 }}>Tüm görevler tamam!</span>
+                    </div>
+                  )}
+                  {done.length > 0 && open.length > 0 && (
+                    <div style={{ fontSize: 11, color: t.muted, padding: '2px 10px' }}>
+                      {done.length} tamamlandı
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Etkinlikler */}
+          <div>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <CalIcon size={14} color={t.muted} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Etkinlikler
+                </span>
+              </div>
+              <button
+                onClick={() => setActiveTab?.('calendar')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.muted, fontSize: 11, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 3 }}
+              >
+                Takvim <ArrowRight size={10} />
+              </button>
+            </div>
+            {(() => {
+              const allEvents = [...getCalendarEvents(todayStr), ...googleEvents]
+                .sort((a, b) => (a.timeStart || '').localeCompare(b.timeStart || ''));
+              if (allEvents.length === 0) return (
+                <div style={{ fontSize: 13, color: t.muted, padding: '10px 0' }}>Bugün etkinlik yok</div>
+              );
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {allEvents.slice(0, 5).map((ev, i) => (
+                    <div key={ev.id || i} style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '7px 10px', borderRadius: 10,
+                      background: t.hover, border: `1px solid ${t.inputBorder}`,
+                    }}>
+                      <div style={{
+                        width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                        background: ev.type === 'meeting' ? t.text : t.muted,
+                      }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {ev.title}
+                        </div>
+                        {ev.timeStart && ev.timeStart !== '00:00' && (
+                          <div style={{ fontSize: 11, color: t.muted, marginTop: 1 }}>
+                            {ev.timeStart}{ev.timeEnd && ev.timeEnd !== '23:59' ? ` – ${ev.timeEnd}` : ''}
+                          </div>
+                        )}
+                      </div>
+                      <span style={{ fontSize: 10, color: t.muted, flexShrink: 0 }}>
+                        {ev.type === 'meeting' ? 'Toplantı' : 'Etkinlik'}
+                      </span>
+                    </div>
+                  ))}
+                  {allEvents.length > 5 && (
+                    <div style={{ fontSize: 12, color: t.muted, padding: '2px 10px' }}>
+                      +{allEvents.length - 5} etkinlik daha
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+
+        </div>
       </div>
     </div>
   );

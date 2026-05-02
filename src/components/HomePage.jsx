@@ -203,34 +203,37 @@ export default function HomePage({ darkMode, setActiveTab }) {
             Detaylar <ArrowRight size={12} />
           </button>
         </div>
-        <div style={{ display: 'flex', gap: 6, height: 110, alignItems: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 6, height: 120 }}>
           {summary.trend.map((d, i) => {
-            const barH = Math.max(4, (d.score / maxTrend) * 90);
+            const barH = Math.max(4, (d.score / maxTrend) * 80);
             const isToday = d.dateStr === todayStr;
             const c = d.score >= 60 ? t.text : t.muted;
             return (
               <div key={i} style={{
                 flex: 1, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', gap: 4,
+                alignItems: 'center',
               }}>
+                {/* spacer pushes everything to bottom */}
+                <div style={{ flex: 1 }} />
+                {/* score label — fixed 16px height, always just above bar */}
                 <div style={{
                   fontSize: 10, color: t.muted, fontWeight: 600,
+                  height: 16, lineHeight: '16px',
                   opacity: d.score > 0 ? 1 : 0,
-                  height: barH, display: 'flex', alignItems: 'flex-start',
-                  paddingTop: 3,
+                  marginBottom: 3,
                 }}>
                   {d.score || ''}
                 </div>
-                <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
-                  <div style={{
-                    width: '100%', maxWidth: 36, height: barH, borderRadius: 8,
-                    background: c, opacity: isToday ? 1 : 0.55,
-                  }} />
-                </div>
+                {/* bar */}
+                <div style={{
+                  width: '100%', maxWidth: 36, height: barH, borderRadius: 8,
+                  background: c, opacity: isToday ? 1 : 0.55,
+                }} />
+                {/* day label */}
                 <div style={{
                   fontSize: 11, color: isToday ? t.text : t.muted,
                   fontWeight: isToday ? 700 : 500,
-                  textTransform: 'capitalize',
+                  textTransform: 'capitalize', marginTop: 4,
                 }}>
                   {d.label}
                 </div>
@@ -285,7 +288,7 @@ export default function HomePage({ darkMode, setActiveTab }) {
                     }}>
                       <Circle size={13} color={t.muted} style={{ flexShrink: 0 }} />
                       <span style={{ fontSize: 13, color: t.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {task.text}
+                        {task.txt}
                       </span>
                     </div>
                   ))}

@@ -346,36 +346,18 @@ export default function ContentEngine({ darkMode, setActiveTab }) {
               onFocus={e => e.target.style.borderColor = t.text}
               onBlur={e => e.target.style.borderColor = t.inputBorder}
             />
-            <p style={{ margin: '5px 0 0', fontSize: 11, color: t.muted }}>⌘+Enter ile üret</p>
           </div>
-
-          {/* API key uyarısı */}
-          {!apiKey && (
-            <div style={{
-              padding: '10px 14px', borderRadius: 10,
-              background: t.hover, border: `1px solid ${t.inputBorder}`,
-              fontSize: 12, color: t.muted, lineHeight: 1.5,
-            }}>
-              Gemini API key girilmedi.{' '}
-              <button
-                onClick={() => setActiveTab?.('settings')}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.text, fontWeight: 700, fontSize: 12, padding: 0, fontFamily: 'inherit' }}
-              >
-                Ayarlar'dan ekle →
-              </button>
-            </div>
-          )}
 
           {/* Generate button */}
           <button
             onClick={handleGenerate}
-            disabled={loading || !topic.trim() || !apiKey}
+            disabled={loading || !topic.trim()}
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               padding: '13px 20px', borderRadius: 12, border: 'none',
-              cursor: loading || !topic.trim() || !apiKey ? 'not-allowed' : 'pointer',
-              background: loading || !topic.trim() || !apiKey ? t.hover : t.accent,
-              color: loading || !topic.trim() || !apiKey ? t.muted : t.accentText,
+              cursor: loading || !topic.trim() ? 'not-allowed' : 'pointer',
+              background: loading || !topic.trim() ? t.hover : t.accent,
+              color: loading || !topic.trim() ? t.muted : t.accentText,
               fontSize: 15, fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.2s',
             }}
           >

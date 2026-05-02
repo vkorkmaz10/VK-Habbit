@@ -1,16 +1,16 @@
 export const CHECKBOX_ITEMS = [
-  { id: 'kahvalti', label: 'Kahvaltı', emoji: '🍳' },
-  { id: 'whey', label: 'Whey', emoji: '🥤' },
-  { id: 'ana_ogun', label: 'Ana Öğün', emoji: '🥩' },
-  { id: 'aksam_yemi', label: 'Akşam Yemeği', emoji: '🍽️' },
-  { id: 'gece_ogun', label: 'Gece Öğünü', emoji: '🥣' },
-  { id: 'su', label: 'Su (2 Lt)', emoji: '💧' },
-  { id: 'kreatin', label: 'Kreatin', emoji: '💊' },
-  { id: 'uyku', label: 'Uyku (7+)', emoji: '💤' },
-  { id: 'antrenman', label: 'Antrenman', emoji: '🏋️‍♂️' },
-  { id: 'agirlik_artis', label: 'Ağırlık Artışı', emoji: '📈' },
-  { id: 'karin', label: 'Karın (Kas)', emoji: '🍫' },
-  { id: 'kardiyo', label: 'Adım/Kardiyo', emoji: '🏃‍♂️' }
+  { id: 'kahvalti', label: 'Kahvaltı', icon: 'Coffee' },
+  { id: 'whey', label: 'Whey', icon: 'Zap' },
+  { id: 'ana_ogun', label: 'Ana Öğün', icon: 'UtensilsCrossed' },
+  { id: 'aksam_yemi', label: 'Akşam Yemeği', icon: 'Utensils' },
+  { id: 'gece_ogun', label: 'Gece Öğünü', icon: 'Moon' },
+  { id: 'su', label: 'Su (2 Lt)', icon: 'Droplets' },
+  { id: 'kreatin', label: 'Kreatin', icon: 'Pill' },
+  { id: 'uyku', label: 'Uyku (7+)', icon: 'BedDouble' },
+  { id: 'antrenman', label: 'Antrenman', icon: 'Dumbbell' },
+  { id: 'agirlik_artis', label: 'Ağırlık Artışı', icon: 'TrendingUp' },
+  { id: 'karin', label: 'Karın (Kas)', icon: 'Target' },
+  { id: 'kardiyo', label: 'Adım Hedefi', icon: 'Footprints' },
 ];
 
 // Returns empty default checks array:

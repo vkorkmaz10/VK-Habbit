@@ -223,33 +223,38 @@ export default function HomePage({ darkMode, setActiveTab }) {
           </button>
         </div>
         <div style={{
-          display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-          gap: 6, height: 100,
+          display: 'flex', gap: 6, height: 130,
         }}>
           {summary.trend.map((d, i) => {
-            const h = Math.max(4, (d.score / maxTrend) * 90);
             const isToday = d.dateStr === todayStr;
             const c = d.score >= 60 ? t.text : t.muted;
             return (
               <div key={i} style={{
-                flex: 1, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', gap: 6,
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
               }}>
                 <div style={{
                   fontSize: 10, color: t.muted, fontWeight: 600,
+                  height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
                   opacity: d.score > 0 ? 1 : 0.4,
                 }}>
                   {d.score || ''}
                 </div>
                 <div style={{
-                  width: '100%', maxWidth: 36, height: h, borderRadius: 8,
-                  background: c, opacity: isToday ? 1 : 0.55,
-                  boxShadow: isToday ? `0 0 12px ${c}80` : 'none',
-                }} />
+                  flex: 1, display: 'flex', alignItems: 'flex-end',
+                  width: '100%', justifyContent: 'center',
+                }}>
+                  <div style={{
+                    width: '100%', maxWidth: 36,
+                    height: Math.max(4, (d.score / maxTrend) * 90),
+                    borderRadius: 8,
+                    background: c, opacity: isToday ? 1 : 0.55,
+                  }} />
+                </div>
                 <div style={{
                   fontSize: 11, color: isToday ? t.text : t.muted,
                   fontWeight: isToday ? 700 : 500,
                   textTransform: 'capitalize',
+                  height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                   {d.label}
                 </div>

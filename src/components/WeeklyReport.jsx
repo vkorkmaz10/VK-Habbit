@@ -182,6 +182,7 @@ export default function WeeklyReport({ selectedDateStr, refreshTrigger, darkMode
             { key: 'Shoulders', label: 'Omuz' },
             { key: 'Core', label: 'Karın' },
             { key: 'Legs', label: 'Bacak' },
+            { key: 'Cardio', label: 'Kardiyo' },
           ].map(({ key, label }) => {
             const isWorked = reportData.curStats.workedSet.has(key);
             return (

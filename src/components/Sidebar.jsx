@@ -131,9 +131,9 @@ export default function Sidebar({ activeTab, setActiveTab, expanded, setExpanded
       }}>
         <div style={{
           width: 36, height: 36, borderRadius: '50%',
-          background: 'linear-gradient(135deg,#111 0%,#444 100%)',
+          background: t.cardDark,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0,
+          color: t.cardDarkText, fontWeight: 700, fontSize: 14, flexShrink: 0,
         }}>V</div>
         {(expanded || isMobile) && (
           <div>

@@ -24,9 +24,9 @@ function playAlarmSound() {
 }
 
 const MODE_CONFIG = {
-  quick: { label: 'Hemen Hallet', icon: Zap, emoji: '⚡', color: '#00d4ff' },
-  focus: { label: 'Odaklan', icon: Brain, emoji: '🧠', color: '#00d4ff' },
-  delegate: { label: 'Takip Et', icon: Users, emoji: '👥', color: '#00d4ff' },
+  quick: { label: 'Hemen Hallet', icon: Zap, emoji: '⚡', color: 'var(--pvk-text)' },
+  focus: { label: 'Odaklan', icon: Brain, emoji: '🧠', color: 'var(--pvk-text)' },
+  delegate: { label: 'Takip Et', icon: Users, emoji: '👥', color: 'var(--pvk-text)' },
 };
 
 const POMODORO_DURATION = 25 * 60;
@@ -386,7 +386,7 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               GÜN İLERLEME ({doneCount}/3 görev)
             </span>
-            <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#00d4ff' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--pvk-text)' }}>
               {Math.round(progressPercent)}%
             </span>
           </div>
@@ -528,7 +528,7 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
           <div className="modal-content glass-card" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
               <span style={{ fontSize: '1.5rem' }}>{MODE_CONFIG[fabMode].emoji}</span>
-              <h3 style={{ color: '#00d4ff', margin: 0 }}>{MODE_CONFIG[fabMode].label} Görevi Ekle</h3>
+              <h3 style={{ color: 'var(--pvk-text)', margin: 0 }}>{MODE_CONFIG[fabMode].label} Görevi Ekle</h3>
             </div>
 
             <input
@@ -555,7 +555,7 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
               <button className="btn-cancel" onClick={() => { setFabMode(null); setNewTaskText(''); setDelegateName(''); }}>İptal</button>
-              <button className="btn-save" style={{ background: '#00d4ff' }} onClick={handleAddTask} disabled={!newTaskText.trim()}>Ekle</button>
+              <button className="btn-save" style={{ background: 'var(--pvk-text)' }} onClick={handleAddTask} disabled={!newTaskText.trim()}>Ekle</button>
             </div>
           </div>
         </div>
@@ -567,13 +567,13 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
           <div className="modal-content glass-card" onClick={e => e.stopPropagation()}>
             {confirmModal.pomodoroWarning ? (
               <>
-                <h3 style={{ marginBottom: '12px', color: '#00d4ff' }}>⏳ Pomodoro Aktif!</h3>
+                <h3 style={{ marginBottom: '12px', color: 'var(--pvk-text)' }}>⏳ Pomodoro Aktif!</h3>
                 <p style={{ color: 'var(--text-muted)', marginBottom: '20px', lineHeight: '1.5' }}>
                   <strong>"{confirmModal.task.txt}"</strong> görevi için Pomodoro sayacı çalışıyor. Tamamlanırsa sayacınız iptal edilecek.<br/><br/>Görevi tamamlamak istiyor musunuz?
                 </p>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button className="btn-cancel" onClick={() => setConfirmModal(null)}>Vazgeç</button>
-                  <button className="btn-save" style={{ background: '#00d4ff' }} onClick={() => {
+                  <button className="btn-save" style={{ background: 'var(--pvk-text)' }} onClick={() => {
                     updateTodoTask(confirmModal.dateStr, confirmModal.taskId, { done: true });
                     clearActivePomodoro();
                     setPomodoro(null);
@@ -585,7 +585,7 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
               </>
             ) : (
               <>
-                <h3 style={{ marginBottom: '12px', color: '#00d4ff' }}>Emin misiniz?</h3>
+                <h3 style={{ marginBottom: '12px', color: 'var(--pvk-text)' }}>Emin misiniz?</h3>
                 <p style={{ color: 'var(--text-muted)', marginBottom: '20px', lineHeight: '1.5' }}>
                   <strong>"{confirmModal.task.txt}"</strong> görevinin tamamlanma durumunu kaldırmak istediğinize emin misiniz?
                 </p>
@@ -605,7 +605,7 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
           <div className="modal-content glass-card" onClick={e => e.stopPropagation()}>
             <div style={{ textAlign: 'center', marginBottom: '16px' }}>
               <div style={{ fontSize: '3rem', marginBottom: '8px' }}>🎉</div>
-              <h3 style={{ color: '#00d4ff', marginBottom: '8px' }}>Pomodoro Tamamlandı!</h3>
+              <h3 style={{ color: 'var(--pvk-text)', marginBottom: '8px' }}>Pomodoro Tamamlandı!</h3>
               <p style={{ color: 'var(--text-muted)', lineHeight: '1.5' }}>
                 25 dakikalık çalışma süreniz doldu.<br />
                 Görevi tamamladıysanız kutucuğu işaretleyin.
@@ -613,7 +613,7 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
             </div>
             <button
               className="btn-save"
-              style={{ background: '#00d4ff', width: '100%' }}
+              style={{ background: 'var(--pvk-text)', width: '100%' }}
               onClick={() => setPomodoroCompleteModal(null)}
             >
               Tamam
@@ -628,7 +628,7 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
           <div className="modal-content glass-card" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
               <span style={{ fontSize: '1.5rem' }}>{MODE_CONFIG[editModal.task.size]?.emoji}</span>
-              <h3 style={{ color: '#00d4ff', margin: 0 }}>Görevi Düzenle</h3>
+              <h3 style={{ color: 'var(--pvk-text)', margin: 0 }}>Görevi Düzenle</h3>
             </div>
 
             <input
@@ -656,7 +656,7 @@ export default function TodoView({ selectedDateStr, onDataChange }) {
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
               <button className="btn-cancel" onClick={() => { setEditModal(null); setEditText(''); setEditWho(''); }}>İptal</button>
-              <button className="btn-save" style={{ background: '#00d4ff' }} onClick={handleEditSave} disabled={!editText.trim()}>Kaydet</button>
+              <button className="btn-save" style={{ background: 'var(--pvk-text)' }} onClick={handleEditSave} disabled={!editText.trim()}>Kaydet</button>
             </div>
           </div>
         </div>

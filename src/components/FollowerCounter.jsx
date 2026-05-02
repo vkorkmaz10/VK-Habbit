@@ -5,7 +5,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useFollowerCount } from '../hooks/useFollowerCount';
 import { mkTheme } from '../theme';
 
-const ACCENT = '#00d4ff';
 
 // X logo (resmi 𝕏 mark, single-color)
 function XLogo({ color, size = 22 }) {
@@ -97,11 +96,11 @@ export default function FollowerCounter({
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{
           width: 32, height: 32, borderRadius: 10,
-          background: darkMode ? '#0f172a' : '#0b0b0b',
+          background: t.cardDark,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0,
         }}>
-          <XLogo color="#ffffff" size={16} />
+          <XLogo color={t.cardDarkText} size={16} />
         </div>
         <div style={lblStyle}>𝕏 Takipçi</div>
         {loading && count == null && (
@@ -129,13 +128,12 @@ export default function FollowerCounter({
         <span>@{user}</span>
         <span style={{
           display: 'inline-flex', alignItems: 'center', gap: 5,
-          color: error ? '#ef4444' : ACCENT,
+          color: t.muted,
           fontWeight: 600,
         }}>
           <span style={{
             width: 6, height: 6, borderRadius: '50%',
-            background: error ? '#ef4444' : ACCENT,
-            boxShadow: error ? 'none' : `0 0 6px ${ACCENT}`,
+            background: error ? t.muted : t.text,
           }} />
           {error ? 'offline' : 'live'}
         </span>

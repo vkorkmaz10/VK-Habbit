@@ -8,14 +8,14 @@ const MAX_HISTORY = 30;
 const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite'];
 
 const PLATFORMS = [
-  { id: 'x',          label: '𝕏 Twitter',  short: '𝕏',  accent: '#1D9BF0' },
-  { id: 'linkedin',   label: 'LinkedIn',   short: 'in', accent: '#0A66C2' },
-  { id: 'instagram',  label: 'Instagram',  short: 'IG', accent: '#E1306C' },
-  { id: 'tiktok',     label: 'TikTok',     short: 'TT', accent: '#FF0050' },
-  { id: 'youtube',    label: 'YouTube',    short: 'YT', accent: '#FF0000' },
-  { id: 'newsletter', label: 'Newsletter', short: '✉',  accent: '#F59E0B' },
-  { id: 'threads',    label: 'Threads',    short: 'Th', accent: '#9B9B9B' },
-  { id: 'facebook',   label: 'Facebook',   short: 'fb', accent: '#1877F2' },
+  { id: 'x',          label: '𝕏 Twitter',  short: '𝕏'  },
+  { id: 'linkedin',   label: 'LinkedIn',   short: 'in' },
+  { id: 'instagram',  label: 'Instagram',  short: 'IG' },
+  { id: 'tiktok',     label: 'TikTok',     short: 'TT' },
+  { id: 'youtube',    label: 'YouTube',    short: 'YT' },
+  { id: 'newsletter', label: 'Newsletter', short: '✉'  },
+  { id: 'threads',    label: 'Threads',    short: 'Th' },
+  { id: 'facebook',   label: 'Facebook',   short: 'fb' },
 ];
 
 const PLATFORM_TIPS = {
@@ -308,7 +308,7 @@ export default function ContentEngine({ darkMode }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 4 }}>
-            <ZapIcon size={20} color="#F59E0B" />
+            <ZapIcon size={20} color={t.text} />
             <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: t.text }}>İçerik Motoru</h1>
           </div>
           <p style={{ margin: 0, fontSize: 13, color: t.muted }}>Bir konu gir — 8 platform için hazır içerik üret</p>
@@ -347,7 +347,7 @@ export default function ContentEngine({ darkMode }) {
                 lineHeight: 1.6, resize: 'vertical', fontFamily: 'inherit', outline: 'none',
                 boxSizing: 'border-box', transition: 'border-color 0.2s',
               }}
-              onFocus={e => e.target.style.borderColor = '#F59E0B'}
+              onFocus={e => e.target.style.borderColor = t.text}
               onBlur={e => e.target.style.borderColor = t.inputBorder}
             />
             <p style={{ margin: '5px 0 0', fontSize: 11, color: t.muted }}>⌘+Enter ile üret</p>
@@ -357,7 +357,7 @@ export default function ContentEngine({ darkMode }) {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
               <label style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Gemini API Key</label>
-              {apiKey && <span style={{ fontSize: 11, color: '#22c55e', fontWeight: 500 }}>✓ Kayıtlı</span>}
+              {apiKey && <span style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>✓ Kayıtlı</span>}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <input
@@ -376,14 +376,14 @@ export default function ContentEngine({ darkMode }) {
                 {keyVisible ? '🙈' : '👁'}
               </button>
               {keyInput.trim() && (
-                <button onClick={saveKey} style={{ padding: '9px 14px', borderRadius: 10, border: 'none', background: '#22c55e', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                <button onClick={saveKey} style={{ padding: '9px 14px', borderRadius: 10, border: 'none', background: t.accent, color: t.accentText, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                   Kaydet
                 </button>
               )}
             </div>
             {!apiKey && (
               <p style={{ margin: '5px 0 0', fontSize: 11, color: t.muted }}>
-                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" style={{ color: '#F59E0B' }}>aistudio.google.com/apikey</a> adresinden ücretsiz alabilirsin
+                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" style={{ color: t.text }}>aistudio.google.com/apikey</a> adresinden ücretsiz alabilirsin
               </p>
             )}
           </div>
@@ -396,8 +396,8 @@ export default function ContentEngine({ darkMode }) {
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               padding: '13px 20px', borderRadius: 12, border: 'none',
               cursor: loading || !topic.trim() || !apiKey ? 'not-allowed' : 'pointer',
-              background: loading || !topic.trim() || !apiKey ? t.hover : 'linear-gradient(135deg,#F59E0B 0%,#EF4444 100%)',
-              color: loading || !topic.trim() || !apiKey ? t.muted : '#fff',
+              background: loading || !topic.trim() || !apiKey ? t.hover : t.accent,
+              color: loading || !topic.trim() || !apiKey ? t.muted : t.accentText,
               fontSize: 15, fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.2s',
             }}
           >
@@ -427,9 +427,9 @@ export default function ContentEngine({ darkMode }) {
                     onClick={() => togglePlatform(p.id)}
                     style={{
                       padding: '5px 11px', borderRadius: 20, fontSize: 12, fontWeight: 500,
-                      border: `1.5px solid ${sel ? p.accent : done ? `${p.accent}35` : t.border}`,
-                      background: sel ? `${p.accent}18` : done ? `${p.accent}08` : 'transparent',
-                      color: sel ? p.accent : done ? p.accent : t.muted,
+                      border: `1.5px solid ${sel ? t.text : done ? t.border : t.border}`,
+                      background: sel ? t.hover : done ? t.border : 'transparent',
+                      color: sel ? t.text : done ? t.text : t.muted,
                       cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
                     }}
                   >
@@ -451,8 +451,8 @@ export default function ContentEngine({ darkMode }) {
 
           {/* Error */}
           {error && !loading && (
-            <div style={{ margin: 16, padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12 }}>
-              <p style={{ margin: 0, fontSize: 14, color: '#EF4444', lineHeight: 1.6 }}>{error}</p>
+            <div style={{ margin: 16, padding: '12px 16px', background: t.border, border: `1px solid ${t.inputBorder}`, borderRadius: 12 }}>
+              <p style={{ margin: 0, fontSize: 14, color: t.text, lineHeight: 1.6 }}>{error}</p>
             </div>
           )}
 
@@ -461,7 +461,7 @@ export default function ContentEngine({ darkMode }) {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 12, color: t.muted }}>
               {loading ? (
                 <>
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" style={{ animation: 'engine-spin 1s linear infinite' }}>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={t.text} strokeWidth="2" strokeLinecap="round" style={{ animation: 'engine-spin 1s linear infinite' }}>
                     <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
                   </svg>
                   <p style={{ margin: 0, fontSize: 14 }}>8 platform için içerik üretiliyor...</p>
@@ -487,9 +487,9 @@ export default function ContentEngine({ darkMode }) {
                   return (
                     <button key={p.id} onClick={() => setActivePlatform(p.id)} style={{
                       padding: '11px 13px', border: 'none', flexShrink: 0,
-                      borderBottom: active ? `2px solid ${p.accent}` : '2px solid transparent',
+                      borderBottom: active ? `2px solid ${t.text}` : '2px solid transparent',
                       background: 'transparent', cursor: 'pointer',
-                      color: active ? p.accent : t.muted,
+                      color: active ? t.text : t.muted,
                       fontSize: 13, fontWeight: active ? 600 : 400, fontFamily: 'inherit',
                       whiteSpace: 'nowrap', transition: 'all 0.15s',
                     }}>
@@ -502,11 +502,11 @@ export default function ContentEngine({ darkMode }) {
               {/* Content */}
               <div style={{ padding: 18 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: activePlatformObj.accent }}>{activePlatformObj.label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{activePlatformObj.label}</span>
                   <button onClick={() => handleCopy(activePlatform)} style={{
                     display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 8,
-                    border: `1px solid ${t.border}`, background: copiedPlatform === activePlatform ? `${activePlatformObj.accent}18` : t.input,
-                    color: copiedPlatform === activePlatform ? activePlatformObj.accent : t.muted,
+                    border: `1px solid ${t.border}`, background: copiedPlatform === activePlatform ? t.hover : t.input,
+                    color: copiedPlatform === activePlatform ? t.text : t.muted,
                     fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s',
                   }}>
                     <CopyIcon />
@@ -535,8 +535,8 @@ export default function ContentEngine({ darkMode }) {
                         <div key={i} style={{
                           display: 'flex', alignItems: 'flex-start', gap: 9,
                           padding: '8px 11px', borderRadius: 10,
-                          background: `${activePlatformObj.accent}0d`,
-                          border: `1px solid ${activePlatformObj.accent}22`,
+                          background: t.hover,
+                          border: `1px solid ${t.inputBorder}`,
                         }}>
                           <span style={{ fontSize: 14, flexShrink: 0, lineHeight: 1.5 }}>{tip.icon}</span>
                           <span style={{ fontSize: 12, color: t.text, lineHeight: 1.55 }}>{tip.text}</span>
@@ -551,9 +551,9 @@ export default function ContentEngine({ darkMode }) {
                   {visiblePlatforms.map(p => (
                     <button key={p.id} onClick={() => handleCopy(p.id)} title={`${p.label} kopyala`} style={{
                       padding: '3px 9px', borderRadius: 20,
-                      border: `1px solid ${copiedPlatform === p.id ? p.accent : t.border}`,
-                      background: copiedPlatform === p.id ? `${p.accent}18` : 'transparent',
-                      color: copiedPlatform === p.id ? p.accent : t.muted,
+                      border: `1px solid ${copiedPlatform === p.id ? t.text : t.border}`,
+                      background: copiedPlatform === p.id ? t.hover : 'transparent',
+                      color: copiedPlatform === p.id ? t.text : t.muted,
                       fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s',
                     }}>
                       {copiedPlatform === p.id ? '✓' : p.short}
@@ -583,8 +583,8 @@ export default function ContentEngine({ darkMode }) {
                   onClick={() => loadFromHistory(item)}
                   style={{
                     background: isActive ? `${t.card}` : t.card,
-                    border: `1px solid ${isActive ? '#F59E0B' : t.cardBorder}`,
-                    boxShadow: isActive ? '0 0 0 2px rgba(245,158,11,0.2)' : t.cardShadow,
+                    border: `1px solid ${isActive ? t.text : t.cardBorder}`,
+                    boxShadow: isActive ? `0 0 0 2px ${t.border}` : t.cardShadow,
                   }}
                 >
                   {/* Delete button */}
@@ -595,7 +595,7 @@ export default function ContentEngine({ darkMode }) {
                     style={{
                       position: 'absolute', top: 8, right: 8,
                       padding: '3px 5px', borderRadius: 6, border: 'none',
-                      background: 'rgba(239,68,68,0.12)', color: '#EF4444',
+                      background: t.border, color: t.text,
                       cursor: 'pointer', display: 'flex', alignItems: 'center',
                     }}
                   >
@@ -616,7 +616,7 @@ export default function ContentEngine({ darkMode }) {
                     {PLATFORMS.map(p => (
                       <span key={p.id} style={{
                         width: 6, height: 6, borderRadius: '50%',
-                        background: item.results?.[p.id] ? p.accent : t.border,
+                        background: item.results?.[p.id] ? t.text : t.border,
                         flexShrink: 0,
                       }} title={p.label} />
                     ))}

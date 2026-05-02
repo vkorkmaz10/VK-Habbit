@@ -11,7 +11,7 @@ import { scorePost as scoreTweet, buildBoostPrompt } from '../engine/xscore';
 import { mkTheme } from '../theme';
 import ReachScoreBadge from './ReachScoreBadge';
 
-const ACCENT = '#00d4ff';
+
 const GEMINI_KEY_STORAGE = 'lifeos_gemini_key';
 const CC_KEY_STORAGE = 'lifeos_cc_key';
 const CACHE_TTL = 5 * 60 * 1000;
@@ -131,8 +131,8 @@ function StylePicker({ value, onChange, t }) {
             <button key={key} onClick={() => onChange(key)} style={{
               padding: '5px 14px', borderRadius: 999, cursor: 'pointer',
               border: active ? 'none' : `1px solid ${t.inputBorder}`,
-              background: active ? ACCENT : t.hover,
-              color: active ? '#0a0a0a' : t.text,
+              background: active ? t.accent : t.hover,
+              color: active ? t.accentText : t.text,
               fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
               transition: 'background 0.15s, color 0.15s',
             }}>
@@ -477,9 +477,9 @@ export default function ContentPage({ darkMode = true }) {
   const sourceBtn = (key) => ({
     padding: '6px 12px', borderRadius: 999, cursor: 'pointer',
     fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
-    border: sourceActive(key) ? `1.5px solid ${ACCENT}` : `1px solid ${t.inputBorder}`,
-    background: sourceActive(key) ? `${ACCENT}15` : t.hover,
-    color: sourceActive(key) ? ACCENT : t.text,
+    border: sourceActive(key) ? `1.5px solid ${t.text}` : `1px solid ${t.inputBorder}`,
+    background: sourceActive(key) ? t.hover : t.hover,
+    color: sourceActive(key) ? t.text : t.text,
     transition: 'all 0.15s',
     whiteSpace: 'nowrap',
   });
@@ -532,8 +532,8 @@ export default function ContentPage({ darkMode = true }) {
                     style={{
                       background: t.card, borderRadius: 12,
                       padding: '10px 12px', cursor: 'pointer',
-                      border: isSelected ? `1px solid ${ACCENT}` : t.cardBorder,
-                      boxShadow: isSelected ? `0 0 0 1px ${ACCENT}33` : 'none',
+                      border: isSelected ? `1px solid ${t.text}` : t.cardBorder,
+                      boxShadow: 'none',
                       transition: 'border 0.15s, box-shadow 0.15s',
                       display: 'flex', flexDirection: 'column', gap: 4,
                     }}
@@ -543,7 +543,7 @@ export default function ContentPage({ darkMode = true }) {
                       <span style={{
                         display: 'inline-flex', alignItems: 'center', gap: 3,
                         fontSize: 10, fontWeight: 600,
-                        color: item.category === 'ai_tech' ? '#A855F7' : '#F7931A',
+                        color: t.muted,
                       }}>
                         {item.category === 'ai_tech' ? <Cpu size={9} /> : <Bitcoin size={9} />}
                         {item.sourceName || 'CC'}
@@ -597,7 +597,7 @@ export default function ContentPage({ darkMode = true }) {
               disabled={!customUrl.trim() || fetchingUrl}
               style={{
                 padding: '10px 14px', borderRadius: 10, border: 'none', cursor: 'pointer',
-                background: ACCENT, color: '#0a0a0a', fontWeight: 700, fontFamily: 'inherit', fontSize: 13,
+                background: t.accent, color: t.accentText, fontWeight: 700, fontFamily: 'inherit', fontSize: 13,
                 display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
                 opacity: (!customUrl.trim() || fetchingUrl) ? 0.5 : 1,
               }}
@@ -611,9 +611,9 @@ export default function ContentPage({ darkMode = true }) {
           {customSource && (
             <div style={{
               ...cardBase, padding: 14,
-              border: `1px solid ${ACCENT}`, boxShadow: `0 0 0 1px ${ACCENT}33`,
+              border: `1px solid ${t.inputBorder}`, boxShadow: 'none',
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: ACCENT, marginBottom: 6, letterSpacing: '0.8px' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: t.text, marginBottom: 6, letterSpacing: '0.8px' }}>
                 ✓ İÇERİK ÇEKİLDİ
               </div>
               <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 6, lineHeight: 1.4 }}>
@@ -664,7 +664,7 @@ export default function ContentPage({ darkMode = true }) {
               className="content-mobile-generate-btn"
               style={{
                 padding: '11px 18px', borderRadius: 12, border: 'none', cursor: 'pointer',
-                background: ACCENT, color: '#0a0a0a',
+                background: t.accent, color: t.accentText,
                 fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
@@ -698,7 +698,7 @@ export default function ContentPage({ darkMode = true }) {
         <button
           className={`content-tab-btn ${mobileTab === 'source' ? 'active' : ''}`}
           onClick={() => setMobileTab('source')}
-          style={{ color: mobileTab === 'source' ? ACCENT : t.muted }}
+          style={{ color: mobileTab === 'source' ? t.text : t.muted }}
         >
           {sourceType === 'manual' ? '✏️' : sourceType === 'rss' ? '📰' : '🔗'} Kaynak
           {hasSource && <span className="content-tab-dot" />}
@@ -706,7 +706,7 @@ export default function ContentPage({ darkMode = true }) {
         <button
           className={`content-tab-btn ${mobileTab === 'generate' ? 'active' : ''}`}
           onClick={() => setMobileTab('generate')}
-          style={{ color: mobileTab === 'generate' ? ACCENT : t.muted }}
+          style={{ color: mobileTab === 'generate' ? t.text : t.muted }}
         >
           ✍️ İçerik Üret
           {content && <span className="content-tab-dot" />}
@@ -760,8 +760,8 @@ export default function ContentPage({ darkMode = true }) {
                     style={{
                       padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
                       border: 'none', fontFamily: 'inherit', fontSize: 11, fontWeight: 600,
-                      background: mode === m.key ? ACCENT : t.hover,
-                      color: mode === m.key ? '#0a0a0a' : t.text,
+                      background: mode === m.key ? t.accent : t.hover,
+                      color: mode === m.key ? t.accentText : t.text,
                       transition: 'background 0.15s',
                     }}
                   >
@@ -802,7 +802,7 @@ export default function ContentPage({ darkMode = true }) {
                         style={{
                           position: 'absolute', top: -4, right: -4,
                           width: 16, height: 16, borderRadius: '50%', border: 'none',
-                          background: '#ef4444', color: '#fff', cursor: 'pointer',
+                          background: t.accent, color: t.accentText, cursor: 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontSize: 10, lineHeight: 1,
                         }}
@@ -835,8 +835,8 @@ export default function ContentPage({ darkMode = true }) {
             {error && (
               <div style={{
                 padding: '10px 12px', borderRadius: 10, marginBottom: 12,
-                background: 'rgba(239,68,68,0.1)', color: '#ef4444',
-                border: '1px solid rgba(239,68,68,0.2)', fontSize: 12,
+                background: t.border, color: t.text,
+                border: `1px solid ${t.inputBorder}`, fontSize: 12,
               }}>
                 {error}
               </div>
@@ -860,8 +860,8 @@ export default function ContentPage({ darkMode = true }) {
                 disabled={!hasActiveSource() || generating}
                 style={{
                   flex: 2, padding: '12px 16px', borderRadius: 12, border: 'none',
-                  background: (!hasActiveSource() || generating) ? t.hover : ACCENT,
-                  color: (!hasActiveSource() || generating) ? t.muted : '#0a0a0a',
+                  background: (!hasActiveSource() || generating) ? t.hover : t.accent,
+                  color: (!hasActiveSource() || generating) ? t.muted : t.accentText,
                   cursor: (!hasActiveSource() || generating) ? 'not-allowed' : 'pointer',
                   fontFamily: 'inherit', fontSize: 14, fontWeight: 700,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -893,9 +893,9 @@ export default function ContentPage({ darkMode = true }) {
                     onClick={handleSave}
                     style={{
                       padding: '7px 12px', borderRadius: 8, cursor: 'pointer',
-                      background: saved ? 'rgba(16,185,129,0.12)' : `${ACCENT}15`,
-                      color: saved ? '#10b981' : ACCENT,
-                      border: `1px solid ${saved ? '#10b981' : ACCENT}`,
+                      background: saved ? t.hover : t.hover,
+                      color: saved ? t.text : t.text,
+                      border: `1px solid ${t.inputBorder}`,
                       fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
                       display: 'inline-flex', alignItems: 'center', gap: 5,
                       transition: 'all 0.2s',

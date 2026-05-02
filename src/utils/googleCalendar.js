@@ -23,7 +23,7 @@ const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const ACCOUNTS_KEY = 'lifeos_google_accounts';
 const LEGACY_TOKEN_KEY = 'lifeos_google_token';
 const REFRESH_BUFFER_MS = 5 * 60 * 1000; // refresh if <5 min remains
-const ACCOUNT_PALETTE = ['#00d4ff', '#ff5252', '#34A853', '#f4c430', '#bd00ff', '#ff8c42'];
+const ACCOUNT_PALETTE = ['#888888', '#aaaaaa', '#666666', '#999999', '#777777', '#bbbbbb'];
 
 // ======= Storage =======
 

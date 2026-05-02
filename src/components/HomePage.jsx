@@ -12,6 +12,7 @@ import {
 } from '../utils/storage';
 import { fetchGoogleEvents, getAccounts } from '../utils/googleCalendar';
 import { getActiveDateString } from '../utils/date';
+import { CHECKBOX_ITEMS } from '../data/constants';
 import { format, parseISO, subDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 

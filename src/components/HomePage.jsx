@@ -8,7 +8,7 @@ import { mkTheme } from '../theme';
 import FollowerCounter from './FollowerCounter';
 import {
   getDayData, getLatestWeight, calculateDayScore,
-  getTodoTasks, getCalendarEvents,
+  getAllOpenTasks, getCalendarEvents,
 } from '../utils/storage';
 import { fetchGoogleEvents, getAccounts } from '../utils/googleCalendar';
 import { getActiveDateString } from '../utils/date';
@@ -53,11 +53,10 @@ export default function HomePage({ darkMode, setActiveTab }) {
     }
     const weightDelta = prevWeight !== null ? +(currentWeight - prevWeight).toFixed(2) : null;
 
-    // To-do
-    const tasks = getTodoTasks(todayStr);
-    const tasksOpen = tasks.filter(x => !x.done).length;
-    const tasksDone = tasks.filter(x => x.done).length;
-    const todoTasks = tasks;
+    // To-do — all open tasks across all days
+    const todoTasks = getAllOpenTasks();
+    const tasksOpen = todoTasks.length;
+    const tasksDone = 0;
 
     // Events (local only — Google events merged separately via googleEvents state)
     const events = getCalendarEvents(todayStr);
@@ -243,13 +242,8 @@ export default function HomePage({ darkMode, setActiveTab }) {
 
       {/* Günün Planı — Todo + Takvim özeti */}
       <div style={{ ...cardBase, marginBottom: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div>
-            <div style={labelStyle}>GÜNÜN PLANI</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: t.text, marginTop: 3 }}>
-              Görevler & Etkinlikler
-            </div>
-          </div>
+        <div style={{ marginBottom: 16 }}>
+          <div style={labelStyle}>GÜNÜN PLANI</div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
@@ -273,11 +267,12 @@ export default function HomePage({ darkMode, setActiveTab }) {
               </button>
             </div>
             {(() => {
-              const tasks = summary.todoTasks || [];
-              const open = tasks.filter(x => !x.done);
-              const done = tasks.filter(x => x.done);
-              if (tasks.length === 0) return (
-                <div style={{ fontSize: 13, color: t.muted, padding: '10px 0' }}>Bugün görev yok</div>
+              const open = summary.todoTasks || [];
+              if (open.length === 0) return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 10px', borderRadius: 10, background: t.hover }}>
+                  <CheckCircle2 size={13} color={t.text} />
+                  <span style={{ fontSize: 13, color: t.text, fontWeight: 600 }}>Tüm görevler tamam!</span>
+                </div>
               );
               const shown = open.slice(0, 5);
               return (
@@ -297,17 +292,6 @@ export default function HomePage({ darkMode, setActiveTab }) {
                   {open.length > 5 && (
                     <div style={{ fontSize: 12, color: t.muted, padding: '2px 10px' }}>
                       +{open.length - 5} görev daha
-                    </div>
-                  )}
-                  {open.length === 0 && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 10px', borderRadius: 10, background: t.hover }}>
-                      <CheckCircle2 size={13} color={t.text} />
-                      <span style={{ fontSize: 13, color: t.text, fontWeight: 600 }}>Tüm görevler tamam!</span>
-                    </div>
-                  )}
-                  {done.length > 0 && open.length > 0 && (
-                    <div style={{ fontSize: 11, color: t.muted, padding: '2px 10px' }}>
-                      {done.length} tamamlandı
                     </div>
                   )}
                 </div>

@@ -137,6 +137,23 @@ export const getTodoTasks = (dateStr) => {
   return raw.days[dateStr].t;
 };
 
+export const getAllOpenTasks = () => {
+  const raw = getRawData();
+  const result = [];
+  const seenIds = new Set();
+  Object.keys(raw.days).sort().forEach(dateStr => {
+    const day = raw.days[dateStr];
+    if (!day || !day.t) return;
+    day.t.forEach(task => {
+      if (!task.done && !seenIds.has(task.id)) {
+        seenIds.add(task.id);
+        result.push({ ...task, _dateStr: dateStr });
+      }
+    });
+  });
+  return result.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+};
+
 export const addTodoTask = (dateStr, task) => {
   const raw = getRawData();
   if (!raw.days[dateStr]) {

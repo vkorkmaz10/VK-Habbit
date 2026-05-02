@@ -254,57 +254,29 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
         />
       </div>
 
-      {/* Category card: vertical list, label + progress bar per category */}
-      <div style={{ ...cardBase, marginBottom: 14 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Mode selector: 3 buttons side by side */}
+      <div style={{ ...cardBase, marginBottom: 14, padding: '10px 12px' }}>
+        <div style={{ display: 'flex', gap: 8 }}>
           {Object.entries(MODE_CONFIG).map(([key, cfg]) => {
-            const inMode = tasks.filter(x => x.size === key);
-            const total = inMode.length;
-            const done = inMode.filter(x => x.done).length;
-            const pct = total === 0 ? 0 : (done / total) * 100;
             const active = activeMode === key;
-            const fillColor = darkMode ? '#ffffff' : '#000000';
             return (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <button
-                  onClick={() => setActiveMode(prev => prev === key ? null : key)}
-                  style={{
-                    flexShrink: 0,
-                    minWidth: 96,
-                    padding: '8px 14px',
-                    borderRadius: 999,
-                    border: `1px solid ${active ? (darkMode ? '#fff' : '#000') : t.inputBorder}`,
-                    background: active ? (darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') : 'transparent',
-                    color: t.text,
-                    fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
-                    cursor: 'pointer',
-                    textAlign: 'center',
-                    transition: 'background 0.15s, border-color 0.15s',
-                  }}
-                >
-                  {cfg.shortLabel}
-                </button>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                  <div style={{
-                    flex: 1, height: 6, borderRadius: 6,
-                    background: t.progressTrack, overflow: 'hidden',
-                  }}>
-                    <div style={{
-                      height: '100%',
-                      width: `${pct}%`,
-                      background: fillColor,
-                      borderRadius: 6,
-                      transition: 'width 0.3s ease',
-                    }} />
-                  </div>
-                  <span style={{
-                    fontSize: 12, fontWeight: 600, color: t.muted,
-                    fontVariantNumeric: 'tabular-nums', minWidth: 28, textAlign: 'right',
-                  }}>
-                    {done}/{total}
-                  </span>
-                </div>
-              </div>
+              <button
+                key={key}
+                onClick={() => setActiveMode(prev => prev === key ? null : key)}
+                style={{
+                  flex: 1,
+                  padding: '8px 0',
+                  borderRadius: 999,
+                  border: `1px solid ${active ? (darkMode ? '#fff' : '#000') : t.inputBorder}`,
+                  background: active ? (darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') : 'transparent',
+                  color: active ? t.text : t.muted,
+                  fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s, border-color 0.15s',
+                }}
+              >
+                {cfg.shortLabel}
+              </button>
             );
           })}
         </div>

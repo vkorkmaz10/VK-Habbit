@@ -55,22 +55,18 @@ function ScoreRing({ value, size = 64, stroke = 5, color, trackColor, textColor,
 }
 
 // ──────────────────────────────────────────────────────────────
-function HabitCard({ item, checked, onToggle, disabled, t, darkMode }) {
+function HabitCard({ item, checked, onToggle, disabled, t }) {
   const IconComp = HABIT_ICONS[item.icon];
   return (
     <div
       onClick={() => { if (!disabled) onToggle(); }}
       style={{
-        background: checked
-          ? t.text
-          : t.card,
-        borderRadius: 16, padding: '10px 10px',
-        boxShadow: t.cardShadow,
-        border: checked ? `1px solid transparent` : t.cardBorder,
+        background: t.card, borderRadius: 16, padding: '10px 10px',
+        boxShadow: t.cardShadow, border: t.cardBorder,
         cursor: disabled ? 'default' : 'pointer',
         opacity: disabled ? 0.55 : 1,
         display: 'flex', alignItems: 'center', gap: 8,
-        transition: 'all 0.15s',
+        transition: 'transform 0.1s',
       }}
       onMouseEnter={e => { if (!disabled) e.currentTarget.style.transform = 'translateY(-1px)'; }}
       onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
@@ -79,24 +75,23 @@ function HabitCard({ item, checked, onToggle, disabled, t, darkMode }) {
         width: 28, height: 28, display: 'flex', alignItems: 'center',
         justifyContent: 'center', flexShrink: 0,
       }}>
-        {IconComp && <IconComp size={16} color={checked ? t.textInv : t.text} />}
+        {IconComp && <IconComp size={16} color={t.text} />}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          fontSize: 12, fontWeight: 600,
-          color: checked ? t.textInv : t.text,
+          fontSize: 12, fontWeight: 600, color: t.text,
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>{item.label}</div>
       </div>
       <div style={{
         width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-        border: `2px solid ${checked ? t.textInv : t.inputBorder}`,
-        background: checked ? t.textInv : 'transparent',
+        border: `2px solid ${checked ? t.text : t.inputBorder}`,
+        background: checked ? t.text : 'transparent',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         transition: 'all 0.15s',
       }}>
         {checked && (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={t.text} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={t.card} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 6L9 17l-5-5" />
           </svg>
         )}
@@ -344,7 +339,7 @@ export default function HabitsPage({ darkMode, selectedDateStr, setSelectedDateS
                 checked={dayData.c[idx] === 1}
                 onToggle={() => handleToggle(idx)}
                 disabled={isPast}
-                t={t} darkMode={darkMode}
+                t={t}
               />
             ))}
           </div>

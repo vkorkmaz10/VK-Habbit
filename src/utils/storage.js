@@ -143,7 +143,7 @@ export const getAllOpenTasks = () => {
   // Today is the canonical source: performRollover moves all past undone tasks here.
   const todayTasks = raw.days[todayStr]?.t || [];
   return todayTasks.filter(task => !task.done)
-    .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 };
 
 export const addTodoTask = (dateStr, task) => {

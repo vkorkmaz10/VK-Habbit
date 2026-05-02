@@ -3,6 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { CHECKBOX_ITEMS } from '../data/constants';
 import {
+  Coffee, Zap, UtensilsCrossed, Utensils, Moon, Droplets, Pill,
+  BedDouble, Dumbbell, TrendingUp, Target, Footprints,
+} from 'lucide-react';
+import {
   getDayData, getLatestWeight, updateWeight, updateCheck, updateMuscles,
   calculateDayScore,
 } from '../utils/storage';
@@ -11,10 +15,16 @@ import { mkTheme } from '../theme';
 import Header from './Header';
 import WeeklyReport from './WeeklyReport';
 
-const MUSCLES = ['Chest', 'Back', 'Biceps', 'Triceps', 'Shoulders', 'Core', 'Legs'];
+const HABIT_ICONS = {
+  Coffee, Zap, UtensilsCrossed, Utensils, Moon, Droplets, Pill,
+  BedDouble, Dumbbell, TrendingUp, Target, Footprints,
+};
+
+const MUSCLES = ['Chest', 'Back', 'Biceps', 'Triceps', 'Shoulders', 'Core', 'Legs', 'Cardio'];
 const MUSCLE_LABELS = {
   Chest: 'Göğüs', Back: 'Sırt', Biceps: 'Ön Kol',
   Triceps: 'Arka Kol', Shoulders: 'Omuz', Core: 'Karın', Legs: 'Bacak',
+  Cardio: 'Kardiyo',
 };
 
 // ScoreRing — used by Daily Score card only.
@@ -45,39 +55,52 @@ function ScoreRing({ value, size = 64, stroke = 5, color, trackColor, textColor,
 }
 
 // ──────────────────────────────────────────────────────────────
-// ──────────────────────────────────────────────────────────────
 function HabitCard({ item, checked, onToggle, disabled, t, darkMode }) {
+  const IconComp = HABIT_ICONS[item.icon];
   return (
     <div
       onClick={() => { if (!disabled) onToggle(); }}
       style={{
-        background: t.card, borderRadius: 16, padding: '12px 10px',
-        boxShadow: t.cardShadow, border: t.cardBorder,
+        background: checked
+          ? t.text
+          : t.card,
+        borderRadius: 16, padding: '10px 10px',
+        boxShadow: t.cardShadow,
+        border: checked ? `1px solid transparent` : t.cardBorder,
         cursor: disabled ? 'default' : 'pointer',
         opacity: disabled ? 0.55 : 1,
-        display: 'flex', alignItems: 'center', gap: 12,
-        transition: 'transform 0.1s',
+        display: 'flex', alignItems: 'center', gap: 8,
+        transition: 'all 0.15s',
       }}
       onMouseEnter={e => { if (!disabled) e.currentTarget.style.transform = 'translateY(-1px)'; }}
       onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
     >
       <div style={{
-        width: 26, height: 26, borderRadius: 8,
-        border: `2px solid ${checked ? t.text : t.inputBorder}`,
-        background: checked ? t.text : 'transparent',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        width: 28, height: 28, display: 'flex', alignItems: 'center',
+        justifyContent: 'center', flexShrink: 0,
+      }}>
+        {IconComp && <IconComp size={16} color={checked ? t.textInv : t.text} />}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: 12, fontWeight: 600,
+          color: checked ? t.textInv : t.text,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>{item.label}</div>
+      </div>
+      <div style={{
+        width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+        border: `2px solid ${checked ? t.textInv : t.inputBorder}`,
+        background: checked ? t.textInv : 'transparent',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         transition: 'all 0.15s',
       }}>
         {checked && (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t.card} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={t.text} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 6L9 17l-5-5" />
           </svg>
         )}
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{item.label}</div>
-      </div>
-      <span style={{ fontSize: 18 }}>{item.emoji}</span>
     </div>
   );
 }
@@ -132,15 +155,42 @@ function WeightCard({ value, onChange, onCommit, disabled, bounds, savedFlash, t
 }
 
 // ──────────────────────────────────────────────────────────────
-// Eski kas modal'ı korundu — /muscle_*.png görselleri ve İngilizce etiketler.
-function MuscleModal({ initial, onSave, onClose }) {
+function MuscleModal({ initial, onSave, onClose, t, darkMode }) {
   const [sel, setSel] = useState(initial);
   const toggle = (m) => setSel(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const hasMuscle = sel.some(s => s !== 'Cardio');
+
   return (
-    <div className="modal-overlay">
-      <div className="modal-content glass-card">
-        <h3 style={{ marginBottom: '16px' }}>Çalışılan Bölgeler</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)',
+        WebkitBackdropFilter: 'blur(5px)',
+        zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center',
+        padding: 20,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 400,
+          background: t.card, borderRadius: 18, padding: 24,
+          border: t.cardBorder, boxShadow: t.cardShadow,
+          animation: 'fadeIn 0.2s ease-out',
+        }}
+      >
+        <h3 style={{ marginBottom: 16, color: t.text, fontFamily: 'Spline Sans', fontSize: 16, fontWeight: 700 }}>
+          Çalışılan Bölgeler
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
           {MUSCLES.map((muscle) => {
             const isSelected = sel.includes(muscle);
             return (
@@ -148,21 +198,43 @@ function MuscleModal({ initial, onSave, onClose }) {
                 key={muscle}
                 onClick={() => toggle(muscle)}
                 style={{
-                  padding: '14px 10px', borderRadius: '12px', textAlign: 'center', cursor: 'pointer',
-                  border: isSelected ? '2px solid var(--pvk-text)' : '2px solid transparent',
-                  background: isSelected ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)',
-                  color: isSelected ? 'var(--pvk-text)' : 'white',
+                  padding: '14px 10px', borderRadius: 12, textAlign: 'center', cursor: 'pointer',
+                  border: `2px solid ${isSelected ? t.text : t.inputBorder}`,
+                  background: isSelected
+                    ? (darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)')
+                    : t.hover,
+                  color: isSelected ? t.text : t.muted,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'all 0.2s ease',
-                }}>
+                  transition: 'all 0.15s ease',
+                }}
+              >
                 <span style={{ fontSize: '0.95rem', fontWeight: 700 }}>{MUSCLE_LABELS[muscle]}</span>
               </div>
             );
           })}
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={onClose} className="btn-cancel">İptal</button>
-          <button onClick={() => onSave(sel)} className="btn-save" disabled={sel.length === 0}>Kaydet</button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={onClose}
+            style={{
+              flex: 1, padding: 14, borderRadius: 12,
+              border: `1px solid ${t.inputBorder}`,
+              background: t.hover, color: t.text,
+              fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'Spline Sans',
+            }}
+          >İptal</button>
+          <button
+            onClick={() => onSave(sel)}
+            disabled={!hasMuscle}
+            style={{
+              flex: 1, padding: 14, borderRadius: 12, border: 'none',
+              background: hasMuscle ? t.accent : t.hover,
+              color: hasMuscle ? t.accentText : t.muted,
+              fontWeight: 700, fontSize: 15,
+              cursor: hasMuscle ? 'pointer' : 'not-allowed',
+              opacity: hasMuscle ? 1 : 0.5, fontFamily: 'Spline Sans',
+            }}
+          >Kaydet</button>
         </div>
       </div>
     </div>
@@ -319,6 +391,8 @@ export default function HabitsPage({ darkMode, selectedDateStr, setSelectedDateS
           initial={dayData.m || []}
           onSave={handleMusclesSave}
           onClose={() => setShowMuscleModal(false)}
+          t={t}
+          darkMode={darkMode}
         />
       )}
     </div>

@@ -1,7 +1,16 @@
 // StatsPage — PersonaVK analitik dashboard. 14 günlük skor trend, kilo grafiği,
 // alışkanlık başarı oranı, antrenman frekansı ve kas grubu heatmap.
 import React, { useMemo, useState } from 'react';
-import { TrendingUp, TrendingDown, Activity, Dumbbell, Award } from 'lucide-react';
+import {
+  TrendingUp, TrendingDown, Activity, Dumbbell, Award,
+  Coffee, Zap, UtensilsCrossed, Utensils, Moon, Droplets, Pill,
+  BedDouble, Target, Footprints,
+} from 'lucide-react';
+
+const HABIT_ICONS = {
+  Coffee, Zap, UtensilsCrossed, Utensils, Moon, Droplets, Pill,
+  BedDouble, Dumbbell, TrendingUp, Target, Footprints,
+};
 import { mkTheme } from '../theme';
 import {
   getDayData, calculateDayScore, getStoreSummary,
@@ -148,7 +157,7 @@ export default function StatsPage({ darkMode = true }) {
         <div style={cardBase}>
           <div style={labelStyle}>ORTALAMA SKOR</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 8 }}>
-            <span style={{ ...metricBig, color: scoreColor(stats.avgScore) }}>{stats.avgScore}</span>
+            <span style={metricBig}>{stats.avgScore}</span>
             <span style={{ fontSize: 13, color: t.muted, fontWeight: 600 }}>/100</span>
           </div>
           <div style={{ fontSize: 12, color: t.muted, marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -189,10 +198,7 @@ export default function StatsPage({ darkMode = true }) {
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 8 }}>
             {stats.wDelta !== null ? (
               <>
-                <span style={{
-                  ...metricBig,
-                  color: stats.wDelta > 0 ? t.text : stats.wDelta < 0 ? t.muted : t.text,
-                }}>
+                <span style={metricBig}>
                   {stats.wDelta > 0 ? '+' : ''}{stats.wDelta}
                 </span>
                 <span style={{ fontSize: 13, color: t.muted, fontWeight: 600 }}>kg</span>
@@ -274,9 +280,13 @@ export default function StatsPage({ darkMode = true }) {
       <div style={{ ...cardBase, marginBottom: 12 }}>
         <div style={labelStyle}>ALIŞKANLIK BAŞARI ORANI</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
-          {stats.habitStats.map(h => (
+          {stats.habitStats.map(h => {
+            const IconComp = HABIT_ICONS[h.icon];
+            return (
             <div key={h.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 16, width: 22, textAlign: 'center' }}>{h.emoji}</span>
+              <div style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {IconComp && <IconComp size={14} color={t.text} />}
+              </div>
               <span style={{ fontSize: 12, color: t.text, fontWeight: 500, width: 110, flexShrink: 0 }}>
                 {h.label}
               </span>
@@ -301,7 +311,8 @@ export default function StatsPage({ darkMode = true }) {
                 {h.done}/{h.total}
               </span>
             </div>
-          ))}
+          );})}
+
         </div>
       </div>
 

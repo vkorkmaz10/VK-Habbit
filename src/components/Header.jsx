@@ -47,16 +47,8 @@ export default function Header({ selectedDateStr, onSelectDate, refreshTrigger, 
   // Todo: dark theme = white, light theme = black (with neon glow)
   // Calendar: cyan. Habit: green.
   let accentColor, accentGlow;
-  if (isTodo) {
-    accentColor = darkMode ? '#ffffff' : '#000000';
-    accentGlow = darkMode ? 'rgba(255, 255, 255, 0.55)' : 'rgba(0, 0, 0, 0.45)';
-  } else if (isCalendar) {
-    accentColor = '#00d4ff';
-    accentGlow = 'rgba(0, 212, 255, 0.4)';
-  } else {
-    accentColor = '#39FF14';
-    accentGlow = 'rgba(57, 255, 20, 0.4)';
-  }
+  accentColor = darkMode ? '#ffffff' : '#000000';
+  accentGlow = darkMode ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.35)';
 
   const circleRadius = 20;
   const circleCircumference = 2 * Math.PI * circleRadius;

@@ -16,7 +16,6 @@ import { CHECKBOX_ITEMS } from '../data/constants';
 import { format, parseISO, subDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
-const ACCENT = '#00d4ff';
 
 export default function HomePage({ darkMode, setActiveTab }) {
   const t = mkTheme(darkMode);
@@ -100,7 +99,7 @@ export default function HomePage({ darkMode, setActiveTab }) {
   const metricBig = { fontSize: 32, fontWeight: 800, color: t.text, lineHeight: 1, letterSpacing: '-1px' };
   const subMetric = { fontSize: 13, color: t.muted, marginTop: 4 };
 
-  const quickLink = (label, icon, tab, color = ACCENT) => (
+  const quickLink = (label, icon, tab) => (
     <button
       onClick={() => setActiveTab?.(tab)}
       style={{
@@ -111,7 +110,7 @@ export default function HomePage({ darkMode, setActiveTab }) {
     >
       <div style={{
         width: 36, height: 36, borderRadius: 10,
-        background: `${color}20`, color,
+        background: t.hover, color: t.text,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>{icon}</div>
       <div style={{ flex: 1, fontSize: 14, fontWeight: 600, color: t.text }}>{label}</div>
@@ -119,8 +118,7 @@ export default function HomePage({ darkMode, setActiveTab }) {
     </button>
   );
 
-  // Score color
-  const scoreColor = summary.todayScore >= 80 ? '#10b981' : summary.todayScore >= 60 ? ACCENT : summary.todayScore >= 40 ? '#f59e0b' : '#ef4444';
+  const scoreColor = t.text;
 
   // Trend max for bar normalization
   const maxTrend = Math.max(100, ...summary.trend.map(d => d.score));
@@ -157,7 +155,7 @@ export default function HomePage({ darkMode, setActiveTab }) {
         <div style={cardBase}>
           <div style={labelStyle}>SERİ</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 8 }}>
-            <Flame size={26} color="#f59e0b" style={{ alignSelf: 'center' }} />
+            <Flame size={26} color={t.text} style={{ alignSelf: 'center' }} />
             <span style={metricBig}>{summary.streak}</span>
             <span style={{ fontSize: 14, color: t.muted, fontWeight: 600 }}>gün</span>
           </div>
@@ -176,12 +174,12 @@ export default function HomePage({ darkMode, setActiveTab }) {
             {summary.weightDelta !== null ? (
               <>
                 {summary.weightDelta > 0
-                  ? <TrendingUp size={13} color="#10b981" />
+                  ? <TrendingUp size={13} color={t.text} />
                   : summary.weightDelta < 0
-                    ? <TrendingDown size={13} color="#ef4444" />
+                    ? <TrendingDown size={13} color={t.muted} />
                     : <Activity size={13} color={t.muted} />}
                 <span style={{
-                  color: summary.weightDelta > 0 ? '#10b981' : summary.weightDelta < 0 ? '#ef4444' : t.muted,
+                  color: summary.weightDelta > 0 ? t.text : summary.weightDelta < 0 ? t.muted : t.muted,
                   fontWeight: 600,
                 }}>
                   {summary.weightDelta > 0 ? '+' : ''}{summary.weightDelta} kg son ölçüm
@@ -217,7 +215,7 @@ export default function HomePage({ darkMode, setActiveTab }) {
             onClick={() => setActiveTab?.('stats')}
             style={{
               background: 'transparent', border: 'none', cursor: 'pointer',
-              color: ACCENT, fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+              color: t.text, fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
               display: 'flex', alignItems: 'center', gap: 4,
             }}
           >
@@ -231,7 +229,7 @@ export default function HomePage({ darkMode, setActiveTab }) {
           {summary.trend.map((d, i) => {
             const h = Math.max(4, (d.score / maxTrend) * 90);
             const isToday = d.dateStr === todayStr;
-            const c = d.score >= 80 ? '#10b981' : d.score >= 60 ? ACCENT : d.score >= 40 ? '#f59e0b' : '#ef4444';
+            const c = d.score >= 60 ? t.text : t.muted;
             return (
               <div key={i} style={{
                 flex: 1, display: 'flex', flexDirection: 'column',
@@ -269,7 +267,7 @@ export default function HomePage({ darkMode, setActiveTab }) {
             onClick={() => setActiveTab?.('habits')}
             style={{
               background: 'transparent', border: 'none', cursor: 'pointer',
-              color: ACCENT, fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+              color: t.text, fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
               display: 'flex', alignItems: 'center', gap: 4,
             }}
           >
@@ -285,13 +283,13 @@ export default function HomePage({ darkMode, setActiveTab }) {
               <div key={item.id} style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '8px 10px', borderRadius: 10,
-                background: done ? `${ACCENT}15` : t.hover,
-                border: `1px solid ${done ? `${ACCENT}40` : t.inputBorder}`,
-                opacity: done ? 1 : 0.7,
+                background: done ? t.hover : t.hover,
+                border: `1px solid ${done ? t.inputBorder : t.inputBorder}`,
+                opacity: done ? 1 : 0.5,
               }}>
                 <span style={{ fontSize: 14 }}>{item.emoji}</span>
                 <span style={{
-                  fontSize: 11, color: done ? ACCENT : t.text,
+                  fontSize: 11, color: done ? t.text : t.muted,
                   fontWeight: done ? 700 : 500,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
@@ -311,7 +309,6 @@ export default function HomePage({ darkMode, setActiveTab }) {
           summary.tasksOpen > 0 ? `${summary.tasksOpen} açık görev` : 'Tüm görevler tamam',
           <ListTodo size={18} />,
           'todo',
-          summary.tasksOpen > 0 ? ACCENT : '#10b981',
         )}
         {quickLink(
           (() => {
@@ -322,19 +319,16 @@ export default function HomePage({ darkMode, setActiveTab }) {
           })(),
           <CalIcon size={18} />,
           'calendar',
-          '#bd00ff',
         )}
         {quickLink(
           'İçerik üret',
           <Dumbbell size={18} />,
           'content',
-          '#f59e0b',
         )}
         {quickLink(
           'İstatistikler',
           <Activity size={18} />,
           'stats',
-          '#10b981',
         )}
       </div>
     </div>

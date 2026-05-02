@@ -10,7 +10,6 @@ import { getActiveDateString } from '../utils/date';
 import { mkTheme } from '../theme';
 import Header from './Header';
 
-const ACCENT = '#00d4ff';
 const POMODORO_DURATION = 25 * 60;
 
 const MODE_CONFIG = {
@@ -202,8 +201,8 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
     flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
     padding: '10px 14px', borderRadius: 12, border: 'none', cursor: 'pointer',
     fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
-    background: active ? ACCENT : t.hover,
-    color: active ? '#0a0a0a' : t.text,
+    background: active ? t.accent : t.hover,
+    color: active ? t.accentText : t.text,
     transition: 'background 0.15s, color 0.15s',
   });
   const iconBtn = {
@@ -219,7 +218,7 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
   };
   const btnPrimary = {
     flex: 1, padding: '12px 16px', borderRadius: 12, border: 'none', cursor: 'pointer',
-    background: ACCENT, color: '#0a0a0a', fontWeight: 700, fontSize: 14, fontFamily: 'inherit',
+    background: t.accent, color: t.accentText, fontWeight: 700, fontSize: 14, fontFamily: 'inherit',
   };
   const btnGhost = {
     flex: 1, padding: '12px 16px', borderRadius: 12, cursor: 'pointer',
@@ -331,15 +330,15 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
                 ...cardBase, padding: 14, position: 'relative',
                 display: 'flex', alignItems: 'center', gap: 12,
                 opacity: task.done ? 0.55 : 1,
-                border: isPomoRunning ? `1px solid ${ACCENT}` : t.cardBorder,
-                boxShadow: isPomoRunning ? `0 0 0 1px ${ACCENT}33, ${t.cardShadow}` : t.cardShadow,
+                border: isPomoRunning ? `1px solid ${t.accent}` : t.cardBorder,
+                boxShadow: t.cardShadow,
               }}>
                 {rolloverDays > 0 && !task.done && (
                   <div style={{
                     position: 'absolute', top: 6, right: 6,
                     display: 'flex', alignItems: 'center', gap: 3,
                     padding: '2px 6px', borderRadius: 8,
-                    background: 'rgba(255,165,0,0.15)', color: '#ffa500',
+                    background: t.border, color: t.muted,
                     fontSize: 10, fontWeight: 700,
                   }}>
                     <RotateCcw size={10} />
@@ -359,10 +358,10 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
                 >
                   <div style={{
                     width: 24, height: 24, borderRadius: 8, flexShrink: 0,
-                    background: task.done ? ACCENT : 'transparent',
+                    background: task.done ? t.accent : 'transparent',
                     border: task.done ? 'none' : `2px solid ${t.inputBorder}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#0a0a0a', fontWeight: 700, fontSize: 14,
+                    color: t.accentText, fontWeight: 700, fontSize: 14,
                   }}>
                     {task.done && '✓'}
                   </div>
@@ -398,8 +397,8 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
                     title={isPomoActive ? 'Sayacı Göster' : 'Çalışmaya Başla'}
                     style={{
                       width: 32, height: 32, borderRadius: 10, border: 'none',
-                      background: isPomoActive ? ACCENT : t.hover,
-                      color: isPomoActive ? '#0a0a0a' : t.text,
+                      background: isPomoActive ? t.accent : t.hover,
+                      color: isPomoActive ? t.accentText : t.text,
                       cursor: (pomodoro !== null && !isPomoActive) ? 'not-allowed' : 'pointer',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       opacity: (pomodoro !== null && !isPomoActive) ? 0.4 : 1,
@@ -457,9 +456,9 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
             onClick={() => { setFabOpen(o => !o); setFabMode(null); }}
             style={{
               width: 56, height: 56, borderRadius: 18, border: 'none', cursor: 'pointer',
-              background: ACCENT, color: '#0a0a0a',
+              background: t.accent, color: t.accentText,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: `0 8px 24px ${ACCENT}55`,
+              boxShadow: t.shadow,
               transform: fabOpen ? 'rotate(45deg)' : 'rotate(0)',
               transition: 'transform 0.2s',
             }}
@@ -474,13 +473,13 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
         <div style={overlayStyle} onClick={() => setShowPomoPopup(false)}>
           <div style={{ ...modalStyle, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 12 }}>
-              <Timer size={18} color={ACCENT} />
+              <Timer size={18} color={t.text} />
               <span style={{ fontSize: 12, color: t.muted, letterSpacing: '1px' }}>POMODORO</span>
             </div>
             <div style={{ position: 'relative', width: 200, height: 200, margin: '0 auto 20px' }}>
               <svg viewBox="0 0 200 200" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
                 <circle cx="100" cy="100" r="90" fill="none" stroke={t.progressTrack} strokeWidth="10" />
-                <circle cx="100" cy="100" r="90" fill="none" stroke={ACCENT} strokeWidth="10"
+                <circle cx="100" cy="100" r="90" fill="none" stroke={t.accent} strokeWidth="10"
                   strokeLinecap="round" strokeDasharray={pomoCirc} strokeDashoffset={pomoOff}
                   style={{ transition: 'stroke-dashoffset 1s linear' }} />
               </svg>
@@ -514,7 +513,7 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
           <div style={modalStyle} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
               <span style={{ fontSize: 24 }}>{MODE_CONFIG[fabMode].emoji}</span>
-              <h3 style={{ color: ACCENT, margin: 0, fontSize: 18 }}>{MODE_CONFIG[fabMode].label} Görevi Ekle</h3>
+              <h3 style={{ color: t.text, margin: 0, fontSize: 18 }}>{MODE_CONFIG[fabMode].label} Görevi Ekle</h3>
             </div>
             <input ref={inputRef} type="text" value={newTaskText}
               onChange={e => setNewTaskText(e.target.value)}
@@ -541,7 +540,7 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
           <div style={modalStyle} onClick={e => e.stopPropagation()}>
             {confirmModal.pomodoroWarning ? (
               <>
-                <h3 style={{ marginTop: 0, marginBottom: 12, color: ACCENT, fontSize: 18 }}>⏳ Pomodoro Aktif!</h3>
+                <h3 style={{ marginTop: 0, marginBottom: 12, color: t.text, fontSize: 18 }}>⏳ Pomodoro Aktif!</h3>
                 <p style={{ color: t.muted, marginBottom: 20, lineHeight: 1.5, fontSize: 14 }}>
                   <strong style={{ color: t.text }}>"{confirmModal.task.txt}"</strong> görevi için Pomodoro sayacı çalışıyor. Tamamlanırsa sayacınız iptal edilecek.<br /><br />
                   Görevi tamamlamak istiyor musunuz?
@@ -557,13 +556,13 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
               </>
             ) : (
               <>
-                <h3 style={{ marginTop: 0, marginBottom: 12, color: ACCENT, fontSize: 18 }}>Emin misiniz?</h3>
+                <h3 style={{ marginTop: 0, marginBottom: 12, color: t.text, fontSize: 18 }}>Emin misiniz?</h3>
                 <p style={{ color: t.muted, marginBottom: 20, lineHeight: 1.5, fontSize: 14 }}>
                   <strong style={{ color: t.text }}>"{confirmModal.task.txt}"</strong> görevinin tamamlanma durumunu kaldırmak istediğinize emin misiniz?
                 </p>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button style={btnGhost} onClick={() => setConfirmModal(null)}>Vazgeç</button>
-                  <button style={{ ...btnPrimary, background: '#ef4444', color: '#fff' }} onClick={confirmUncheck}>Evet, Kaldır</button>
+                  <button style={btnPrimary} onClick={confirmUncheck}>Evet, Kaldır</button>
                 </div>
               </>
             )}
@@ -576,7 +575,7 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
         <div style={overlayStyle} onClick={() => setPomodoroCompleteModal(null)}>
           <div style={{ ...modalStyle, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>🎉</div>
-            <h3 style={{ color: ACCENT, margin: '0 0 8px', fontSize: 20 }}>Pomodoro Tamamlandı!</h3>
+            <h3 style={{ color: t.text, margin: '0 0 8px', fontSize: 20 }}>Pomodoro Tamamlandı!</h3>
             <p style={{ color: t.muted, lineHeight: 1.5, marginBottom: 20, fontSize: 14 }}>
               25 dakikalık çalışma süreniz doldu.<br />
               Görevi tamamladıysanız kutucuğu işaretleyin.
@@ -592,7 +591,7 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
           <div style={modalStyle} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
               <span style={{ fontSize: 24 }}>{MODE_CONFIG[editModal.task.size]?.emoji}</span>
-              <h3 style={{ color: ACCENT, margin: 0, fontSize: 18 }}>Görevi Düzenle</h3>
+              <h3 style={{ color: t.text, margin: 0, fontSize: 18 }}>Görevi Düzenle</h3>
             </div>
             <input type="text" value={editText} autoFocus
               onChange={e => setEditText(e.target.value)}
@@ -624,7 +623,7 @@ export default function TodoPage({ darkMode, selectedDateStr, setSelectedDateStr
         }}>
           <span>Görev silindi</span>
           <button onClick={handleUndo} style={{
-            background: 'transparent', border: 'none', color: ACCENT,
+            background: 'transparent', border: 'none', color: t.text,
             fontWeight: 700, cursor: 'pointer', fontSize: 13, letterSpacing: '0.5px',
           }}>GERİ AL</button>
         </div>

@@ -63,7 +63,7 @@ function HabitCard({ item, checked, onToggle, disabled, t, darkMode }) {
     >
       <div style={{
         width: 26, height: 26, borderRadius: 8,
-        border: `2px solid ${checked ? t.text : (darkMode ? '#3a3a3e' : '#d6d6d6')}`,
+        border: `2px solid ${checked ? t.text : t.inputBorder}`,
         background: checked ? t.text : 'transparent',
         display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
         transition: 'all 0.15s',
@@ -104,7 +104,8 @@ function WeightCard({ value, onChange, onCommit, disabled, bounds, savedFlash, t
         {savedFlash && (
           <span style={{
             fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 999,
-            background: 'rgba(34,197,94,0.2)', color: '#4ade80',
+            background: darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+            color: darkMode ? t.cardDarkText : t.text,
             transition: 'opacity 0.3s',
           }}>✓ Kaydedildi</span>
         )}
@@ -148,9 +149,9 @@ function MuscleModal({ initial, onSave, onClose }) {
                 onClick={() => toggle(muscle)}
                 style={{
                   padding: '14px 10px', borderRadius: '12px', textAlign: 'center', cursor: 'pointer',
-                  border: isSelected ? '2px solid var(--accent-color)' : '2px solid transparent',
-                  background: isSelected ? 'rgba(57, 255, 20, 0.1)' : 'rgba(255,255,255,0.05)',
-                  color: isSelected ? 'var(--accent-color)' : 'white',
+                  border: isSelected ? '2px solid var(--pvk-text)' : '2px solid transparent',
+                  background: isSelected ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)',
+                  color: isSelected ? 'var(--pvk-text)' : 'white',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'all 0.2s ease',
                 }}>

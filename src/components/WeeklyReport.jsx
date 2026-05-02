@@ -69,19 +69,19 @@ export default function WeeklyReport({ selectedDateStr, refreshTrigger, darkMode
 
       if (weightDiff < 0) {
         feedback = 'Kilo Kaybı';
-        feedbackColor = '#f87171';
+        feedbackColor = 'rgba(255,255,255,0.55)';
       } else if (weightDiff >= 0 && weightDiff <= 0.3) {
         feedback = 'Düşük';
-        feedbackColor = '#fbbf24';
+        feedbackColor = 'rgba(255,255,255,0.4)';
       } else if (weightDiff > 0.3 && weightDiff <= 0.6) {
         feedback = 'İyi';
-        feedbackColor = '#4ade80';
+        feedbackColor = 'rgba(255,255,255,0.75)';
       } else if (weightDiff > 0.6 && weightDiff <= 1.0) {
         feedback = 'Çok İyi';
-        feedbackColor = '#4ade80';
+        feedbackColor = 'rgba(255,255,255,0.75)';
       } else if (weightDiff > 1.0) {
         feedback = 'Fazla Hızlı';
-        feedbackColor = '#f87171';
+        feedbackColor = 'rgba(255,255,255,0.55)';
       }
     }
 
@@ -189,9 +189,9 @@ export default function WeeklyReport({ selectedDateStr, refreshTrigger, darkMode
                 fontSize: 12,
                 padding: '4px 12px',
                 borderRadius: 12,
-                background: isWorked ? 'rgba(57, 255, 20, 0.18)' : 'rgba(255,255,255,0.06)',
-                color: isWorked ? '#39ff14' : cardMuted,
-                border: isWorked ? '1px solid rgba(57, 255, 20, 0.5)' : '1px solid transparent',
+                background: isWorked ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.06)',
+                color: isWorked ? cardText : cardMuted,
+                border: isWorked ? '1px solid rgba(255,255,255,0.35)' : '1px solid transparent',
                 fontWeight: 600,
               }}>
                 {label}

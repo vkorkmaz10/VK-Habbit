@@ -14,23 +14,17 @@ import {
 } from '../utils/storage';
 import { mkTheme } from '../theme';
 
-const ACCENT = '#00d4ff';
-const DANGER = '#ef4444';
-const SUCCESS = '#10b981';
-const PURPLE = '#bd00ff';
-const AMBER = '#f59e0b';
-
 const GEMINI_KEY_STORAGE = 'lifeos_gemini_key';
 const CC_KEY_STORAGE = 'lifeos_cc_key';
 const KEY_REVEAL_PASSWORD = 'vk2017';
 const DELETE_PASSWORD = 'vk2017';
 
 const SECTIONS = [
-  { key: 'keys',    label: 'API Anahtarları', sub: 'Gemini, CryptoCompare, Anthropic', icon: Key,      color: ACCENT },
-  { key: 'reach',   label: 'ReachOS',         sub: 'Tahmin & profil',                  icon: Sparkles, color: PURPLE },
-  { key: 'backup',  label: 'Yedekleme',       sub: 'Dışa / içe aktarma',               icon: Database, color: SUCCESS },
-  { key: 'about',   label: 'Uygulama',        sub: 'Sürüm & depolama',                 icon: Info,     color: AMBER },
-  { key: 'danger',  label: 'Tehlikeli Bölge', sub: 'Tüm verileri sil',                 icon: AlertTriangle, color: DANGER },
+  { key: 'keys',    label: 'API Anahtarları', sub: 'Gemini, CryptoCompare, Anthropic', icon: Key          },
+  { key: 'reach',   label: 'ReachOS',         sub: 'Tahmin & profil',                  icon: Sparkles     },
+  { key: 'backup',  label: 'Yedekleme',       sub: 'Dışa / içe aktarma',               icon: Database     },
+  { key: 'about',   label: 'Uygulama',        sub: 'Sürüm & depolama',                 icon: Info         },
+  { key: 'danger',  label: 'Tehlikeli Bölge', sub: 'Tüm verileri sil',                 icon: AlertTriangle },
 ];
 
 export default function SettingsView({ darkMode = true }) {
@@ -219,10 +213,10 @@ export default function SettingsView({ darkMode = true }) {
   const btn = (variant = 'default', extra = {}) => {
     const variants = {
       default:  { bg: t.hover, color: t.text, border: `1px solid ${t.inputBorder}` },
-      primary:  { bg: ACCENT, color: '#0a0a0a', border: 'none' },
+      primary:  { bg: t.accent, color: t.accentText, border: 'none' },
       ghost:    { bg: 'transparent', color: t.text, border: `1px solid ${t.inputBorder}` },
-      danger:   { bg: DANGER, color: '#fff', border: 'none' },
-      dangerSoft: { bg: 'rgba(239,68,68,0.12)', color: DANGER, border: '1px solid rgba(239,68,68,0.3)' },
+      danger:   { bg: t.accent, color: t.accentText, border: 'none' },
+      dangerSoft: { bg: t.border, color: t.text, border: `1px solid ${t.inputBorder}` },
     };
     const v = variants[variant] || variants.default;
     return {
@@ -250,15 +244,15 @@ export default function SettingsView({ darkMode = true }) {
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,
       padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600,
-      background: active ? `${SUCCESS}15` : t.hover,
-      color: active ? SUCCESS : t.muted,
-      border: `1px solid ${active ? `${SUCCESS}40` : t.inputBorder}`,
+      background: active ? t.hover : t.hover,
+      color: active ? t.text : t.muted,
+      border: `1px solid ${active ? t.inputBorder : t.inputBorder}`,
       whiteSpace: 'nowrap',
     }}>
       <span style={{
         width: 6, height: 6, borderRadius: '50%',
-        background: active ? SUCCESS : t.muted,
-        boxShadow: active ? `0 0 6px ${SUCCESS}` : 'none',
+        background: active ? t.text : t.muted,
+        boxShadow: 'none',
       }} />
       {label}
     </span>
@@ -270,7 +264,7 @@ export default function SettingsView({ darkMode = true }) {
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
         <div style={{
           width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-          background: `${accentColor}15`, color: accentColor,
+          background: t.hover, color: t.text,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {icon}
@@ -325,8 +319,8 @@ export default function SettingsView({ darkMode = true }) {
         <KeyField
           icon={<Sparkles size={18} />}
           title="Gemini API Key"
-          accentColor={ACCENT}
-          descNode={<>İçerik üretimi için gerekli. <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: ACCENT, textDecoration: 'none', fontWeight: 600 }}>Buradan al ↗</a></>}
+          accentColor={t.text}
+          descNode={<>İçerik üretimi için gerekli. <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: t.text, textDecoration: 'none', fontWeight: 600 }}>Buradan al ↗</a></>}
           value={geminiKey}
           refEl={keyInputRef}
           show={showKey}
@@ -338,8 +332,8 @@ export default function SettingsView({ darkMode = true }) {
         <KeyField
           icon={<Database size={18} />}
           title="CryptoCompare API Key"
-          accentColor={AMBER}
-          descNode={<>Haber paneli için gerekli. <a href="https://www.cryptocompare.com/cryptopian/api-keys" target="_blank" rel="noopener noreferrer" style={{ color: ACCENT, textDecoration: 'none', fontWeight: 600 }}>Buradan al ↗</a></>}
+          accentColor={t.text}
+          descNode={<>Haber paneli için gerekli. <a href="https://www.cryptocompare.com/cryptopian/api-keys" target="_blank" rel="noopener noreferrer" style={{ color: t.text, textDecoration: 'none', fontWeight: 600 }}>Buradan al ↗</a></>}
           value={ccKey}
           refEl={ccKeyInputRef}
           show={showCcKey}
@@ -351,8 +345,8 @@ export default function SettingsView({ darkMode = true }) {
         <KeyField
           icon={<Bot size={18} />}
           title="Anthropic API Key"
-          accentColor={PURPLE}
-          descNode={<>ReachOS AI-augmented kontroller için opsiyonel. <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" style={{ color: ACCENT, textDecoration: 'none', fontWeight: 600 }}>Buradan al ↗</a></>}
+          accentColor={t.text}
+          descNode={<>ReachOS AI-augmented kontroller için opsiyonel. <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" style={{ color: t.text, textDecoration: 'none', fontWeight: 600 }}>Buradan al ↗</a></>}
           value={anthropicKey}
           refEl={anthropicKeyInputRef}
           show={showAnthropicKey}
@@ -369,7 +363,7 @@ export default function SettingsView({ darkMode = true }) {
         <KeyField
           icon={<AtSign size={18} />}
           title="𝕏 Takipçi Sayısı"
-          accentColor={PURPLE}
+          accentColor={t.text}
           descNode="Tahmini erişim hesabı için. Boş bırakırsan forecast bloğu gizlenir."
           value={xFollowers || ''}
           refEl={xFollowersInputRef}
@@ -384,15 +378,15 @@ export default function SettingsView({ darkMode = true }) {
           <div style={sectionTitle()}>NASIL ÇALIŞIR</div>
           <div style={{ fontSize: 13, color: t.text, lineHeight: 1.6, marginTop: 10 }}>
             <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
-              <Zap size={16} color={ACCENT} style={{ flexShrink: 0, marginTop: 2 }} />
+              <Zap size={16} color={t.text} style={{ flexShrink: 0, marginTop: 2 }} />
               <span><b>Reach Score:</b> Üretilen tweet'in 50+ kuralla puanlanması.</span>
             </div>
             <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
-              <Sparkles size={16} color={PURPLE} style={{ flexShrink: 0, marginTop: 2 }} />
+              <Sparkles size={16} color={t.text} style={{ flexShrink: 0, marginTop: 2 }} />
               <span><b>Forecast:</b> Takipçi sayına göre tahmini gösterim/etkileşim.</span>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <Bot size={16} color={SUCCESS} style={{ flexShrink: 0, marginTop: 2 }} />
+              <Bot size={16} color={t.text} style={{ flexShrink: 0, marginTop: 2 }} />
               <span><b>AI-augmented:</b> Anthropic key varsa hook & slop kontrolü Claude ile.</span>
             </div>
           </div>
@@ -406,7 +400,7 @@ export default function SettingsView({ darkMode = true }) {
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
             <div style={{
               width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-              background: `${SUCCESS}15`, color: SUCCESS,
+              background: t.hover, color: t.text,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <Shield size={18} />
@@ -437,9 +431,9 @@ export default function SettingsView({ darkMode = true }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
             <div style={{
               width: 48, height: 48, borderRadius: 12,
-              background: `linear-gradient(135deg, ${ACCENT}, ${PURPLE})`,
+              background: t.accent,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#0a0a0a', fontWeight: 800, fontSize: 18,
+              color: t.accentText, fontWeight: 800, fontSize: 18,
             }}>
               VK
             </div>
@@ -451,9 +445,9 @@ export default function SettingsView({ darkMode = true }) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[
-              { icon: HardDrive, label: 'Depolama', value: `${stats.totalKB} KB`, color: ACCENT },
-              { icon: Database, label: 'Kayıtlı Gün', value: `${stats.dayCount} gün`, color: SUCCESS },
-            ].map(({ icon: Ic, label, value, color }) => (
+              { icon: HardDrive, label: 'Depolama', value: `${stats.totalKB} KB` },
+              { icon: Database, label: 'Kayıtlı Gün', value: `${stats.dayCount} gün` },
+            ].map(({ icon: Ic, label, value }) => (
               <div key={label} style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '12px 14px', borderRadius: 12,
@@ -461,7 +455,7 @@ export default function SettingsView({ darkMode = true }) {
               }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: 8,
-                  background: `${color}15`, color,
+                  background: t.border, color: t.text,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                   <Ic size={15} />
@@ -478,22 +472,22 @@ export default function SettingsView({ darkMode = true }) {
     if (section === 'danger') return (
       <div style={{
         ...cardBase,
-        border: `1px solid rgba(239,68,68,0.4)`,
-        background: darkMode ? 'rgba(239,68,68,0.04)' : 'rgba(239,68,68,0.03)',
+        border: `1px solid ${t.inputBorder}`,
+        background: t.hover,
       }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
           <div style={{
             width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-            background: `${DANGER}15`, color: DANGER,
+            background: t.border, color: t.text,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <AlertTriangle size={18} />
           </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: DANGER }}>Tehlikeli Bölge</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Tehlikeli Bölge</div>
             <div style={{ fontSize: 12, color: t.muted, marginTop: 4, lineHeight: 1.5 }}>
               Tüm verileriniz (alışkanlıklar, görevler, takvim, içerikler, API anahtarları) kalıcı olarak silinir.
-              Bu işlem <b style={{ color: DANGER }}>geri alınamaz</b>.
+              Bu işlem <b>geri alınamaz</b>.
             </div>
           </div>
         </div>
@@ -540,15 +534,15 @@ export default function SettingsView({ darkMode = true }) {
                   background: active ? t.hover : 'transparent',
                   color: t.text, fontFamily: 'inherit', textAlign: 'left',
                   transition: 'background 0.15s',
-                  '--pvk-active-color': s.color,
-                  '--pvk-active-bg': `${s.color}20`,
-                  '--pvk-active-border': `${s.color}40`,
+                  '--pvk-active-color': t.text,
+                  '--pvk-active-bg': t.hover,
+                  '--pvk-active-border': t.inputBorder,
                 }}
               >
                 <div className="settings-nav-icon" style={{
-                  background: active ? `${s.color}20` : t.hover,
-                  color: s.color,
-                  border: active ? `1px solid ${s.color}40` : `1px solid transparent`,
+                  background: active ? t.border : t.hover,
+                  color: t.text,
+                  border: active ? `1px solid ${t.inputBorder}` : `1px solid transparent`,
                 }}>
                   <Ic size={16} />
                 </div>
@@ -576,7 +570,7 @@ export default function SettingsView({ darkMode = true }) {
           <div style={modalStyle(340)} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: t.text }}>
-                <Key size={16} color={ACCENT} /> API Key'i Görüntüle
+                <Key size={16} color={t.text} /> API Key'i Görüntüle
               </div>
               <button onClick={() => setKeyRevealModal(null)} style={{ background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer' }}>
                 <X size={16} />
@@ -592,9 +586,9 @@ export default function SettingsView({ darkMode = true }) {
               onKeyDown={e => e.key === 'Enter' && confirmReveal()}
               placeholder="Şifre"
               autoFocus
-              style={{ ...inputStyle, borderColor: revealError ? DANGER : t.inputBorder }}
+              style={{ ...inputStyle, borderColor: revealError ? t.text : t.inputBorder }}
             />
-            {revealError && <div style={{ color: DANGER, fontSize: 12, marginTop: 6 }}>Hatalı şifre.</div>}
+            {revealError && <div style={{ color: t.text, fontSize: 12, marginTop: 6 }}>Hatalı şifre.</div>}
             <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
               <button style={{ ...btn('ghost'), flex: 1 }} onClick={() => setKeyRevealModal(null)}>İptal</button>
               <button style={{ ...btn('primary'), flex: 1 }} onClick={confirmReveal}>Göster</button>
@@ -608,9 +602,9 @@ export default function SettingsView({ darkMode = true }) {
         <div style={overlayStyle} onClick={() => setImportModal(null)}>
           <div style={modalStyle()} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: t.text, marginBottom: 6 }}>
-              <Upload size={16} color={ACCENT} /> Veri İçe Aktar
+              <Upload size={16} color={t.text} /> Veri İçe Aktar
             </div>
-            <div style={{ fontSize: 12, color: ACCENT, marginBottom: 10, fontFamily: 'monospace' }}>
+            <div style={{ fontSize: 12, color: t.text, marginBottom: 10, fontFamily: 'monospace' }}>
               {importModal.filename}
             </div>
             <div style={{ fontSize: 13, color: t.muted, marginBottom: 12 }}>Mevcut verileriniz ne olsun?</div>
@@ -623,13 +617,13 @@ export default function SettingsView({ darkMode = true }) {
                 return (
                   <label key={opt.key} style={{
                     display: 'flex', gap: 10, padding: 12, borderRadius: 12,
-                    border: `2px solid ${sel ? ACCENT : t.inputBorder}`,
-                    background: sel ? `${ACCENT}15` : t.hover, cursor: 'pointer',
+                    border: `2px solid ${sel ? t.text : t.inputBorder}`,
+                    background: sel ? t.hover : t.hover, cursor: 'pointer',
                   }}>
                     <input
                       type="radio" name="importMode" value={opt.key}
                       checked={sel} onChange={() => setImportMode(opt.key)}
-                      style={{ marginTop: 2, accentColor: ACCENT }}
+                      style={{ marginTop: 2, accentColor: t.text }}
                     />
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: 13, color: t.text }}>{opt.title}</strong>
@@ -651,7 +645,7 @@ export default function SettingsView({ darkMode = true }) {
       {deleteModal && (
         <div style={overlayStyle} onClick={() => setDeleteModal(false)}>
           <div style={modalStyle(340)} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: DANGER, marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: t.text, marginBottom: 8 }}>
               <AlertTriangle size={16} /> Tüm Verileri Sil
             </div>
             <div style={{ fontSize: 13, color: t.muted, marginBottom: 12 }}>
@@ -691,14 +685,11 @@ export default function SettingsView({ darkMode = true }) {
           background: t.cardDark, color: t.cardDarkText,
           boxShadow: t.shadow, fontSize: 13, fontWeight: 500,
           display: 'flex', alignItems: 'center', gap: 10,
-          borderLeft: `3px solid ${
-            toast.type === 'error' ? DANGER :
-            toast.type === 'info' ? ACCENT : SUCCESS
-          }`,
+          borderLeft: `3px solid ${t.text}`,
         }}>
-          {toast.type === 'success' && <CheckCircle size={15} color={SUCCESS} />}
-          {toast.type === 'error' && <AlertTriangle size={15} color={DANGER} />}
-          {toast.type === 'info' && <Info size={15} color={ACCENT} />}
+          {toast.type === 'success' && <CheckCircle size={15} color={t.text} />}
+          {toast.type === 'error' && <AlertTriangle size={15} color={t.text} />}
+          {toast.type === 'info' && <Info size={15} color={t.text} />}
           {toast.message}
         </div>
       )}

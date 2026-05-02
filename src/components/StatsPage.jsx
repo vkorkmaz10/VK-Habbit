@@ -11,14 +11,13 @@ import { CHECKBOX_ITEMS } from '../data/constants';
 import { format, parseISO, subDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
-const ACCENT = '#00d4ff';
 const RANGES = [
   { key: 7,  label: '7G' },
   { key: 14, label: '14G' },
   { key: 30, label: '30G' },
 ];
 
-export default function StatsPage({ darkMode }) {
+export default function StatsPage({ darkMode = true }) {
   const t = mkTheme(darkMode);
   const [range, setRange] = useState(14);
 
@@ -97,7 +96,7 @@ export default function StatsPage({ darkMode }) {
   const labelStyle = { fontSize: 11, color: t.muted, letterSpacing: '0.5px', fontWeight: 600, textTransform: 'uppercase' };
   const metricBig = { fontSize: 28, fontWeight: 800, color: t.text, lineHeight: 1, letterSpacing: '-0.5px' };
 
-  const scoreColor = (s) => s >= 80 ? '#10b981' : s >= 60 ? ACCENT : s >= 40 ? '#f59e0b' : '#ef4444';
+  const scoreColor = (s) => s >= 60 ? t.text : t.muted;
 
   // SVG weight line
   const weightSvg = useMemo(() => {
@@ -154,9 +153,9 @@ export default function StatsPage({ darkMode }) {
           </div>
           <div style={{ fontSize: 12, color: t.muted, marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
             {stats.trendDelta > 0
-              ? <><TrendingUp size={13} color="#10b981" /><span style={{ color: '#10b981', fontWeight: 600 }}>+{stats.trendDelta}</span></>
+              ? <><TrendingUp size={13} color={t.text} /><span style={{ color: t.text, fontWeight: 600 }}>+{stats.trendDelta}</span></>
               : stats.trendDelta < 0
-                ? <><TrendingDown size={13} color="#ef4444" /><span style={{ color: '#ef4444', fontWeight: 600 }}>{stats.trendDelta}</span></>
+                ? <><TrendingDown size={13} color={t.muted} /><span style={{ color: t.muted, fontWeight: 600 }}>{stats.trendDelta}</span></>
                 : <><Activity size={13} color={t.muted} /><span>Sabit</span></>}
             <span style={{ marginLeft: 4 }}>son yarıda</span>
           </div>
@@ -165,7 +164,7 @@ export default function StatsPage({ darkMode }) {
         <div style={cardBase}>
           <div style={labelStyle}>EN YÜKSEK</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 8 }}>
-            <Award size={22} color="#10b981" style={{ alignSelf: 'center' }} />
+            <Award size={22} color={t.text} style={{ alignSelf: 'center' }} />
             <span style={{ ...metricBig, color: scoreColor(stats.maxScore) }}>{stats.maxScore}</span>
           </div>
           <div style={{ fontSize: 12, color: t.muted, marginTop: 6 }}>
@@ -176,7 +175,7 @@ export default function StatsPage({ darkMode }) {
         <div style={cardBase}>
           <div style={labelStyle}>ANTRENMAN</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 8 }}>
-            <Dumbbell size={22} color={ACCENT} style={{ alignSelf: 'center' }} />
+            <Dumbbell size={22} color={t.text} style={{ alignSelf: 'center' }} />
             <span style={metricBig}>{stats.workoutDays}</span>
             <span style={{ fontSize: 13, color: t.muted, fontWeight: 600 }}>gün</span>
           </div>
@@ -192,7 +191,7 @@ export default function StatsPage({ darkMode }) {
               <>
                 <span style={{
                   ...metricBig,
-                  color: stats.wDelta > 0 ? '#10b981' : stats.wDelta < 0 ? '#ef4444' : t.text,
+                  color: stats.wDelta > 0 ? t.text : stats.wDelta < 0 ? t.muted : t.text,
                 }}>
                   {stats.wDelta > 0 ? '+' : ''}{stats.wDelta}
                 </span>
@@ -226,7 +225,7 @@ export default function StatsPage({ darkMode }) {
                   flex: 1, height: h, borderRadius: 4,
                   background: scoreColor(d.score),
                   opacity: isToday ? 1 : 0.6,
-                  boxShadow: isToday ? `0 0 8px ${scoreColor(d.score)}80` : 'none',
+                  boxShadow: 'none',
                   transition: 'opacity 0.15s',
                   cursor: 'pointer',
                 }}
@@ -257,12 +256,12 @@ export default function StatsPage({ darkMode }) {
           <svg viewBox={`0 0 ${weightSvg.w} ${weightSvg.h}`} preserveAspectRatio="none" style={{ width: '100%', height: 100, display: 'block' }}>
             <defs>
               <linearGradient id="wGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={ACCENT} stopOpacity="0.4" />
-                <stop offset="100%" stopColor={ACCENT} stopOpacity="0" />
+                <stop offset="0%" stopColor={t.text} stopOpacity="0.2" />
+                <stop offset="100%" stopColor={t.text} stopOpacity="0" />
               </linearGradient>
             </defs>
             <path d={weightSvg.area} fill="url(#wGrad)" />
-            <path d={weightSvg.path} fill="none" stroke={ACCENT} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+            <path d={weightSvg.path} fill="none" stroke={t.text} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
           </svg>
         ) : (
           <div style={{ textAlign: 'center', padding: 30, color: t.muted, fontSize: 13 }}>
@@ -323,15 +322,17 @@ export default function StatsPage({ darkMode }) {
               return (
                 <div key={m.name} style={{
                   padding: '10px 12px', borderRadius: 10,
-                  background: `rgba(0,212,255,${0.1 + intensity * 0.4})`,
-                  border: `1px solid rgba(0,212,255,${0.3 + intensity * 0.3})`,
+                  background: darkMode
+                    ? `rgba(255,255,255,${0.05 + intensity * 0.18})`
+                    : `rgba(0,0,0,${0.04 + intensity * 0.14})`,
+                  border: `1px solid ${t.border}`,
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{m.name}</span>
                   <span style={{
-                    fontSize: 12, fontWeight: 700, color: ACCENT,
+                    fontSize: 12, fontWeight: 700, color: t.text,
                     padding: '2px 8px', borderRadius: 6,
-                    background: t.card,
+                    background: t.hover,
                   }}>
                     {m.count}×
                   </span>

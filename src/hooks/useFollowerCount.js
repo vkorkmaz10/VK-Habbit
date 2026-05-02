@@ -2,6 +2,7 @@
 // Polling is conservative (default 30s) because the edge cache TTL is 15s
 // and X follower counts are slow-moving. Caller can override.
 import { useEffect, useRef, useState } from 'react';
+import { setXFollowers } from '../utils/storage';
 
 const ENDPOINT = '/api/x-followers';
 
@@ -21,6 +22,8 @@ export function useFollowerCount({ user = 'vkorkmaz10', intervalMs = 30000 } = {
       if (typeof data.followerCount !== 'number') throw new Error('bad shape');
       if (!aliveRef.current) return;
       setCount(data.followerCount);
+      setXFollowers(data.followerCount);
+      window.dispatchEvent(new CustomEvent('xfollowers:sync', { detail: data.followerCount }));
       setError(null);
       setUpdatedAt(Date.now());
     } catch (e) {

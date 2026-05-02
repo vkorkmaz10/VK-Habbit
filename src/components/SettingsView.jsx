@@ -47,6 +47,16 @@ export default function SettingsView({ darkMode = true }) {
   const [xFollowers, setXFollowersState] = useState(() => getXFollowers());
   const xFollowersInputRef = useRef(null);
 
+  useEffect(() => {
+    const onSync = (e) => {
+      const n = e.detail;
+      setXFollowersState(n);
+      if (xFollowersInputRef.current) xFollowersInputRef.current.value = n > 0 ? String(n) : '';
+    };
+    window.addEventListener('xfollowers:sync', onSync);
+    return () => window.removeEventListener('xfollowers:sync', onSync);
+  }, []);
+
   const [keyRevealModal, setKeyRevealModal] = useState(null);
   const [revealPwInput, setRevealPwInput] = useState('');
   const [revealError, setRevealError] = useState(false);

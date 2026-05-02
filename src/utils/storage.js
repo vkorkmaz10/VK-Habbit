@@ -1,4 +1,4 @@
-import { START_DATE_STR, getWeekDays } from './date';
+import { START_DATE_STR, getWeekDays, getActiveDateString } from './date';
 import { getDefaultChecks } from '../data/constants';
 
 const STORAGE_KEY = 'lifeos_data';
@@ -139,17 +139,10 @@ export const getTodoTasks = (dateStr) => {
 
 export const getAllOpenTasks = () => {
   const raw = getRawData();
-  // Ascending date sort → newer date overwrites older for same task ID
-  const taskMap = new Map();
-  Object.keys(raw.days).sort().forEach(dateStr => {
-    const day = raw.days[dateStr];
-    if (!day || !day.t) return;
-    day.t.forEach(task => {
-      taskMap.set(task.id, { ...task, _dateStr: dateStr });
-    });
-  });
-  return [...taskMap.values()]
-    .filter(task => !task.done)
+  const todayStr = getActiveDateString();
+  // Today is the canonical source: performRollover moves all past undone tasks here.
+  const todayTasks = raw.days[todayStr]?.t || [];
+  return todayTasks.filter(task => !task.done)
     .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
 };
 

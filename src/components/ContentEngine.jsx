@@ -1,8 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { mkTheme } from '../theme';
 import { buildSystemPrompt } from '../utils/smCreatorKnowledge';
 
-const GEMINI_KEY_STORAGE = 'engine_gemini_key';
+const GEMINI_KEY_STORAGE = 'lifeos_gemini_key';
 const HISTORY_KEY = 'engine_history';
 const MAX_HISTORY = 30;
 const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite'];
@@ -174,13 +174,17 @@ function SpinnerIcon({ size = 16 }) {
 
 // ── Main Component ─────────────────────────────────────────────────────────
 
-export default function ContentEngine({ darkMode }) {
+export default function ContentEngine({ darkMode, setActiveTab }) {
   const t = mkTheme(darkMode);
 
-  // API key state
+  // API key — tek kaynak: Ayarlar > API Anahtarları
   const [apiKey, setApiKey] = useState(() => localStorage.getItem(GEMINI_KEY_STORAGE) || '');
-  const [keyInput, setKeyInput] = useState('');
-  const [keyVisible, setKeyVisible] = useState(false);
+
+  useEffect(() => {
+    const onUpdate = () => setApiKey(localStorage.getItem(GEMINI_KEY_STORAGE) || '');
+    window.addEventListener('lifeos_key_updated', onUpdate);
+    return () => window.removeEventListener('lifeos_key_updated', onUpdate);
+  }, []);
 
   // Editor state
   const [topic, setTopic] = useState('');
@@ -200,14 +204,6 @@ export default function ContentEngine({ darkMode }) {
   // History state
   const [history, setHistory] = useState(loadHistory);
   const [activeHistoryId, setActiveHistoryId] = useState(null);
-
-  function saveKey() {
-    const trimmed = keyInput.trim();
-    if (!trimmed) return;
-    localStorage.setItem(GEMINI_KEY_STORAGE, trimmed);
-    setApiKey(trimmed);
-    setKeyInput('');
-  }
 
   function startNew() {
     setTopic('');
@@ -353,40 +349,22 @@ export default function ContentEngine({ darkMode }) {
             <p style={{ margin: '5px 0 0', fontSize: 11, color: t.muted }}>⌘+Enter ile üret</p>
           </div>
 
-          {/* Gemini Key */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Gemini API Key</label>
-              {apiKey && <span style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>✓ Kayıtlı</span>}
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                type={keyVisible ? 'text' : 'password'}
-                value={keyInput}
-                onChange={e => setKeyInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && saveKey()}
-                placeholder={apiKey ? '••••••• (değiştirmek için yaz)' : 'AIza...'}
-                style={{
-                  flex: 1, background: t.input, border: `1px solid ${t.inputBorder}`,
-                  borderRadius: 10, padding: '9px 12px', color: t.text, fontSize: 13,
-                  fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box',
-                }}
-              />
-              <button onClick={() => setKeyVisible(v => !v)} style={{ padding: '9px 11px', borderRadius: 10, border: `1px solid ${t.border}`, background: t.input, color: t.muted, cursor: 'pointer', fontSize: 13 }}>
-                {keyVisible ? '🙈' : '👁'}
+          {/* API key uyarısı */}
+          {!apiKey && (
+            <div style={{
+              padding: '10px 14px', borderRadius: 10,
+              background: t.hover, border: `1px solid ${t.inputBorder}`,
+              fontSize: 12, color: t.muted, lineHeight: 1.5,
+            }}>
+              Gemini API key girilmedi.{' '}
+              <button
+                onClick={() => setActiveTab?.('settings')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.text, fontWeight: 700, fontSize: 12, padding: 0, fontFamily: 'inherit' }}
+              >
+                Ayarlar'dan ekle →
               </button>
-              {keyInput.trim() && (
-                <button onClick={saveKey} style={{ padding: '9px 14px', borderRadius: 10, border: 'none', background: t.accent, color: t.accentText, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  Kaydet
-                </button>
-              )}
             </div>
-            {!apiKey && (
-              <p style={{ margin: '5px 0 0', fontSize: 11, color: t.muted }}>
-                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" style={{ color: t.text }}>aistudio.google.com/apikey</a> adresinden ücretsiz alabilirsin
-              </p>
-            )}
-          </div>
+          )}
 
           {/* Generate button */}
           <button

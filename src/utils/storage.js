@@ -139,19 +139,18 @@ export const getTodoTasks = (dateStr) => {
 
 export const getAllOpenTasks = () => {
   const raw = getRawData();
-  const result = [];
-  const seenIds = new Set();
+  // Ascending date sort → newer date overwrites older for same task ID
+  const taskMap = new Map();
   Object.keys(raw.days).sort().forEach(dateStr => {
     const day = raw.days[dateStr];
     if (!day || !day.t) return;
     day.t.forEach(task => {
-      if (!task.done && !seenIds.has(task.id)) {
-        seenIds.add(task.id);
-        result.push({ ...task, _dateStr: dateStr });
-      }
+      taskMap.set(task.id, { ...task, _dateStr: dateStr });
     });
   });
-  return result.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+  return [...taskMap.values()]
+    .filter(task => !task.done)
+    .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
 };
 
 export const addTodoTask = (dateStr, task) => {

@@ -12,7 +12,6 @@ import {
 } from '../utils/storage';
 import { fetchGoogleEvents, getAccounts } from '../utils/googleCalendar';
 import { getActiveDateString } from '../utils/date';
-import { CHECKBOX_ITEMS } from '../data/constants';
 import { format, parseISO, subDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
@@ -222,31 +221,27 @@ export default function HomePage({ darkMode, setActiveTab }) {
             Detaylar <ArrowRight size={12} />
           </button>
         </div>
-        <div style={{
-          display: 'flex', gap: 6, height: 130,
-        }}>
+        <div style={{ display: 'flex', gap: 6, height: 110, alignItems: 'flex-end' }}>
           {summary.trend.map((d, i) => {
+            const barH = Math.max(4, (d.score / maxTrend) * 90);
             const isToday = d.dateStr === todayStr;
             const c = d.score >= 60 ? t.text : t.muted;
             return (
               <div key={i} style={{
-                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                flex: 1, display: 'flex', flexDirection: 'column',
+                alignItems: 'center', gap: 4,
               }}>
                 <div style={{
                   fontSize: 10, color: t.muted, fontWeight: 600,
-                  height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  opacity: d.score > 0 ? 1 : 0.4,
+                  opacity: d.score > 0 ? 1 : 0,
+                  height: barH, display: 'flex', alignItems: 'flex-start',
+                  paddingTop: 3,
                 }}>
                   {d.score || ''}
                 </div>
-                <div style={{
-                  flex: 1, display: 'flex', alignItems: 'flex-end',
-                  width: '100%', justifyContent: 'center',
-                }}>
+                <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
                   <div style={{
-                    width: '100%', maxWidth: 36,
-                    height: Math.max(4, (d.score / maxTrend) * 90),
-                    borderRadius: 8,
+                    width: '100%', maxWidth: 36, height: barH, borderRadius: 8,
                     background: c, opacity: isToday ? 1 : 0.55,
                   }} />
                 </div>
@@ -254,52 +249,9 @@ export default function HomePage({ darkMode, setActiveTab }) {
                   fontSize: 11, color: isToday ? t.text : t.muted,
                   fontWeight: isToday ? 700 : 500,
                   textTransform: 'capitalize',
-                  height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                   {d.label}
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Today's checklist preview */}
-      <div style={{ ...cardBase, marginBottom: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={labelStyle}>BUGÜNÜN ALIŞKANLIKLARI</div>
-          <button
-            onClick={() => setActiveTab?.('habits')}
-            style={{
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              color: t.text, fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
-              display: 'flex', alignItems: 'center', gap: 4,
-            }}
-          >
-            Aç <ArrowRight size={12} />
-          </button>
-        </div>
-        <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8,
-        }}>
-          {CHECKBOX_ITEMS.map((item, i) => {
-            const done = summary.todayData.c[i] === 1;
-            return (
-              <div key={item.id} style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '8px 10px', borderRadius: 10,
-                background: done ? t.hover : t.hover,
-                border: `1px solid ${done ? t.inputBorder : t.inputBorder}`,
-                opacity: done ? 1 : 0.5,
-              }}>
-                <span style={{ fontSize: 14 }}>{item.emoji}</span>
-                <span style={{
-                  fontSize: 11, color: done ? t.text : t.muted,
-                  fontWeight: done ? 700 : 500,
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                }}>
-                  {item.label}
-                </span>
               </div>
             );
           })}
